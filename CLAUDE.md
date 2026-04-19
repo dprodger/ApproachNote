@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-JazzReference is a reference application for jazz music study, consisting of:
+Approach Note is a reference application for jazz music study, consisting of:
 - **Backend**: Flask API (Python 3.13) serving data from PostgreSQL
 - **iOS/Mac Apps**: SwiftUI apps for browsing jazz standards, performers, and recordings
 

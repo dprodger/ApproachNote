@@ -6,7 +6,7 @@ Issue: Data duplication for "By the River Sainte Marie" - Paul Desmond recording
 
 ## The Problem
 
-MusicBrainz treats each release's recording as a separate entity, even when it's the same audio. This results in duplicate recordings in JazzReference when:
+MusicBrainz treats each release's recording as a separate entity, even when it's the same audio. This results in duplicate recordings in Approach Note when:
 - The same performance appears on multiple compilations/box sets
 - Different releases have slightly different masters (length variations)
 - MusicBrainz contributors haven't merged the recordings

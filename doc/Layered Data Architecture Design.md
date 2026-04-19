@@ -2,7 +2,7 @@
 
 ## Problem Statement
 
-JazzReference ingests data from multiple automated sources (MusicBrainz, Wikipedia, Spotify, etc.) and also allows manual curation. Currently, these can conflict:
+Approach Note ingests data from multiple automated sources (MusicBrainz, Wikipedia, Spotify, etc.) and also allows manual curation. Currently, these can conflict:
 
 1. **Automated imports can overwrite curated data** - When re-running crawlers, manually corrected data may be lost
 2. **No way to assess crawler improvements** - Can't tell if a crawler change made things better or worse

@@ -4,7 +4,7 @@ Captured from a senior-architect review on 2026-04-10. Ordered by priority.
 
 > **Status (as of 2026-04-10):** All P0 and P1 items are complete. P2 #3 is complete across the three detail view pairs. Every remaining open item has been filed as a GitHub issue so progress is tracked there rather than in this doc — see the issue number next to each unchecked item below. This file is now a historical snapshot of the review itself; ongoing work happens in the issue tracker.
 >
-> Issues filed: [#108](https://github.com/dprodger/JazzReference/issues/108)–[#125](https://github.com/dprodger/JazzReference/issues/125).
+> Issues filed: [#108](https://github.com/dprodger/ApproachNote/issues/108)–[#125](https://github.com/dprodger/ApproachNote/issues/125).
 
 ## P0 — Do soon
 
@@ -20,9 +20,9 @@ Captured from a senior-architect review on 2026-04-10. Ordered by priority.
 
 ## P2 — Structural refactors (biggest quality-of-life wins)
 
-- [ ] **Split `Shared/Support/NetworkManager.swift`** (1,906 lines) into domain services: `SongService`, `RecordingService`, `UserService`, `RepertoireService`, `ResearchService`. Also add `@MainActor` to the class — its peers have it, this one doesn't (line 110). → [#112](https://github.com/dprodger/JazzReference/issues/112)
-- [ ] **Split `Shared/Support/Models.swift`** (1,422 lines) by domain: `Models/Song.swift`, `Models/Recording.swift`, `Models/Performer.swift`, etc. This also makes the `PreviewHelpers.swift` update step in `CLAUDE.md` less error-prone. → [#113](https://github.com/dprodger/JazzReference/issues/113)
-- [x] **Extract shared view-model logic for detail views** into `Shared/ViewModels/`. ✅ 2026-04-10 — Done across all three view pairs. Created `LoginViewModel`, `RecordingDetailViewModel`, and `SongDetailViewModel` as `@MainActor ObservableObject` classes under `apps/Shared/ViewModels/`. Each view now uses private read-only computed-property aliases for the shared `@Published` state so the ~90+ reference sites per file did not need to be rewritten. Commits `58a1149` (LoginView, -12 lines), `903d4a3` (RecordingDetailView, -5 lines net, bundled fix for Mac's dead `let networkManager` field), and `f0955e5` (SongDetailView, -129 lines, bundled fixes for Mac missing `.transcriptionCreated` / `.videoCreated` notification listeners and retirement of the `needsRecordingsRefresh` flag pattern in favor of direct `viewModel.reloadRecordings()` calls). Follow-ups surfaced during this work filed as [#108](https://github.com/dprodger/JazzReference/issues/108) (Mac SongDetailView inline subviews), [#109](https://github.com/dprodger/JazzReference/issues/109) (iOS swipe UX decision), [#110](https://github.com/dprodger/JazzReference/issues/110) (view-model async load race condition), [#111](https://github.com/dprodger/JazzReference/issues/111) (Mac post-save refresh unification).
+- [ ] **Split `Shared/Support/NetworkManager.swift`** (1,906 lines) into domain services: `SongService`, `RecordingService`, `UserService`, `RepertoireService`, `ResearchService`. Also add `@MainActor` to the class — its peers have it, this one doesn't (line 110). → [#112](https://github.com/dprodger/ApproachNote/issues/112)
+- [ ] **Split `Shared/Support/Models.swift`** (1,422 lines) by domain: `Models/Song.swift`, `Models/Recording.swift`, `Models/Performer.swift`, etc. This also makes the `PreviewHelpers.swift` update step in `CLAUDE.md` less error-prone. → [#113](https://github.com/dprodger/ApproachNote/issues/113)
+- [x] **Extract shared view-model logic for detail views** into `Shared/ViewModels/`. ✅ 2026-04-10 — Done across all three view pairs. Created `LoginViewModel`, `RecordingDetailViewModel`, and `SongDetailViewModel` as `@MainActor ObservableObject` classes under `apps/Shared/ViewModels/`. Each view now uses private read-only computed-property aliases for the shared `@Published` state so the ~90+ reference sites per file did not need to be rewritten. Commits `58a1149` (LoginView, -12 lines), `903d4a3` (RecordingDetailView, -5 lines net, bundled fix for Mac's dead `let networkManager` field), and `f0955e5` (SongDetailView, -129 lines, bundled fixes for Mac missing `.transcriptionCreated` / `.videoCreated` notification listeners and retirement of the `needsRecordingsRefresh` flag pattern in favor of direct `viewModel.reloadRecordings()` calls). Follow-ups surfaced during this work filed as [#108](https://github.com/dprodger/ApproachNote/issues/108) (Mac SongDetailView inline subviews), [#109](https://github.com/dprodger/ApproachNote/issues/109) (iOS swipe UX decision), [#110](https://github.com/dprodger/ApproachNote/issues/110) (view-model async load race condition), [#111](https://github.com/dprodger/ApproachNote/issues/111) (Mac post-save refresh unification).
 - [ ] **Group backend integrations into packages.** Mechanical refactor, huge discoverability win:
   ```
   integrations/spotify/    (client, matcher, matching, db, utils)
@@ -31,14 +31,14 @@ Captured from a senior-architect review on 2026-04-10. Ordered by priority.
   integrations/coverart/
   core/                    (auth_utils, email_service, cache_utils, research_queue, song_research)
   ```
-  → [#114](https://github.com/dprodger/JazzReference/issues/114)
-- [ ] **Break up god-file importers:** `spotify_matcher.py` (2019), `mb_release_importer.py` (1650), `mb_utils.py` (1465), `apple_music_matcher.py` (905). Split HTTP client / parsing / fuzzy matching / persistence into separate units. → [#115](https://github.com/dprodger/JazzReference/issues/115)
+  → [#114](https://github.com/dprodger/ApproachNote/issues/114)
+- [ ] **Break up god-file importers:** `spotify_matcher.py` (2019), `mb_release_importer.py` (1650), `mb_utils.py` (1465), `apple_music_matcher.py` (905). Split HTTP client / parsing / fuzzy matching / persistence into separate units. → [#115](https://github.com/dprodger/ApproachNote/issues/115)
 
 ## P3 — Developer experience
 
-- [ ] **Adopt Alembic** (or similar) for schema migrations. `sql/jazz-db-schema.sql` + ad-hoc SQL files is becoming painful — recent VARCHAR(500) overflow and duplicate-recording bugs are the kind of thing a migration tool helps prevent. → [#116](https://github.com/dprodger/JazzReference/issues/116)
-- [ ] **Add a minimal pytest suite** (auth flow, matchers, research queue) and wire it into CI alongside `ruff`. Currently CI only runs `test_song_detail_perf.py`. → [#117](https://github.com/dprodger/JazzReference/issues/117)
-- [ ] **Add an input validation layer** at route boundaries (Pydantic or marshmallow). Kills a class of bugs and gives you OpenAPI docs for free. → [#118](https://github.com/dprodger/JazzReference/issues/118)
+- [ ] **Adopt Alembic** (or similar) for schema migrations. `sql/jazz-db-schema.sql` + ad-hoc SQL files is becoming painful — recent VARCHAR(500) overflow and duplicate-recording bugs are the kind of thing a migration tool helps prevent. → [#116](https://github.com/dprodger/ApproachNote/issues/116)
+- [ ] **Add a minimal pytest suite** (auth flow, matchers, research queue) and wire it into CI alongside `ruff`. Currently CI only runs `test_song_detail_perf.py`. → [#117](https://github.com/dprodger/ApproachNote/issues/117)
+- [ ] **Add an input validation layer** at route boundaries (Pydantic or marshmallow). Kills a class of bugs and gives you OpenAPI docs for free. → [#118](https://github.com/dprodger/ApproachNote/issues/118)
 
 ## P4 — Cleanups (quick wins)
 

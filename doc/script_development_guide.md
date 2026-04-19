@@ -963,7 +963,7 @@ CACHE_DAYS = 30  # Default cache expiration
 
 **Directory structure:**
 ```
-JazzReference/
+ApproachNote/
 ├── backend/
 │   ├── scripts/
 │   │   ├── my_script.py          # Script runs from here
@@ -978,11 +978,11 @@ JazzReference/
 ```
 
 **Path resolution:**
-- `Path(__file__)` → `/path/to/JazzReference/backend/scripts/my_script.py`
-- `.parent` → `/path/to/JazzReference/backend/scripts/`
-- `.parent.parent` → `/path/to/JazzReference/backend/`
-- `.parent.parent.parent` → `/path/to/JazzReference/`
-- `.parent.parent.parent / 'cache' / 'subsystem'` → `/path/to/JazzReference/cache/subsystem/`
+- `Path(__file__)` → `/path/to/ApproachNote/backend/scripts/my_script.py`
+- `.parent` → `/path/to/ApproachNote/backend/scripts/`
+- `.parent.parent` → `/path/to/ApproachNote/backend/`
+- `.parent.parent.parent` → `/path/to/ApproachNote/`
+- `.parent.parent.parent / 'cache' / 'subsystem'` → `/path/to/ApproachNote/cache/subsystem/`
 
 ### Cache Directory Setup
 
@@ -1049,7 +1049,7 @@ CACHE_DIR.mkdir(parents=True, exist_ok=True)
 - [ ] If caching: Create cache directory with `CACHE_DIR.mkdir(parents=True, exist_ok=True)`
 - [ ] Scripts run from `backend/scripts/` directory
 - [ ] Import `db_utils`, `mb_utils`, etc. work correctly
-- [ ] Cache files stored in `JazzReference/cache/` (peer to backend)
+- [ ] Cache files stored in `ApproachNote/cache/` (peer to backend)
 
 ---
 

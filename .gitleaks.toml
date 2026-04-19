@@ -1,4 +1,4 @@
-# gitleaks configuration for JazzReference
+# gitleaks configuration for ApproachNote
 #
 # Inherits the full set of built-in gitleaks rules and adds a narrowly
 # scoped allowlist for known false positives and for dead credentials

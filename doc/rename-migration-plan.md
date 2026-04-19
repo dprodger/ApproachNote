@@ -1,10 +1,20 @@
 # Rename migration: `Jazz-Liner-Notes` / `JazzReference` → `ApproachNote`
 
-GitHub issue: [#134](https://github.com/dprodger/JazzReference/issues/134).
+> **Status (2026-04-19): Complete.** All five tiers have shipped:
+> - Tier 1 (cosmetic text)
+> - Tier 2 (Swift types, Xcode file + target names)
+> - Tier 3 (Keychain service + App Group)
+> - Tier 4 (bundle IDs, share-extension folder renames, Sign in with Apple linking)
+> - Tier 5 (repo + local directory rename + doc cleanup) — issue [#146](https://github.com/dprodger/ApproachNote/issues/146)
+>
+> This file is retained as a historical execution reference. The surviving
+> legacy-named items in the sections below have been renamed; the file paths
+> and pbxproj line numbers cited reflect pre-migration state.
 
-Inventory of every place the legacy names appear, ordered from cheapest to
-most expensive to change. Nothing here has been changed yet — this doc is
-the menu from which to pick tiers for follow-up PRs.
+GitHub issue (original planning): [#134](https://github.com/dprodger/ApproachNote/issues/134).
+
+Inventory of every place the legacy names appeared, ordered from cheapest to
+most expensive to change.
 
 **Target naming convention**
 - Code identifiers, bundle IDs, directories, file names → `ApproachNote` (camelCase, no space)

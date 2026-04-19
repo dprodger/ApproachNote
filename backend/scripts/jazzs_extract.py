@@ -35,7 +35,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Cache configuration
-# Cache is peer to backend directory: JazzReference/cache/jazzstandards
+# Cache is peer to backend directory: ApproachNote/cache/jazzstandards
 CACHE_DIR = Path(__file__).parent.parent.parent / 'cache' / 'jazzstandards'
 ITUNES_CACHE_DIR = Path(__file__).parent.parent.parent / 'cache' / 'itunes'
 CACHE_DAYS = 30  # Default cache expiration

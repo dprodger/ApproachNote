@@ -20,7 +20,7 @@ Open `apps/Approach Note.xcodeproj` in Xcode.
 2. Select **macOS** tab at the top
 3. Choose **App** and click **Next**
 4. Configure the target:
-   - **Product Name**: `JazzReferenceMac`
+   - **Product Name**: `ApproachNoteMac`
    - **Team**: Your development team (FX893D85BJ)
    - **Organization Identifier**: `me.rodger.david`
    - **Bundle Identifier**: `com.approachnote.mac`
@@ -32,7 +32,7 @@ Open `apps/Approach Note.xcodeproj` in Xcode.
 
 ### Step 3: Delete Auto-Generated Files
 
-Xcode will create a default `JazzReferenceMac` folder with boilerplate files. Delete these:
+Xcode will create a default `ApproachNoteMac` folder with boilerplate files. Delete these:
 - Delete the auto-generated folder from the project
 - Keep the target, but we'll use our prepared files instead
 
@@ -44,7 +44,7 @@ Xcode will create a default `JazzReferenceMac` folder with boilerplate files. De
 4. Make sure:
    - **Copy items if needed** is UNCHECKED
    - **Create groups** is selected
-   - **Add to targets**: Only check `JazzReferenceMac`
+   - **Add to targets**: Only check `ApproachNoteMac`
 5. Click **Add**
 
 ### Step 5: Configure Shared Files
@@ -99,7 +99,7 @@ Copy `AuthenticationManager.swift` to the macOS folder and modify it for macOS.
 
 ### Step 7: Configure Build Settings
 
-Select the `JazzReferenceMac` target and configure:
+Select the `ApproachNoteMac` target and configure:
 
 1. **General Tab:**
    - Deployment Target: macOS 14.0 (or your minimum)
@@ -137,7 +137,7 @@ Common issues and fixes:
 
 ### Step 10: Build and Run
 
-1. Select the `JazzReferenceMac` scheme in the toolbar
+1. Select the `ApproachNoteMac` scheme in the toolbar
 2. Select **My Mac** as the destination
 3. Press **⌘R** to build and run
 
