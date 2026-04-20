@@ -562,6 +562,10 @@ def apple_login():
             "full_name": "Ada Lovelace",            # optional; only sent on first
                                                     # auth, since Apple only
                                                     # returns fullName once
+            "email": "ada@example.com",             # optional; first-auth only,
+                                                    # from credential.email.
+                                                    # Used only when the token
+                                                    # has no email claim.
             "authorization_code": "..."             # optional; reserved for
                                                     # future server-side refresh
         }
@@ -584,6 +588,11 @@ def apple_login():
     data = request.get_json() or {}
     identity_token = data.get('identity_token')
     client_full_name = data.get('full_name')
+    # Client-supplied fallback from ASAuthorizationAppleIDCredential.email.
+    # Apple sometimes omits email from the JWT even on first auth (notably
+    # with Hide My Email), but the client-side credential is authoritative
+    # on first auth. We prefer the token's email when both are present.
+    client_email = data.get('email')
 
     if not identity_token:
         return jsonify({'error': 'identity_token required'}), 400
@@ -627,7 +636,13 @@ def apple_login():
         logger.warning("Apple token missing `sub` claim")
         return jsonify({'error': 'Invalid token: missing subject'}), 401
 
-    logger.info(f"🔐 Apple login attempt for sub: {apple_id} (email: {token_email or 'not provided'})")
+    # Prefer token email (verified by Apple's signature); fall back to the
+    # client-supplied credential.email only when the token has none. If we
+    # fall back, email_verified isn't asserted by the token, so leave it
+    # false unless the token said otherwise.
+    effective_email = token_email or client_email
+
+    logger.info(f"🔐 Apple login attempt for sub: {apple_id} (email: {effective_email or 'not provided'})")
 
     try:
         with get_db_connection() as conn:
@@ -635,14 +650,14 @@ def apple_login():
                 # Primary match on apple_id; fall back to email for linking.
                 # We query on email only if we actually have one (first-auth),
                 # otherwise the OR branch would match NULL = NULL (never).
-                if token_email:
+                if effective_email:
                     cur.execute(
                         """
                         SELECT id, email, display_name, apple_id
                         FROM users
                         WHERE apple_id = %s OR email = %s
                         """,
-                        (apple_id, token_email),
+                        (apple_id, effective_email),
                     )
                 else:
                     cur.execute(
@@ -710,15 +725,30 @@ def apple_login():
                         )
                     conn.commit()
                 else:
-                    # Brand-new user. On first auth we should have email; if
-                    # somehow we don't (private-relay edge cases), create
-                    # anyway — email can be recovered later if the user
-                    # re-signs-in with email scope granted.
-                    if not token_email:
+                    # Brand-new user. We require an email to create the row
+                    # (users.email is NOT NULL). Apple sends email in the
+                    # token on first auth, or — when that's missing — the
+                    # client forwards credential.email from the authorization
+                    # response. If we have neither, refuse cleanly and tell
+                    # the user how to recover: revoking the grant in Apple ID
+                    # settings forces Apple to re-send email scope next time.
+                    if not effective_email:
                         logger.warning(
-                            f"Creating Apple user without email for sub: {apple_id}"
+                            "Apple login: new sub %s with no email from "
+                            "token or client; refusing to create row. User "
+                            "must revoke the grant in Settings → Apple ID "
+                            "→ Sign-In & Security and retry.",
+                            apple_id,
                         )
-                    logger.info(f"✨ Creating new user via Apple: {token_email or apple_id}")
+                        return jsonify({
+                            'error': (
+                                'Apple sign-in needs to be re-authorized. '
+                                'Open Settings → your name → Sign-In & '
+                                'Security → Sign in with Apple, remove this '
+                                'app, then sign in again.'
+                            )
+                        }), 401
+                    logger.info(f"✨ Creating new user via Apple: {effective_email}")
                     cur.execute(
                         """
                         INSERT INTO users (
@@ -729,7 +759,7 @@ def apple_login():
                         RETURNING id
                         """,
                         (
-                            token_email,
+                            effective_email,
                             apple_id,
                             client_full_name,
                             email_verified,

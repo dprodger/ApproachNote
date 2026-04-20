@@ -725,9 +725,12 @@ class AuthenticationManager: ObservableObject {
                 return false
             }
 
-            // `fullName` is only populated on the very first authorization
-            // for this app + Apple ID pair. On re-auth it's nil and we must
-            // not overwrite what the backend already stored.
+            // `fullName` and `email` are only populated on the very first
+            // authorization for this app + Apple ID pair. On re-auth they're
+            // nil and we must not overwrite what the backend already stored.
+            // Apple sometimes omits email from the JWT even on first auth, so
+            // the credential is the authoritative source — forward it so the
+            // backend can populate users.email when creating the row.
             let fullName: String? = {
                 guard let name = credential.fullName else { return nil }
                 let formatter = PersonNameComponentsFormatter()
@@ -738,12 +741,13 @@ class AuthenticationManager: ObservableObject {
 
             return await authenticateWithApple(
                 identityToken: identityToken,
-                fullName: fullName
+                fullName: fullName,
+                email: credential.email
             )
         }
     }
 
-    private func authenticateWithApple(identityToken: String, fullName: String?) async -> Bool {
+    private func authenticateWithApple(identityToken: String, fullName: String?, email: String?) async -> Bool {
         let url = URL.api(path: "/auth/apple")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -752,6 +756,9 @@ class AuthenticationManager: ObservableObject {
         var body: [String: Any] = ["identity_token": identityToken]
         if let fullName {
             body["full_name"] = fullName
+        }
+        if let email {
+            body["email"] = email
         }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 
