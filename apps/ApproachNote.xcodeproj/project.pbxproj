@@ -62,14 +62,14 @@
 			containerPortal = B4C160382E91B03600EB8D2C /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B4C1603F2E91B03600EB8D2C;
-			remoteInfo = "Approach Note";
+			remoteInfo = ApproachNote;
 		};
 		B4C160582E91B03700EB8D2C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = B4C160382E91B03600EB8D2C /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = B4C1603F2E91B03600EB8D2C;
-			remoteInfo = "Approach Note";
+			remoteInfo = ApproachNote;
 		};
 		B4EE328D2EB3F95000C643D1 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -113,7 +113,7 @@
 		B4108A052F46D5000002828A /* TranscriptionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionRow.swift; sourceTree = "<group>"; };
 		B4108A072F46D5000002828A /* BackingTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackingTrackRow.swift; sourceTree = "<group>"; };
 		B4108A092F46D5000002828A /* StreamingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingButtons.swift; sourceTree = "<group>"; };
-		B41D0F972EE6337400DB427C /* Approach Note.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Approach Note.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B41D0F972EE6337400DB427C /* ApproachNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApproachNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B41D0FA22EE633EE00DB427C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Mac/Assets.xcassets; sourceTree = "<group>"; };
 		B41D0FA32EE633EE00DB427C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B41D0FA42EE633EE00DB427C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -143,7 +143,7 @@
 		B4911D2A2EB316F600326CA7 /* ShareImporter.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareImporter.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4B9C4BF2F1AEC0100159A28 /* MusicBrainzSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicBrainzSearchSheet.swift; sourceTree = "<group>"; };
 		B4BE01002F3600000000BE01 /* SongBulkEditRecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongBulkEditRecordingsView.swift; sourceTree = "<group>"; };
-		B4C160402E91B03600EB8D2C /* Approach Note.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Approach Note.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B4C160402E91B03600EB8D2C /* ApproachNote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApproachNote.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4C1604D2E91B03700EB8D2C /* ApproachNoteTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApproachNoteTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4C160572E91B03700EB8D2C /* ApproachNoteUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ApproachNoteUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4C4EF562F3133D7000B5EF8 /* MacAddStreamingLinkSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacAddStreamingLinkSheet.swift; sourceTree = "<group>"; };
@@ -151,12 +151,12 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		B4147E552EB4FB2C004A16E7 /* Exceptions for "iOS" folder in "Approach Note" target */ = {
+		B4147E552EB4FB2C004A16E7 /* Exceptions for "iOS" folder in "ApproachNote" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				App/Info.plist,
 			);
-			target = B4C1603F2E91B03600EB8D2C /* Approach Note */;
+			target = B4C1603F2E91B03600EB8D2C /* ApproachNote */;
 		};
 		B486B3022F1D922B005E6644 /* Exceptions for "ShareImporterMac" folder in "ShareImporterMac" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
@@ -205,7 +205,7 @@
 		B4C160422E91B03600EB8D2C /* iOS */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				B4147E552EB4FB2C004A16E7 /* Exceptions for "iOS" folder in "Approach Note" target */,
+				B4147E552EB4FB2C004A16E7 /* Exceptions for "iOS" folder in "ApproachNote" target */,
 			);
 			path = iOS;
 			sourceTree = "<group>";
@@ -379,11 +379,11 @@
 		B4C160412E91B03600EB8D2C /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				B4C160402E91B03600EB8D2C /* Approach Note.app */,
+				B4C160402E91B03600EB8D2C /* ApproachNote.app */,
 				B4C1604D2E91B03700EB8D2C /* ApproachNoteTests.xctest */,
 				B4C160572E91B03700EB8D2C /* ApproachNoteUITests.xctest */,
 				B4911D2A2EB316F600326CA7 /* ShareImporter.appex */,
-				B41D0F972EE6337400DB427C /* Approach Note.app */,
+				B41D0F972EE6337400DB427C /* ApproachNoteMac.app */,
 				B486B2F22F1D922B005E6644 /* ShareImporterMac.appex */,
 			);
 			name = Products;
@@ -392,9 +392,9 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B41D0F962EE6337400DB427C /* Approach Note Mac */ = {
+		B41D0F962EE6337400DB427C /* ApproachNoteMac */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B41D0FA12EE6337500DB427C /* Build configuration list for PBXNativeTarget "Approach Note Mac" */;
+			buildConfigurationList = B41D0FA12EE6337500DB427C /* Build configuration list for PBXNativeTarget "ApproachNoteMac" */;
 			buildPhases = (
 				B41D0F932EE6337400DB427C /* Sources */,
 				B41D0F942EE6337400DB427C /* Frameworks */,
@@ -409,13 +409,13 @@
 			fileSystemSynchronizedGroups = (
 				B4SHARED012F10C00000000001 /* Shared */,
 			);
-			name = "Approach Note Mac";
+			name = ApproachNoteMac;
 			packageProductDependencies = (
 				B45A16AA2F08802C00259452 /* GoogleSignIn */,
 				B45A16AC2F08802C00259452 /* GoogleSignInSwift */,
 			);
-			productName = "Approach Note";
-			productReference = B41D0F972EE6337400DB427C /* Approach Note.app */;
+			productName = ApproachNoteMac;
+			productReference = B41D0F972EE6337400DB427C /* ApproachNoteMac.app */;
 			productType = "com.apple.product-type.application";
 		};
 		B486B2F12F1D922B005E6644 /* ShareImporterMac */ = {
@@ -462,9 +462,9 @@
 			productReference = B4911D2A2EB316F600326CA7 /* ShareImporter.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		B4C1603F2E91B03600EB8D2C /* Approach Note */ = {
+		B4C1603F2E91B03600EB8D2C /* ApproachNote */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B4C160612E91B03700EB8D2C /* Build configuration list for PBXNativeTarget "Approach Note" */;
+			buildConfigurationList = B4C160612E91B03700EB8D2C /* Build configuration list for PBXNativeTarget "ApproachNote" */;
 			buildPhases = (
 				B4C1603C2E91B03600EB8D2C /* Sources */,
 				B4C1603D2E91B03600EB8D2C /* Frameworks */,
@@ -480,14 +480,14 @@
 				B4C160422E91B03600EB8D2C /* iOS */,
 				B4SHARED012F10C00000000001 /* Shared */,
 			);
-			name = "Approach Note";
+			name = ApproachNote;
 			packageProductDependencies = (
 				B4F38C232EC166A800231130 /* YouTubePlayerKit */,
 				B4C535832ECE5FFF0030A127 /* GoogleSignIn */,
 				B4C535852ECE5FFF0030A127 /* GoogleSignInSwift */,
 			);
-			productName = "Approach Note";
-			productReference = B4C160402E91B03600EB8D2C /* Approach Note.app */;
+			productName = ApproachNote;
+			productReference = B4C160402E91B03600EB8D2C /* ApproachNote.app */;
 			productType = "com.apple.product-type.application";
 		};
 		B4C1604C2E91B03700EB8D2C /* ApproachNoteTests */ = {
@@ -562,7 +562,7 @@
 					};
 				};
 			};
-			buildConfigurationList = B4C1603B2E91B03600EB8D2C /* Build configuration list for PBXProject "Approach Note" */;
+			buildConfigurationList = B4C1603B2E91B03600EB8D2C /* Build configuration list for PBXProject "ApproachNote" */;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -580,11 +580,11 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				B4C1603F2E91B03600EB8D2C /* Approach Note */,
+				B4C1603F2E91B03600EB8D2C /* ApproachNote */,
 				B4C1604C2E91B03700EB8D2C /* ApproachNoteTests */,
 				B4C160562E91B03700EB8D2C /* ApproachNoteUITests */,
 				B4911D292EB316F600326CA7 /* ShareImporter */,
-				B41D0F962EE6337400DB427C /* Approach Note Mac */,
+				B41D0F962EE6337400DB427C /* ApproachNoteMac */,
 				B486B2F12F1D922B005E6644 /* ShareImporterMac */,
 			);
 		};
@@ -721,12 +721,12 @@
 		};
 		B4C1604F2E91B03700EB8D2C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B4C1603F2E91B03600EB8D2C /* Approach Note */;
+			target = B4C1603F2E91B03600EB8D2C /* ApproachNote */;
 			targetProxy = B4C1604E2E91B03700EB8D2C /* PBXContainerItemProxy */;
 		};
 		B4C160592E91B03700EB8D2C /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = B4C1603F2E91B03600EB8D2C /* Approach Note */;
+			target = B4C1603F2E91B03600EB8D2C /* ApproachNote */;
 			targetProxy = B4C160582E91B03700EB8D2C /* PBXContainerItemProxy */;
 		};
 		B4EE328E2EB3F95000C643D1 /* PBXTargetDependency */ = {
@@ -761,7 +761,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Mac/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Approach Note";
+				INFOPLIST_KEY_CFBundleDisplayName = ApproachNote;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -771,7 +771,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
-				PRODUCT_NAME = "Approach Note";
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -814,7 +814,7 @@
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Mac/App/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = "Approach Note";
+				INFOPLIST_KEY_CFBundleDisplayName = ApproachNote;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -824,7 +824,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
-				PRODUCT_NAME = "Approach Note";
+				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -1185,7 +1185,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Approach Note.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Approach Note";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ApproachNote.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ApproachNote";
 			};
 			name = Debug;
 		};
@@ -1206,7 +1206,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Approach Note.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Approach Note";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/ApproachNote.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/ApproachNote";
 			};
 			name = Release;
 		};
@@ -1225,7 +1225,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Approach Note";
+				TEST_TARGET_NAME = ApproachNote;
 			};
 			name = Debug;
 		};
@@ -1244,14 +1244,14 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = "Approach Note";
+				TEST_TARGET_NAME = ApproachNote;
 			};
 			name = Release;
 		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B41D0FA12EE6337500DB427C /* Build configuration list for PBXNativeTarget "Approach Note Mac" */ = {
+		B41D0FA12EE6337500DB427C /* Build configuration list for PBXNativeTarget "ApproachNoteMac" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B41D0F9F2EE6337500DB427C /* Debug */,
@@ -1278,7 +1278,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C1603B2E91B03600EB8D2C /* Build configuration list for PBXProject "Approach Note" */ = {
+		B4C1603B2E91B03600EB8D2C /* Build configuration list for PBXProject "ApproachNote" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B4C1605F2E91B03700EB8D2C /* Debug */,
@@ -1287,7 +1287,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		B4C160612E91B03700EB8D2C /* Build configuration list for PBXNativeTarget "Approach Note" */ = {
+		B4C160612E91B03700EB8D2C /* Build configuration list for PBXNativeTarget "ApproachNote" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				B4C160622E91B03700EB8D2C /* Debug */,
