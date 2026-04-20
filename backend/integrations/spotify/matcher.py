@@ -36,6 +36,13 @@ from integrations.spotify.matching import (
     validate_album_match,
 )
 from integrations.spotify.search import search_spotify_album
+from integrations.spotify.diagnostics import (
+    is_track_match_cached_failure,
+    cache_track_match_failure,
+    log_duration_rejection,
+    log_orphaned_track,
+    log_album_context_audit,
+)
 from integrations.spotify.db import (
     find_song_by_name,
     find_song_by_id,
@@ -169,137 +176,6 @@ class SpotifyMatcher:
         self.stats['rate_limit_hits'] = self.client.stats.get('rate_limit_hits', 0)
         self.stats['rate_limit_waits'] = self.client.stats.get('rate_limit_waits', 0)
     
-    def _get_track_match_failure_cache_path(self, song_id: str, release_id: str, 
-                                            spotify_album_id: str) -> 'Path':
-        """
-        Get cache path for track match failure results.
-        
-        This caches the result of "album matched but track not found" to avoid
-        repeated DB queries on subsequent runs.
-        """
-        from pathlib import Path
-        # Use the client's cache directory structure
-        failure_cache_dir = self.client.cache_dir / 'track_failures'
-        failure_cache_dir.mkdir(parents=True, exist_ok=True)
-        
-        # Create a deterministic filename from the three IDs (convert UUIDs to strings)
-        filename = f"fail_{str(song_id)}_{str(release_id)}_{str(spotify_album_id)}.json"
-        return failure_cache_dir / filename
-    
-    def _is_track_match_cached_failure(self, song_id: str, release_id: str,
-                                       spotify_album_id: str) -> bool:
-        """
-        Check if we've already determined that track matching fails for this combination.
-        
-        Returns True if we have a cached "no match" result, False otherwise.
-        """
-        cache_path = self._get_track_match_failure_cache_path(song_id, release_id, spotify_album_id)
-        
-        if self.client.force_refresh:
-            return False
-        
-        if not cache_path.exists():
-            return False
-        
-        # Check if cache is still valid
-        if self.client._is_cache_valid(cache_path):
-            self.client.stats['cache_hits'] = self.client.stats.get('cache_hits', 0) + 1
-            self.logger.debug(f"    Track match failure cache hit")
-            return True
-        
-        return False
-    
-    def _cache_track_match_failure(self, song_id: str, release_id: str,
-                                   spotify_album_id: str, song_title: str) -> None:
-        """
-        Cache the fact that track matching failed for this song/release/album combination.
-        """
-        import json
-        cache_path = self._get_track_match_failure_cache_path(song_id, release_id, spotify_album_id)
-        
-        try:
-            with open(cache_path, 'w') as f:
-                json.dump({
-                    'song_id': str(song_id),
-                    'release_id': str(release_id),
-                    'spotify_album_id': str(spotify_album_id),
-                    'song_title': song_title,
-                    'result': 'no_track_match'
-                }, f)
-            self.logger.debug(f"    Cached track match failure")
-        except Exception as e:
-            self.logger.warning(f"    Failed to cache track match failure: {e}")
-
-    def _log_duration_rejection(self, song_title: str, recording_id: str,
-                                release_id: str, spotify_track_id: str,
-                                spotify_track_name: str, expected_ms: int,
-                                actual_ms: int, confidence: float, title_score: float):
-        """
-        Log a track rejected due to low duration confidence.
-        Appends to a CSV file for post-run verification.
-        """
-        from datetime import datetime
-        from pathlib import Path
-        import csv
-
-        log_file = Path('spotify_duration_rejections.csv')
-        file_exists = log_file.exists()
-
-        try:
-            with open(log_file, 'a', newline='') as f:
-                writer = csv.writer(f)
-                if not file_exists:
-                    writer.writerow([
-                        'timestamp', 'song_title', 'recording_id', 'release_id',
-                        'spotify_track_id', 'spotify_track_name', 'spotify_url',
-                        'mb_duration_sec', 'spotify_duration_sec', 'diff_sec',
-                        'confidence', 'title_score'
-                    ])
-                diff_sec = abs(expected_ms - actual_ms) / 1000.0
-                writer.writerow([
-                    datetime.now().isoformat(),
-                    song_title,
-                    str(recording_id),
-                    str(release_id),
-                    spotify_track_id,
-                    spotify_track_name,
-                    f'https://open.spotify.com/track/{spotify_track_id}',
-                    round(expected_ms / 1000.0, 1),
-                    round(actual_ms / 1000.0, 1),
-                    round(diff_sec, 1),
-                    confidence,
-                    title_score
-                ])
-        except Exception as e:
-            self.logger.warning(f"    Failed to log duration rejection: {e}")
-
-    def _log_orphaned_track(self, release_id: str, recording_id: str, spotify_track_url: str):
-        """
-        Log details of a track that had a previous Spotify match but failed rematch.
-        Appends to a CSV file in the current working directory for later investigation.
-        """
-        from datetime import datetime
-        from pathlib import Path
-        import csv
-
-        log_file = Path('spotify_orphaned_tracks.csv')
-        file_exists = log_file.exists()
-
-        try:
-            with open(log_file, 'a', newline='') as f:
-                writer = csv.writer(f)
-                # Write header if file is new
-                if not file_exists:
-                    writer.writerow(['timestamp', 'release_id', 'recording_id', 'spotify_track_url'])
-                writer.writerow([
-                    datetime.now().isoformat(),
-                    str(release_id),
-                    str(recording_id),
-                    spotify_track_url
-                ])
-        except Exception as e:
-            self.logger.warning(f"    Failed to log orphaned track: {e}")
-
     # ========================================================================
     # DELEGATED PROPERTIES (for backwards compatibility)
     # ========================================================================
@@ -672,7 +548,7 @@ class SpotifyMatcher:
                     # Check if we already know track matching fails for this combination
                     # This avoids opening a DB connection just to reach the same "no match" conclusion
                     # Skip this cache check in rematch_all mode
-                    if not self.rematch_all and self._is_track_match_cached_failure(song['id'], release['id'], spotify_match['id']):
+                    if not self.rematch_all and is_track_match_cached_failure(self.client, self.logger, song['id'], release['id'], spotify_match['id']):
                         self.logger.info(f"[{i}/{len(releases)}] {title} ({artist_name or 'Unknown'}, {year or 'Unknown'}) - ✗ Album matched but track not found (cached)")
                         self.stats['releases_no_match'] += 1
                         continue
@@ -721,7 +597,8 @@ class SpotifyMatcher:
                             )
                         else:
                             # Album matched but no track found - cache this for future runs
-                            self._cache_track_match_failure(
+                            cache_track_match_failure(
+                                self.client, self.logger,
                                 song['id'], release['id'], spotify_match['id'], song['title']
                             )
                             self.logger.info(f"[{i}/{len(releases)}] {title} ({artist_name or 'Unknown'}, {year or 'Unknown'}) - ✗ Album matched but track not found (possible false positive)")
@@ -881,56 +758,6 @@ class SpotifyMatcher:
             if result['mb_track_count'] > 0 else 0.0
         )
         return result
-
-    def _log_album_context_audit(self, song_title: str, recording_id: str,
-                                  release_id: str, spotify_track_id: str,
-                                  spotify_track_name: str, expected_ms: int,
-                                  actual_ms: int, confidence: float,
-                                  title_score: float, album_context: dict,
-                                  would_rescue: bool):
-        """Log album-context evaluation to CSV for audit review."""
-        from datetime import datetime
-        from pathlib import Path
-        import csv
-
-        log_file = Path('album_context_audit.csv')
-        file_exists = log_file.exists()
-
-        try:
-            with open(log_file, 'a', newline='') as f:
-                writer = csv.writer(f)
-                if not file_exists:
-                    writer.writerow([
-                        'timestamp', 'song_title', 'recording_id', 'release_id',
-                        'spotify_track_id', 'spotify_track_name', 'spotify_url',
-                        'mb_duration_sec', 'spotify_duration_sec', 'diff_sec',
-                        'duration_confidence', 'title_score',
-                        'mb_track_count', 'spotify_track_count',
-                        'tracklist_matched', 'tracklist_match_ratio',
-                        'would_rescue',
-                    ])
-                diff_sec = abs(expected_ms - actual_ms) / 1000.0
-                writer.writerow([
-                    datetime.now().isoformat(),
-                    song_title,
-                    str(recording_id),
-                    str(release_id),
-                    spotify_track_id,
-                    spotify_track_name,
-                    f'https://open.spotify.com/track/{spotify_track_id}',
-                    round(expected_ms / 1000.0, 1),
-                    round(actual_ms / 1000.0, 1),
-                    round(diff_sec, 1),
-                    confidence,
-                    title_score,
-                    album_context['mb_track_count'],
-                    album_context['spotify_track_count'],
-                    album_context['matched_count'],
-                    round(album_context['match_ratio'], 2),
-                    would_rescue,
-                ])
-        except Exception as e:
-            self.logger.warning(f"    Failed to log album context audit: {e}")
 
     def _duration_adjusted_score(self, title_score: float, expected_ms: int,
                                   track_duration_ms: int) -> float:
@@ -1162,7 +989,8 @@ class SpotifyMatcher:
                             f"      Album context: {album_ctx['matched_count']}/{album_ctx['mb_track_count']} "
                             f"MB tracks match Spotify ({album_ctx['match_ratio']:.0%}) → "
                             f"{'RESCUE' if would_rescue else 'still reject'}")
-                        self._log_album_context_audit(
+                        log_album_context_audit(
+                            self.logger,
                             song_title=song_title,
                             recording_id=recording['recording_id'],
                             release_id=release_id,
@@ -1181,7 +1009,8 @@ class SpotifyMatcher:
                                 rescued = True
 
                     if not rescued:
-                        self._log_duration_rejection(
+                        log_duration_rejection(
+                            self.logger,
                             song_title=song_title,
                             recording_id=recording['recording_id'],
                             release_id=release_id,
@@ -1244,7 +1073,8 @@ class SpotifyMatcher:
                         dry_run=self.dry_run, log=self.logger)
 
                     # Log to file for later investigation
-                    self._log_orphaned_track(
+                    log_orphaned_track(
+                        self.logger,
                         release_id=release_id,
                         recording_id=recording['recording_id'],
                         spotify_track_url=previous_url
