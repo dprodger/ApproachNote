@@ -13,10 +13,12 @@ This ensures consistent behavior between:
 2. Orphan recording import (this module)
 """
 
-from flask import Blueprint, render_template, request, jsonify, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, redirect, url_for, g
 import json
 import logging
+import secrets
 
+from core.auth_utils import hash_password
 from db_utils import get_db_connection
 from integrations.musicbrainz.release_importer import MBReleaseImporter
 from integrations.musicbrainz.performer_importer import PerformerImporter
@@ -2947,6 +2949,61 @@ def users_list():
         total=total,
         total_pages=total_pages,
     )
+
+
+@admin_bp.route('/users/<user_id>/reset-password', methods=['POST'])
+def users_reset_password(user_id):
+    """
+    Reset a user's password from the /admin/users page.
+
+    JSON body (all optional):
+        password: str — use this value. If omitted, a random one is generated.
+
+    Returns the new password in the response so the admin can copy it once
+    and hand it to the user out-of-band. There is no flag forcing a change
+    on next login; admins are expected to share the password and let the
+    user change it via the normal flow.
+    """
+    payload = request.get_json(silent=True) or {}
+    new_password = (payload.get('password') or '').strip()
+    generated = False
+    if not new_password:
+        new_password = secrets.token_urlsafe(12)
+        generated = True
+
+    if len(new_password) < 8:
+        return jsonify({'error': 'Password must be at least 8 characters'}), 400
+
+    with get_db_connection() as db:
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT id, email FROM users WHERE id = %s",
+                (user_id,),
+            )
+            user = cur.fetchone()
+            if not user:
+                return jsonify({'error': 'User not found'}), 404
+
+            cur.execute(
+                "UPDATE users SET password_hash = %s, updated_at = NOW() "
+                "WHERE id = %s",
+                (hash_password(new_password), user_id),
+            )
+            db.commit()
+
+    actor = getattr(g, 'current_user', None)
+    actor_email = actor['email'] if actor else 'unknown'
+    logger.info(
+        "admin %s reset password for user %s (%s)",
+        actor_email, user['email'], user_id,
+    )
+
+    return jsonify({
+        'success': True,
+        'email': user['email'],
+        'password': new_password,
+        'generated': generated,
+    })
 
 
 # ============================================================================
