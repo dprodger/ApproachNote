@@ -125,7 +125,7 @@ def send_verification_email(email: str, token: str) -> bool:
         </head>
         <body>
             <div class="container">
-                <h2>Welcome to Approach Note!!</h2>
+                <h2>Welcome to ApproachNote!!</h2>
                 <p>Please verify your email address by clicking the button below:</p>
                 <a href="{verify_url}" class="button">Verify Email Address</a>
                 <p>Or copy and paste this link into your browser:</p>
@@ -140,7 +140,7 @@ def send_verification_email(email: str, token: str) -> bool:
     """
     
     logger.info(f"Sending verification email to: {email}")
-    return send_email(email, "Verify your Approach Note email", html_content)
+    return send_email(email, "Verify your ApproachNote email", html_content)
 
 
 def send_password_reset_email(email: str, token: str) -> bool:
@@ -193,7 +193,7 @@ def send_password_reset_email(email: str, token: str) -> bool:
     """
     
     logger.info(f"Sending password reset email to: {email}")
-    return send_email(email, "Reset your Approach Note password", html_content)
+    return send_email(email, "Reset your ApproachNote password", html_content)
 
 
 def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
@@ -224,7 +224,7 @@ def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin: 0;">Approach Note</h1>
+                    <h1 style="margin: 0;">ApproachNote</h1>
                 </div>
                 <div class="content">
                     <h2>{greeting}</h2>
@@ -247,4 +247,4 @@ def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
     """
     
     logger.info(f"Sending welcome email to: {email}")
-    return send_email(email, "Welcome to Approach Note", html_content)
+    return send_email(email, "Welcome to ApproachNote", html_content)
