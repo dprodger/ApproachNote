@@ -139,7 +139,7 @@
 		B486B3112F1D93C4005E6644 /* MacArtistCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacArtistCreationView.swift; sourceTree = "<group>"; };
 		B486B3122F1D93C4005E6644 /* MacSongCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSongCreationView.swift; sourceTree = "<group>"; };
 		B486B3132F1D93C4005E6644 /* MacYouTubeImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacYouTubeImportView.swift; sourceTree = "<group>"; };
-		B486B3182F1D9743005E6644 /* Approach Note MacRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Approach Note MacRelease.entitlements"; sourceTree = "<group>"; };
+		B486B3182F1D9743005E6644 /* ApproachNoteMacRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mac/App/ApproachNoteMacRelease.entitlements; sourceTree = "<group>"; };
 		B4911D2A2EB316F600326CA7 /* ShareImporter.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareImporter.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4B9C4BF2F1AEC0100159A28 /* MusicBrainzSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicBrainzSearchSheet.swift; sourceTree = "<group>"; };
 		B4BE01002F3600000000BE01 /* SongBulkEditRecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongBulkEditRecordingsView.swift; sourceTree = "<group>"; };
@@ -366,7 +366,7 @@
 		B4C160372E91B03600EB8D2C = {
 			isa = PBXGroup;
 			children = (
-				B486B3182F1D9743005E6644 /* Approach Note MacRelease.entitlements */,
+				B486B3182F1D9743005E6644 /* ApproachNoteMacRelease.entitlements */,
 				B42A1D702F10A06C00DAC930 /* Mac */,
 				B4C160422E91B03600EB8D2C /* iOS */,
 				B4SHARED012F10C00000000001 /* Shared */,
@@ -796,7 +796,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				AUTOMATION_APPLE_EVENTS = NO;
-				CODE_SIGN_ENTITLEMENTS = "Approach Note MacRelease.entitlements";
+				CODE_SIGN_ENTITLEMENTS = Mac/App/ApproachNoteMacRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
