@@ -40,6 +40,65 @@ import pytest  # noqa: E402
 
 
 # ----------------------------------------------------------------------------
+# Production-safety guard
+# ----------------------------------------------------------------------------
+#
+# April 2026 incident: conftest's autouse TRUNCATE plus individual test
+# modules' INSERT/DELETE against recording_release_streaming_links ran
+# against PRODUCTION any time a developer had .env pointing at prod and
+# ran pytest without explicit env var overrides. Wiped user-contributed
+# data and streaming-link rows multiple times before anyone noticed.
+#
+# This guard refuses to start the test session unless DB_NAME contains
+# 'test'. That's a tiny constraint on test-DB naming (call it jazz_test,
+# approachnote_test, whatever) in exchange for making the "oops, I ran
+# tests against prod" failure mode impossible.
+#
+# If you genuinely need to run the suite against a DB whose name doesn't
+# include 'test', either rename the DB or set PYTEST_I_KNOW_THIS_ISNT_PROD=1
+# as an explicit, visible opt-out.
+
+_PROD_SAFETY_BYPASS = "PYTEST_I_KNOW_THIS_ISNT_PROD"
+
+
+def _assert_test_database_or_die() -> None:
+    """Raise pytest.UsageError if the DB env doesn't look like a test DB."""
+    db_name = os.environ.get("DB_NAME", "")
+    db_host = os.environ.get("DB_HOST", "")
+
+    if "test" in db_name.lower():
+        return
+    if os.environ.get(_PROD_SAFETY_BYPASS) == "1":
+        # Explicit opt-out: developer swears this DB isn't prod.
+        # We still print a warning so it's obvious in the test log.
+        print(
+            f"\n!!! {_PROD_SAFETY_BYPASS}=1 set — skipping test-DB name "
+            f"check. DB_NAME={db_name!r} DB_HOST={db_host!r}\n",
+            file=sys.stderr,
+        )
+        return
+
+    raise pytest.UsageError(
+        f"Refusing to run the test suite: DB_NAME={db_name!r} does not contain "
+        f"'test'. This suite issues TRUNCATE against users/refresh_tokens/"
+        f"password_reset_tokens and INSERT/DELETE against "
+        f"recording_release_streaming_links from individual test modules. "
+        f"It must never run against a non-test database.\n\n"
+        f"Fixes:\n"
+        f"  - Set DB_NAME=jazz_test (or any name containing 'test') before "
+        f"running pytest. See backend/tests/README.md for the full bootstrap.\n"
+        f"  - Or, if you're certain this DB is safe to mutate, set "
+        f"{_PROD_SAFETY_BYPASS}=1 to bypass this check (logged to stderr)."
+    )
+
+
+# Run the guard at module import time. pytest collects conftest.py before
+# any test fixtures run, so raising here stops the session before any
+# destructive fixture can execute.
+_assert_test_database_or_die()
+
+
+# ----------------------------------------------------------------------------
 # DB connection helpers (separate from the app's pool)
 # ----------------------------------------------------------------------------
 

@@ -30,6 +30,20 @@ DB_HOST=localhost DB_PORT=5432 DB_NAME=jazz_test \
 CI runs the equivalent in `.github/workflows/pytest.yml` against a
 Postgres `services:` container.
 
+## Production-safety guard
+
+`conftest.py` refuses to run the suite unless `DB_NAME` contains `test`
+(case-insensitive). This exists because the fixtures issue `TRUNCATE`
+against the auth tables and individual test modules INSERT/DELETE into
+`recording_release_streaming_links` — if you accidentally point the
+test env at your production DB, those ops will wipe real data. The
+April 2026 incident was exactly this mistake.
+
+If you genuinely need to run against a DB whose name doesn't include
+`test`, set `PYTEST_I_KNOW_THIS_ISNT_PROD=1` to bypass the check. A
+warning is logged to stderr every run when the bypass is active. Don't
+make a habit of it.
+
 ## Conventions
 
 - **Test isolation**: an autouse fixture in `conftest.py` `TRUNCATE`s
