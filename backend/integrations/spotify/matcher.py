@@ -278,40 +278,7 @@ class SpotifyMatcher:
         """Update recordings linked to a release to set it as their default_release"""
         update_recording_default_release(conn, song_id, release_id,
                                         dry_run=self.dry_run, log=self.logger)
-    
-    # ========================================================================
-    # DEPRECATED METHODS (kept for backwards compatibility)
-    # ========================================================================
-    
-    def get_recordings_without_images(self) -> List[dict]:
-        """
-        DEPRECATED: Album artwork is now stored on releases, not recordings.
-        
-        Use get_releases_without_artwork() instead.
-        """
-        self.logger.warning("get_recordings_without_images() is deprecated - artwork now stored on releases")
-        return []
-    
-    def update_recording_artwork(self, conn, recording_id: str, album_art: dict):
-        """
-        DEPRECATED: Album artwork is now stored on releases, not recordings.
-        
-        This method is kept for backwards compatibility but does nothing.
-        Use update_release_spotify_data() instead.
-        """
-        self.logger.warning("update_recording_artwork() is deprecated - artwork now stored on releases")
-    
-    def update_recording_spotify_url(self, conn, recording_id: str, spotify_data: dict, 
-                                     album: str = None, artist: str = None, year: int = None,
-                                     index: int = None, total: int = None):
-        """
-        DEPRECATED: Spotify URL and artwork are now stored on releases, not recordings.
-        
-        This method is kept for backwards compatibility but does nothing.
-        Use update_release_spotify_data() and match_releases() instead.
-        """
-        self.logger.warning("update_recording_spotify_url() is deprecated - use match_releases() instead")
-    
+
     def match_recordings(self, song_identifier: str) -> Dict[str, Any]:
         """
         Main method to match Spotify tracks for a song's recordings
