@@ -7,11 +7,12 @@ instead of on SpotifyClient because search is more than an HTTP call — each
 response is scored and filtered before being returned.
 
 The functions take the SpotifyMatcher instance as their first argument so
-they can reach its client (cache, auth, rate-limited HTTP), its logger, its
-similarity thresholds (`min_*_similarity`), and its `validate_match` /
-`validate_album_match` wrappers. A later refactor (#115 step 3) folds those
-validators into matching.py as free functions, at which point the matcher
-handle here can shrink to just (client, logger, thresholds).
+they can reach its client (cache, auth, rate-limited HTTP), its logger, and
+its similarity thresholds (`min_*_similarity`). Validation and track-verify
+are free functions in matching.py — search passes the thresholds + a
+`verify_album_contains_track` callback through explicitly. A later refactor
+(#115 step 6) can shrink this further by passing (client, logger,
+thresholds) instead of the whole matcher.
 
 API-call stats are incremented on `matcher.client.stats['api_calls']`, not
 on the matcher — the client owns that counter and `_aggregate_client_stats`
@@ -28,6 +29,9 @@ from integrations.spotify.matching import (
     strip_ensemble_suffix,
     strip_live_suffix,
     normalize_for_search,
+    validate_track_match,
+    validate_album_match,
+    verify_album_contains_track,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,8 +44,8 @@ def search_spotify_track(matcher, song_title: str, album_title: str,
     Uses caching to minimize API calls.
 
     Args:
-        matcher: SpotifyMatcher instance providing client, logger, thresholds,
-            and the validate_match() wrapper.
+        matcher: SpotifyMatcher instance providing client, logger, and the
+            min_*_similarity thresholds used for candidate validation.
         song_title: Song title to search for
         album_title: Album title
         artist_name: Artist name (optional, but recommended)
@@ -149,8 +153,11 @@ def search_spotify_track(matcher, song_title: str, album_title: str,
 
                 # Try to validate each candidate
                 for i, track in enumerate(tracks):
-                    is_valid, reason, scores = matcher.validate_match(
-                        track, song_title, artist_name or '', album_title
+                    is_valid, reason, scores = validate_track_match(
+                        track, song_title, artist_name or '', album_title,
+                        matcher.min_track_similarity,
+                        matcher.min_artist_similarity,
+                        matcher.min_album_similarity,
                     )
 
                     if is_valid:
@@ -230,9 +237,11 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
     Search Spotify for an album with fuzzy validation.
 
     Args:
-        matcher: SpotifyMatcher instance providing client, logger, thresholds,
-            and the validate_album_match() wrapper (which itself uses
-            matcher.verify_album_contains_track as a fallback-on-low-artist).
+        matcher: SpotifyMatcher instance providing client, logger, and the
+            min_*_similarity thresholds. A verify_album_contains_track
+            callback is built here that binds those dependencies, so
+            validate_album_match can fall back on track presence when the
+            artist score is low.
         album_title: Album title to search for
         artist_name: Artist name (optional, but recommended)
         song_title: Song title for track verification fallback (optional).
@@ -245,6 +254,14 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
     """
     client = matcher.client
     log = matcher.logger
+
+    # Bound callback for validate_album_match's track-presence fallback —
+    # captures the matcher's client, logger, and min_track_similarity so the
+    # validator itself stays free of matcher references.
+    def _verify_track(album_id: str, st: str) -> bool:
+        return verify_album_contains_track(
+            client, log, matcher.min_track_similarity, album_id, st
+        )
 
     # Check cache first (reuse search cache with 'album' prefix)
     cache_path = client._get_search_cache_path('album', album_title, artist_name)
@@ -364,8 +381,12 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                     spotify_album_normalized = album['name'].lower().strip()
                     if spotify_album_normalized == expected_normalized:
                         # Validate artist match for this exact title match
-                        is_valid, reason, scores = matcher.validate_album_match(
-                            album, album_title, artist_name or '', song_title
+                        is_valid, reason, scores = validate_album_match(
+                            album, album_title, artist_name or '',
+                            matcher.min_album_similarity,
+                            matcher.min_artist_similarity,
+                            song_title=song_title,
+                            verify_track_callback=_verify_track,
                         )
                         exact_matches.append({
                             'index': i,
@@ -415,8 +436,12 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                 # Evaluate ALL candidates, collect results
                 candidate_results = []
                 for i, album in enumerate(albums):
-                    is_valid, reason, scores = matcher.validate_album_match(
-                        album, album_title, artist_name or '', song_title
+                    is_valid, reason, scores = validate_album_match(
+                        album, album_title, artist_name or '',
+                        matcher.min_album_similarity,
+                        matcher.min_artist_similarity,
+                        song_title=song_title,
+                        verify_track_callback=_verify_track,
                     )
                     candidate_results.append({
                         'index': i,

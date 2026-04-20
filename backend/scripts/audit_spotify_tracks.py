@@ -58,7 +58,11 @@ load_dotenv()
 
 from db_utils import get_db_connection
 from integrations.spotify.matcher import SpotifyMatcher
-from integrations.spotify.matching import calculate_similarity, normalize_for_comparison
+from integrations.spotify.matching import (
+    calculate_similarity,
+    normalize_for_comparison,
+    match_track_to_recording,
+)
 from integrations.spotify.search import search_spotify_album
 
 logging.basicConfig(
@@ -402,7 +406,10 @@ def dry_run_rematch(song_name: str, matcher: SpotifyMatcher) -> dict:
             # Now check track matching
             spotify_tracks = matcher.client.get_album_tracks(new_album_id)
             if spotify_tracks:
-                matched_track = matcher.match_track_to_recording(
+                matched_track = match_track_to_recording(
+                    matcher.logger,
+                    matcher.stats,
+                    matcher.min_track_similarity,
                     song['title'],
                     spotify_tracks,
                     alt_titles=song.get('alt_titles')

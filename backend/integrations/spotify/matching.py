@@ -739,5 +739,318 @@ def validate_album_match(spotify_album: dict, expected_album: str,
                     logger.debug(f"      Track verification skipped (artist {artist_similarity}% < {min_artist_for_track_verify}% minimum for non-compilation)")
 
             return False, f"Artist similarity too low ({artist_similarity}% < {min_artist_similarity}%)", scores
-    
+
     return True, "Valid match", scores
+
+
+# ---------------------------------------------------------------------------
+# Track verification + duration scoring + single-track matching
+#
+# Moved out of SpotifyMatcher in #115 step 3. These are the scoring paths the
+# matcher uses once candidate Spotify data is in hand. They take their
+# dependencies (client, logger, thresholds, stats dict) as explicit args so
+# the module stays stateless and unit-testable without instantiating a full
+# matcher.
+# ---------------------------------------------------------------------------
+
+
+def verify_album_contains_track(client, log: logging.Logger,
+                                min_track_similarity: int,
+                                album_id: str, song_title: str) -> bool:
+    """
+    Verify that a Spotify album contains a track matching the song title.
+
+    Used as a fallback validation when artist matching fails but album
+    similarity is high — handles compilation albums, "Various Artists",
+    and artist name variations.
+
+    Args:
+        client: SpotifyClient providing get_album_tracks()
+        log: Logger for debug output
+        min_track_similarity: Title-similarity threshold (0-100) that a track
+            on the album must meet for verification to pass.
+        album_id: Spotify album ID
+        song_title: Song title to search for in the album
+
+    Returns:
+        True if at least one track on the album matches the title above the
+        threshold, False otherwise.
+    """
+    tracks = client.get_album_tracks(album_id)
+    if not tracks:
+        return False
+
+    for track in tracks:
+        similarity = calculate_similarity(song_title, track['name'])
+        if similarity >= min_track_similarity:
+            log.debug(f"      Track verification passed: '{track['name']}' ({similarity}%)")
+            return True
+
+    return False
+
+
+def duration_confidence(expected_ms: int, actual_ms: int) -> float:
+    """
+    Confidence score (0.0-1.0) based on absolute duration difference.
+
+    Thresholds:
+      < 5s:      1.0  (perfect — encoding/rounding difference)
+      5-30s:     0.9  (remaster or slight edit)
+      30s-2min:  0.7  (different edit/version, worth flagging)
+      2-5min:    0.4  (likely wrong performance)
+      > 5min:    0.2  (almost certainly wrong)
+    """
+    diff = abs(expected_ms - actual_ms)
+    if diff <= 5000:
+        return 1.0
+    elif diff <= 30000:
+        return 0.9
+    elif diff <= 120000:
+        return 0.7
+    elif diff <= 300000:
+        return 0.4
+    else:
+        return 0.2
+
+
+def duration_adjusted_score(title_score: float, expected_ms: int,
+                            track_duration_ms: int) -> float:
+    """
+    Adjust a title similarity score using duration proximity.
+
+    Duration acts as a soft tie-breaker: when two tracks have similar title
+    scores, the one with closer duration wins. The adjustment is small
+    (+/- up to 5 points) — a clearly better title match still wins, but
+    it's enough to break ties between identical titles (Take 1 vs Take 2,
+    live vs studio, etc).
+
+    If either duration is unknown, returns the title score unchanged.
+    """
+    if expected_ms is None or track_duration_ms is None:
+        return title_score
+
+    confidence = duration_confidence(expected_ms, track_duration_ms)
+    # Map confidence (0.2-1.0) to adjustment (-4 to +5 points)
+    # 1.0 → +5, 0.9 → +3.75, 0.7 → +1.25, 0.4 → -2.5, 0.2 → -5
+    adjustment = (confidence - 0.5) * 10
+    return title_score + adjustment
+
+
+def check_album_context_via_tracklist(conn, release_id: str,
+                                      spotify_tracks: list) -> dict:
+    """
+    Compare the full MusicBrainz release tracklist against the Spotify album
+    tracklist to assess whether this is genuinely the same album.
+
+    Used as a rescue signal for tracks that would otherwise be rejected on
+    duration confidence alone — if the surrounding album clearly lines up
+    with Spotify, we trust the match more.
+
+    Returns:
+        Dict with mb_track_count, spotify_track_count, matched_count,
+        match_ratio (float 0.0-1.0), and matched_titles (list of
+        (mb_title, sp_title, similarity) tuples).
+    """
+    # Local imports to avoid a module-level dependency from spotify.matching
+    # on integrations.musicbrainz.
+    from integrations.musicbrainz.utils import MusicBrainzSearcher
+    from rapidfuzz import fuzz
+
+    result = {
+        'mb_track_count': 0,
+        'spotify_track_count': len(spotify_tracks),
+        'matched_count': 0,
+        'match_ratio': 0.0,
+        'matched_titles': [],
+    }
+
+    # Get the MB release ID for this release
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT musicbrainz_release_id FROM releases WHERE id = %s",
+            (release_id,),
+        )
+        row = cur.fetchone()
+
+    if not row or not row['musicbrainz_release_id']:
+        return result
+
+    mb_release_id = row['musicbrainz_release_id']
+
+    # Fetch full tracklist from MusicBrainz
+    mb_searcher = MusicBrainzSearcher()
+    release_data = mb_searcher.get_release_details(mb_release_id)
+    if not release_data:
+        return result
+
+    # Extract MB tracks
+    mb_tracks = []
+    position = 0
+    for medium in release_data.get('media', []):
+        for track in medium.get('tracks', []):
+            position += 1
+            mb_tracks.append({
+                'title': track.get('title', ''),
+                'position': position,
+                'normalized': normalize_for_comparison(track.get('title', '')),
+            })
+
+    result['mb_track_count'] = len(mb_tracks)
+    if not mb_tracks:
+        return result
+
+    # Pre-normalize Spotify track titles
+    sp_normalized = [
+        normalize_for_comparison(t['name']) for t in spotify_tracks
+    ]
+
+    # Match MB tracks to Spotify tracks by title similarity
+    used_sp_indices = set()
+    for mb_track in mb_tracks:
+        best_score = 0
+        best_idx = -1
+        best_sp_title = ''
+
+        for idx, sp_norm in enumerate(sp_normalized):
+            if idx in used_sp_indices:
+                continue
+            score = fuzz.token_sort_ratio(mb_track['normalized'], sp_norm)
+            # Small position bonus
+            if abs(mb_track['position'] - (idx + 1)) <= 2 and score >= 70:
+                score = min(100, score + 5)
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+                best_sp_title = spotify_tracks[idx]['name']
+
+        if best_score >= 75:
+            result['matched_titles'].append(
+                (mb_track['title'], best_sp_title, best_score))
+            used_sp_indices.add(best_idx)
+
+    result['matched_count'] = len(result['matched_titles'])
+    result['match_ratio'] = (
+        result['matched_count'] / result['mb_track_count']
+        if result['mb_track_count'] > 0 else 0.0
+    )
+    return result
+
+
+def match_track_to_recording(log: logging.Logger, stats: dict,
+                             min_track_similarity: int,
+                             song_title: str,
+                             spotify_tracks: List[dict],
+                             expected_disc: int = None,
+                             expected_track: int = None,
+                             alt_titles: List[str] = None,
+                             song_id: str = None,
+                             conn=None,
+                             expected_duration_ms: int = None) -> Optional[dict]:
+    """
+    Find the best matching Spotify track for a song title.
+
+    Args:
+        log: Logger for debug messages
+        stats: Mutable counters dict — `stats['tracks_blocked']` is incremented
+            when a candidate is skipped because it's on the blocklist for
+            `song_id`. The caller usually passes matcher.stats.
+        min_track_similarity: Title similarity threshold (0-100) for accepting
+            a candidate.
+        song_title: The song title to match
+        spotify_tracks: List of track dicts from get_album_tracks()
+        expected_disc: Expected disc number (optional, for position-based fallback)
+        expected_track: Expected track number (optional, for position-based fallback)
+        alt_titles: Alternative titles to try if primary title doesn't match
+        song_id: Our database song ID (for blocklist checking)
+        conn: Optional existing database connection. If provided, uses it
+              instead of opening a new one (avoids idle-connection timeouts
+              when called from within a transaction).
+        expected_duration_ms: MusicBrainz recording duration (optional).
+              Used as a soft signal to prefer tracks with closer duration.
+
+    Returns:
+        Best matching track dict or None if no good match.
+    """
+    best_match = None
+    best_score = 0
+
+    # Build set of blocked track IDs for this song (more efficient than per-track DB calls)
+    blocked_track_ids = set()
+    if song_id:
+        from integrations.spotify.db import get_blocked_tracks_for_song
+        blocked_track_ids = set(get_blocked_tracks_for_song(song_id, conn=conn))
+        if blocked_track_ids:
+            log.debug(f"      Found {len(blocked_track_ids)} blocked track(s) for this song")
+
+    # First pass: standard fuzzy matching with primary title, duration-adjusted
+    for track in spotify_tracks:
+        if track['id'] in blocked_track_ids:
+            log.debug(f"      Skipping blocked track: {track['id']} ('{track['name']}')")
+            stats['tracks_blocked'] = stats.get('tracks_blocked', 0) + 1
+            continue
+
+        title_score = calculate_similarity(song_title, track['name'])
+
+        if title_score >= min_track_similarity:
+            adjusted_score = duration_adjusted_score(
+                title_score, expected_duration_ms, track.get('duration_ms'))
+
+            if adjusted_score > best_score:
+                best_score = adjusted_score
+                best_match = track
+
+    if best_match:
+        duration_info = ""
+        if expected_duration_ms and best_match.get('duration_ms'):
+            diff = abs(expected_duration_ms - best_match['duration_ms']) / 1000
+            duration_info = f", duration diff {diff:.0f}s"
+        log.debug(f"      Track match: '{song_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info})")
+        return best_match
+
+    # Second pass: try alternative titles
+    if alt_titles:
+        for alt_title in alt_titles:
+            for track in spotify_tracks:
+                if track['id'] in blocked_track_ids:
+                    continue
+
+                title_score = calculate_similarity(alt_title, track['name'])
+
+                if title_score >= min_track_similarity:
+                    adjusted_score = duration_adjusted_score(
+                        title_score, expected_duration_ms, track.get('duration_ms'))
+
+                    if adjusted_score > best_score:
+                        best_score = adjusted_score
+                        best_match = track
+
+            if best_match:
+                duration_info = ""
+                if expected_duration_ms and best_match.get('duration_ms'):
+                    diff = abs(expected_duration_ms - best_match['duration_ms']) / 1000
+                    duration_info = f", duration diff {diff:.0f}s"
+                log.debug(f"      Track match via alt title: '{alt_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info})")
+                return best_match
+
+    # Fallback: if positions provided and no fuzzy match, try position-based substring match.
+    # Handles cases like "An Affair to Remember" vs
+    # "An Affair to Remember - From the 20th Century-Fox Film, An Affair To Remember"
+    if expected_disc is not None and expected_track is not None:
+        for track in spotify_tracks:
+            if track['id'] in blocked_track_ids:
+                continue
+
+            if track.get('disc_number') == expected_disc and track.get('track_number') == expected_track:
+                if is_substring_title_match(song_title, track['name']):
+                    log.debug(f"      Position+substring match: '{song_title}' → '{track['name']}' "
+                              f"(disc {expected_disc}, track {expected_track})")
+                    return track
+
+                if alt_titles:
+                    for alt_title in alt_titles:
+                        if is_substring_title_match(alt_title, track['name']):
+                            log.debug(f"      Position+substring match via alt title: '{alt_title}' → '{track['name']}' "
+                                      f"(disc {expected_disc}, track {expected_track})")
+                            return track
+
+    return best_match
