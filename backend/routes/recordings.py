@@ -1106,9 +1106,9 @@ def fetch_artwork_for_track(service: str, track_id: str) -> dict:
     """
     try:
         if service == 'spotify':
-            from integrations.spotify.matcher import SpotifyMatcher
-            matcher = SpotifyMatcher()
-            track_details = matcher.get_track_details(track_id)
+            from integrations.spotify.client import SpotifyClient
+            client = SpotifyClient()
+            track_details = client.get_track_details(track_id)
             if track_details and 'album' in track_details:
                 images = track_details['album'].get('images', [])
                 artwork = {}

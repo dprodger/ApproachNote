@@ -267,7 +267,7 @@ def audit_existing_matches(song_name: str, matcher: SpotifyMatcher) -> dict:
         logger.info(f"  Track ID: {track_id}")
 
         # Fetch from Spotify
-        track_details = matcher.get_track_details(track_id)
+        track_details = matcher.client.get_track_details(track_id)
 
         if not track_details:
             logger.warning(f"  ERROR: Could not fetch track from Spotify")
@@ -398,7 +398,7 @@ def dry_run_rematch(song_name: str, matcher: SpotifyMatcher) -> dict:
                 logger.info(f"  Album: WOULD ADD")
 
             # Now check track matching
-            spotify_tracks = matcher.get_album_tracks(new_album_id)
+            spotify_tracks = matcher.client.get_album_tracks(new_album_id)
             if spotify_tracks:
                 matched_track = matcher.match_track_to_recording(
                     song['title'],
@@ -631,7 +631,7 @@ def verify_track_album_consistency(song_name: str, matcher: SpotifyMatcher) -> d
 
         # Get album tracks (from cache or API)
         if album_id not in album_tracks_cache:
-            album_tracks = matcher.get_album_tracks(album_id)
+            album_tracks = matcher.client.get_album_tracks(album_id)
             album_tracks_cache[album_id] = album_tracks
         else:
             album_tracks = album_tracks_cache[album_id]
@@ -843,7 +843,7 @@ def find_orphaned_albums(song_name: str, matcher: SpotifyMatcher, fix: bool = Fa
         logger.info(f"  Spotify:     {rel['spotify_album_url']}")
 
         # Fetch album details to show what tracks ARE on it
-        album_tracks = matcher.get_album_tracks(album_id)
+        album_tracks = matcher.client.get_album_tracks(album_id)
 
         if album_tracks:
             logger.info(f"  Album has {len(album_tracks)} tracks:")

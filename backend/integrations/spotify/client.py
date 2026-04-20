@@ -29,6 +29,16 @@ logger = logging.getLogger(__name__)
 _CACHE_MISS = object()
 
 
+def extract_track_id_from_url(spotify_url: str) -> Optional[str]:
+    """Extract the Spotify track ID from a share URL (open.spotify.com/track/<id>)."""
+    if not spotify_url:
+        return None
+    match = re.search(r'spotify\.com/track/([a-zA-Z0-9]+)', spotify_url)
+    if match:
+        return match.group(1)
+    return None
+
+
 class SpotifyRateLimitError(Exception):
     """Raised when Spotify API rate limit is hit"""
     def __init__(self, retry_after: int = None):
@@ -465,4 +475,174 @@ class SpotifyClient:
             return None
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Failed to fetch batch tracks: {e}")
+            return None
+
+    # ========================================================================
+    # ENTITY FETCH METHODS
+    # ========================================================================
+
+    def get_track_details(self, track_id: str) -> Optional[dict]:
+        """
+        Get detailed information about a Spotify track by ID with caching.
+
+        Args:
+            track_id: Spotify track ID
+
+        Returns:
+            Track data dict or None if not found.
+        """
+        cache_path = self._get_track_cache_path(track_id)
+        cached_data = self._load_from_cache(cache_path)
+
+        if cached_data is not _CACHE_MISS:
+            return cached_data
+
+        token = self.get_spotify_auth_token()
+        if not token:
+            return None
+
+        try:
+            response = self._make_api_request(
+                'get',
+                f'https://api.spotify.com/v1/tracks/{track_id}',
+                headers={'Authorization': f'Bearer {token}'},
+                timeout=10
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            self.stats['api_calls'] = self.stats.get('api_calls', 0) + 1
+            self.last_made_api_call = True
+
+            self._save_to_cache(cache_path, data)
+
+            return data
+
+        except SpotifyRateLimitError as e:
+            self.logger.error(f"Rate limit exceeded fetching track details: {e}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                # Cache the "not found" result so repeated lookups don't re-query.
+                self._save_to_cache(cache_path, None)
+                return None
+            self.logger.error(f"Spotify API error: {e}")
+            return None
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Failed to fetch track details: {e}")
+            return None
+
+    def get_album_details(self, album_id: str) -> Optional[dict]:
+        """
+        Fetch album details from Spotify with caching.
+
+        Args:
+            album_id: Spotify album ID
+
+        Returns:
+            Album dict or None if failed.
+        """
+        cache_path = self._get_album_cache_path(f"{album_id}_details")
+        cached_result = self._load_from_cache(cache_path)
+
+        if cached_result is not _CACHE_MISS:
+            return cached_result
+
+        token = self.get_spotify_auth_token()
+        if not token:
+            return None
+
+        try:
+            response = self._make_api_request(
+                'get',
+                f'https://api.spotify.com/v1/albums/{album_id}',
+                headers={'Authorization': f'Bearer {token}'},
+                timeout=10
+            )
+
+            response.raise_for_status()
+            data = response.json()
+
+            self.stats['api_calls'] = self.stats.get('api_calls', 0) + 1
+            self.last_made_api_call = True
+
+            self._save_to_cache(cache_path, data)
+            return data
+
+        except SpotifyRateLimitError as e:
+            self.logger.error(f"Rate limit exceeded fetching album: {e}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"Spotify API error fetching album: {e}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error fetching album: {e}")
+            return None
+
+    def get_album_tracks(self, album_id: str) -> Optional[list[dict]]:
+        """
+        Fetch all tracks from a Spotify album, handling pagination for large albums.
+
+        Args:
+            album_id: Spotify album ID
+
+        Returns:
+            List of track dicts with 'id', 'name', 'track_number', 'disc_number',
+            'url', 'duration_ms', or None if failed.
+        """
+        cache_path = self._get_album_cache_path(album_id)
+        cached_result = self._load_from_cache(cache_path)
+
+        if cached_result is not _CACHE_MISS:
+            return cached_result
+
+        token = self.get_spotify_auth_token()
+        if not token:
+            return None
+
+        try:
+            tracks = []
+            url = f'https://api.spotify.com/v1/albums/{album_id}/tracks'
+            params = {'limit': 50}
+
+            while url:
+                response = self._make_api_request(
+                    'get',
+                    url,
+                    headers={'Authorization': f'Bearer {token}'},
+                    params=params if 'offset' not in url else None,
+                    timeout=10
+                )
+
+                response.raise_for_status()
+                data = response.json()
+
+                self.stats['api_calls'] = self.stats.get('api_calls', 0) + 1
+                self.last_made_api_call = True
+
+                for item in data.get('items', []):
+                    tracks.append({
+                        'id': item['id'],
+                        'name': item['name'],
+                        'track_number': item['track_number'],
+                        'disc_number': item['disc_number'],
+                        'url': item['external_urls']['spotify'],
+                        'duration_ms': item.get('duration_ms'),
+                    })
+
+                url = data.get('next')
+
+            self.logger.debug(f"    Fetched {len(tracks)} total tracks from album")
+            self._save_to_cache(cache_path, tracks)
+            return tracks
+
+        except SpotifyRateLimitError as e:
+            self.logger.error(f"Rate limit exceeded fetching album tracks: {e}")
+            return None
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"Spotify API error fetching album tracks: {e}")
+            return None
+        except Exception as e:
+            self.logger.error(f"Error fetching album tracks: {e}")
             return None

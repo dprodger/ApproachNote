@@ -158,7 +158,7 @@ def fetch_popularity_data(song_name: str, output_file: str = None) -> dict:
         logger.info(f"Fetching: {rec['album_title']} ({rec['recording_year'] or 'Unknown year'}) - {rec['leader_name'] or 'Unknown artist'}")
 
         # Fetch track details from Spotify
-        track_details = matcher.get_track_details(track_id)
+        track_details = matcher.client.get_track_details(track_id)
 
         if track_details:
             popularity = track_details.get('popularity', 0)
