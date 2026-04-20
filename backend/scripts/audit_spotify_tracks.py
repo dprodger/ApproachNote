@@ -59,6 +59,7 @@ load_dotenv()
 from db_utils import get_db_connection
 from integrations.spotify.matcher import SpotifyMatcher
 from integrations.spotify.matching import calculate_similarity, normalize_for_comparison
+from integrations.spotify.search import search_spotify_album
 
 logging.basicConfig(
     level=logging.INFO,
@@ -379,7 +380,8 @@ def dry_run_rematch(song_name: str, matcher: SpotifyMatcher) -> dict:
         logger.info(f"  Existing album ID: {existing_album_id or 'None'}")
 
         # Perform fresh album search
-        new_album_match = matcher.search_spotify_album(
+        new_album_match = search_spotify_album(
+            matcher,
             rel['release_title'],
             artist,
             song['title']  # for track verification
