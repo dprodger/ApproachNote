@@ -37,7 +37,7 @@ struct MacRegisterView: View {
                     .font(ApproachNoteTheme.title())
                     .foregroundColor(ApproachNoteTheme.charcoal)
 
-                Text("Join Approach Note")
+                Text("Join ApproachNote")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
             }

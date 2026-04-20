@@ -1116,7 +1116,7 @@ class ShareViewController: UIViewController {
         DispatchQueue.main.async { [weak self] in
             let alert = UIAlertController(
                 title: "Data Saved",
-                message: "Open Approach Note to complete the import.",
+                message: "Open ApproachNote to complete the import.",
                 preferredStyle: .alert
             )
 

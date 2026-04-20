@@ -38,7 +38,7 @@ struct LoginRequiredView: View {
                 .font(.title2)
                 .bold()
 
-            Text("Please open Approach Note and log in to import songs or artists.")
+            Text("Please open ApproachNote and log in to import songs or artists.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)

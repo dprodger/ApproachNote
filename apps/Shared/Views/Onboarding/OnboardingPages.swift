@@ -35,7 +35,7 @@ struct OnboardingWelcomePage: View {
                 .foregroundColor(ApproachNoteTheme.charcoal)
 
             VStack(spacing: 16) {
-                Text("Thanks for checking out Approach Note.")
+                Text("Thanks for checking out ApproachNote.")
                     .font(ApproachNoteTheme.title3())
                     .multilineTextAlignment(.center)
 

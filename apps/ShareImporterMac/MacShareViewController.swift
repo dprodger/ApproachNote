@@ -1096,7 +1096,7 @@ class MacShareViewController: NSViewController {
         DispatchQueue.main.async { [weak self] in
             let alert = NSAlert()
             alert.messageText = "Data Saved"
-            alert.informativeText = "Open Approach Note to complete the import."
+            alert.informativeText = "Open ApproachNote to complete the import."
             alert.alertStyle = .informational
             alert.addButton(withTitle: "OK")
 

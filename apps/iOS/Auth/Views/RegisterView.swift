@@ -41,7 +41,7 @@ struct RegisterView: View {
                             .fontWeight(.bold)
                             .foregroundColor(ApproachNoteTheme.charcoal)
                         
-                        Text("Join Approach Note")
+                        Text("Join ApproachNote")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }

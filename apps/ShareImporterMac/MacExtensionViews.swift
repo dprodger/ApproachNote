@@ -72,7 +72,7 @@ struct MacLoginRequiredView: View {
                 .font(.title2)
                 .bold()
 
-            Text("Please open Approach Note and log in to import songs or artists.")
+            Text("Please open ApproachNote and log in to import songs or artists.")
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
@@ -105,7 +105,7 @@ struct MacSuccessView: View {
                 .font(.title2)
                 .bold()
 
-            Text("Opening Approach Note...")
+            Text("Opening ApproachNote...")
                 .font(.subheadline)
                 .foregroundColor(.secondary)
         }
@@ -201,7 +201,7 @@ struct MacArtistImportConfirmationView: View {
             // Action buttons
             VStack(spacing: 10) {
                 Button(action: onImport) {
-                    Text("Import to Approach Note")
+                    Text("Import to ApproachNote")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -270,7 +270,7 @@ struct MacArtistExactMatchView: View {
                 Button(action: onOpenInApp) {
                     HStack {
                         Image(systemName: "arrow.up.forward.app")
-                        Text("View in Approach Note")
+                        Text("View in ApproachNote")
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -528,7 +528,7 @@ struct MacSongImportConfirmationView: View {
 
             VStack(spacing: 10) {
                 Button(action: onImport) {
-                    Text("Import to Approach Note")
+                    Text("Import to ApproachNote")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
@@ -597,7 +597,7 @@ struct MacSongExactMatchView: View {
 
             VStack(spacing: 10) {
                 Button(action: onOpenInApp) {
-                    Text("Open in Approach Note")
+                    Text("Open in ApproachNote")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
