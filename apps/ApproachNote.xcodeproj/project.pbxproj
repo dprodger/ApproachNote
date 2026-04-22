@@ -113,7 +113,7 @@
 		B4108A052F46D5000002828A /* TranscriptionRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscriptionRow.swift; sourceTree = "<group>"; };
 		B4108A072F46D5000002828A /* BackingTrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackingTrackRow.swift; sourceTree = "<group>"; };
 		B4108A092F46D5000002828A /* StreamingButtons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingButtons.swift; sourceTree = "<group>"; };
-		B41D0F972EE6337400DB427C /* ApproachNoteMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApproachNoteMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B41D0F972EE6337400DB427C /* ApproachNote.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ApproachNote.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B41D0FA22EE633EE00DB427C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Assets.xcassets; path = Mac/Assets.xcassets; sourceTree = "<group>"; };
 		B41D0FA32EE633EE00DB427C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		B41D0FA42EE633EE00DB427C /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -139,7 +139,7 @@
 		B486B3112F1D93C4005E6644 /* MacArtistCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacArtistCreationView.swift; sourceTree = "<group>"; };
 		B486B3122F1D93C4005E6644 /* MacSongCreationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacSongCreationView.swift; sourceTree = "<group>"; };
 		B486B3132F1D93C4005E6644 /* MacYouTubeImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MacYouTubeImportView.swift; sourceTree = "<group>"; };
-		B486B3182F1D9743005E6644 /* ApproachNoteMacRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mac/App/ApproachNoteMacRelease.entitlements; sourceTree = "<group>"; };
+		B486B3182F1D9743005E6644 /* Mac/App/ApproachNoteMacRelease.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mac/App/ApproachNoteMacRelease.entitlements; sourceTree = "<group>"; };
 		B4911D2A2EB316F600326CA7 /* ShareImporter.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ShareImporter.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B4B9C4BF2F1AEC0100159A28 /* MusicBrainzSearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MusicBrainzSearchSheet.swift; sourceTree = "<group>"; };
 		B4BE01002F3600000000BE01 /* SongBulkEditRecordingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongBulkEditRecordingsView.swift; sourceTree = "<group>"; };
@@ -366,7 +366,7 @@
 		B4C160372E91B03600EB8D2C = {
 			isa = PBXGroup;
 			children = (
-				B486B3182F1D9743005E6644 /* ApproachNoteMacRelease.entitlements */,
+				B486B3182F1D9743005E6644 /* Mac/App/ApproachNoteMacRelease.entitlements */,
 				B42A1D702F10A06C00DAC930 /* Mac */,
 				B4C160422E91B03600EB8D2C /* iOS */,
 				B4SHARED012F10C00000000001 /* Shared */,
@@ -383,7 +383,7 @@
 				B4C1604D2E91B03700EB8D2C /* ApproachNoteTests.xctest */,
 				B4C160572E91B03700EB8D2C /* ApproachNoteUITests.xctest */,
 				B4911D2A2EB316F600326CA7 /* ShareImporter.appex */,
-				B41D0F972EE6337400DB427C /* ApproachNoteMac.app */,
+				B41D0F972EE6337400DB427C /* ApproachNote.app */,
 				B486B2F22F1D922B005E6644 /* ShareImporterMac.appex */,
 			);
 			name = Products;
@@ -415,7 +415,7 @@
 				B45A16AC2F08802C00259452 /* GoogleSignInSwift */,
 			);
 			productName = ApproachNoteMac;
-			productReference = B41D0F972EE6337400DB427C /* ApproachNoteMac.app */;
+			productReference = B41D0F972EE6337400DB427C /* ApproachNote.app */;
 			productType = "com.apple.product-type.application";
 		};
 		B486B2F12F1D922B005E6644 /* ShareImporterMac */ = {
@@ -771,7 +771,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ApproachNote;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
@@ -824,7 +824,7 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.6;
 				MARKETING_VERSION = 1.6;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
-				PRODUCT_NAME = "$(TARGET_NAME)";
+				PRODUCT_NAME = ApproachNote;
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				REGISTER_APP_GROUPS = YES;
 				RUNTIME_EXCEPTION_ALLOW_DYLD_ENVIRONMENT_VARIABLES = NO;
