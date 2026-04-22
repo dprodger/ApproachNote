@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: approachnote-test-pg
+    environment:
+      POSTGRES_USER: jazztest
+      POSTGRES_PASSWORD: jazztest
+      POSTGRES_DB: jazz_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - jazz_test_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jazztest -d jazz_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  jazz_test_pgdata:

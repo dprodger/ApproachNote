@@ -5,30 +5,53 @@ research queue, and rate-limit smoke tests are tracked as follow-up issues.
 
 ## Running locally
 
-You need a Postgres reachable via the same env vars the app uses
-(`DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`). Bootstrap a
-test database from the schema before the first run:
+Production runs on Supabase. For tests we use a disposable Dockerized
+Postgres — no need to install or manage Postgres on your laptop. You
+just need Docker Desktop running.
+
+### One-time setup
 
 ```bash
-createdb jazz_test
-psql jazz_test -f sql/jazz-db-schema.sql
-for f in sql/migrations/[0-9]*.sql; do psql jazz_test -f "$f" || true; done
-```
-
-Install dev deps and run the suite:
-
-```bash
+# From the repo root:
+cp backend/.env.test.example backend/.env.test
 cd backend
 pip install -r requirements.txt -r requirements-dev.txt
+```
 
-DB_HOST=localhost DB_PORT=5432 DB_NAME=jazz_test \
-  DB_USER=$(whoami) DB_PASSWORD='' \
-  JWT_SECRET=pytest-test-secret RATELIMIT_ENABLED=false \
-  pytest tests/ -v
+### Each test run
+
+```bash
+# 1. Start the test DB container and apply schema + migrations.
+#    (First run pulls postgres:16; subsequent runs are fast.)
+./backend/scripts/test_db.sh up
+
+# 2. Activate the backend venv (pytest lives here).
+source backend/venv/bin/activate
+
+# 3. Load test env vars into your shell.
+source backend/.env.test
+
+# 4. Run the suite.
+pytest backend/tests/
+```
+
+When you're done for the day:
+
+```bash
+./backend/scripts/test_db.sh down     # stop container, keep data
+# or
+./backend/scripts/test_db.sh reset    # next run starts from a clean DB
+```
+
+Other helpers:
+
+```bash
+./backend/scripts/test_db.sh psql     # interactive shell into the test DB
 ```
 
 CI runs the equivalent in `.github/workflows/pytest.yml` against a
-Postgres `services:` container.
+Postgres `services:` container — same image (`postgres:16`), same
+schema-bootstrap logic, so local and CI can't drift.
 
 ## Production-safety guard
 
@@ -39,10 +62,13 @@ against the auth tables and individual test modules INSERT/DELETE into
 test env at your production DB, those ops will wipe real data. The
 April 2026 incident was exactly this mistake.
 
+`backend/scripts/test_db.sh` enforces the same `test`-in-name rule
+before running any destructive Docker ops, as a second layer.
+
 If you genuinely need to run against a DB whose name doesn't include
-`test`, set `PYTEST_I_KNOW_THIS_ISNT_PROD=1` to bypass the check. A
-warning is logged to stderr every run when the bypass is active. Don't
-make a habit of it.
+`test`, set `PYTEST_I_KNOW_THIS_ISNT_PROD=1` to bypass the pytest check.
+A warning is logged to stderr every run when the bypass is active.
+Don't make a habit of it.
 
 ## Conventions
 
