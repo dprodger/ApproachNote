@@ -25,6 +25,7 @@ load_dotenv()
 
 from db_utils import get_db_connection
 from integrations.spotify.matcher import SpotifyMatcher
+from integrations.spotify.db import find_song_by_name
 
 logging.basicConfig(
     level=logging.INFO,
@@ -116,7 +117,7 @@ def fetch_popularity_data(song_name: str, output_file: str = None) -> dict:
     matcher = SpotifyMatcher(dry_run=True)
 
     # Find the song
-    song = matcher.find_song_by_name(song_name)
+    song = find_song_by_name(song_name)
     if not song:
         logger.error(f"Song not found: {song_name}")
         return None

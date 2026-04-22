@@ -64,6 +64,7 @@ from integrations.spotify.matching import (
     match_track_to_recording,
 )
 from integrations.spotify.search import search_spotify_album
+from integrations.spotify.db import find_song_by_name
 
 logging.basicConfig(
     level=logging.INFO,
@@ -231,7 +232,7 @@ def audit_existing_matches(song_name: str, matcher: SpotifyMatcher) -> dict:
     Fetches track details from Spotify and compares to our song title and artist.
     """
     # Find the song
-    song = matcher.find_song_by_name(song_name)
+    song = find_song_by_name(song_name)
     if not song:
         logger.error(f"Song not found: {song_name}")
         return None
@@ -351,7 +352,7 @@ def dry_run_rematch(song_name: str, matcher: SpotifyMatcher) -> dict:
     Performs fresh matching and compares to existing data without making changes.
     """
     # Find the song
-    song = matcher.find_song_by_name(song_name)
+    song = find_song_by_name(song_name)
     if not song:
         logger.error(f"Song not found: {song_name}")
         return None
@@ -604,7 +605,7 @@ def verify_track_album_consistency(song_name: str, matcher: SpotifyMatcher) -> d
     the track actually exists on the associated release's spotify_album_id.
     """
     # Find the song
-    song = matcher.find_song_by_name(song_name)
+    song = find_song_by_name(song_name)
     if not song:
         logger.error(f"Song not found: {song_name}")
         return None
@@ -817,7 +818,7 @@ def find_orphaned_albums(song_name: str, matcher: SpotifyMatcher, fix: bool = Fa
     is not on the album.
     """
     # Find the song
-    song = matcher.find_song_by_name(song_name)
+    song = find_song_by_name(song_name)
     if not song:
         logger.error(f"Song not found: {song_name}")
         return None

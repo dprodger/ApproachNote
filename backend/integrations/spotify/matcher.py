@@ -28,9 +28,7 @@ from db_utils import get_db_connection
 
 from integrations.spotify.client import SpotifyClient
 from integrations.spotify.matching import (
-    normalize_for_comparison,
     calculate_similarity,
-    is_substring_title_match,
     extract_primary_artist,
     duration_confidence,
     check_album_context_via_tracklist,
@@ -47,7 +45,6 @@ from integrations.spotify.diagnostics import (
 from integrations.spotify.db import (
     find_song_by_name,
     find_song_by_id,
-    get_recordings_for_song,
     get_releases_for_song,
     get_releases_with_duration_mismatches,
     get_releases_without_artwork,
@@ -58,7 +55,6 @@ from integrations.spotify.db import (
     clear_recording_release_track,
     update_recording_release_track_id,
     update_recording_default_release,
-    is_track_blocked,
     is_album_blocked,
 )
 
@@ -190,53 +186,13 @@ class SpotifyMatcher:
         self.client.last_made_api_call = value
     
     # ========================================================================
-    # MATCHING HELPER METHODS
+    # DATABASE UPDATES WITH STATS/LOGGING
     # ========================================================================
-    
-    def normalize_for_comparison(self, text: str) -> str:
-        """Normalize text for fuzzy comparison"""
-        return normalize_for_comparison(text)
-    
-    def calculate_similarity(self, text1: str, text2: str) -> float:
-        """Calculate similarity between two strings"""
-        return calculate_similarity(text1, text2)
-    
-    def is_substring_title_match(self, title1: str, title2: str) -> bool:
-        """Check if one normalized title is a complete substring of the other"""
-        return is_substring_title_match(title1, title2)
-    
-    def extract_primary_artist(self, artist_credit: str) -> str:
-        """Extract the primary artist from a MusicBrainz artist_credit string"""
-        return extract_primary_artist(artist_credit)
+    # These wrap the plain db.py functions with the stats bookkeeping +
+    # progress logging the matcher owns. The plain passthroughs moved out
+    # to direct db.py imports in #115 step 6; only the ones with orchestration
+    # work live here.
 
-    # ========================================================================
-    # DATABASE METHODS (delegated)
-    # ========================================================================
-    
-    def find_song_by_name(self, song_name: str) -> Optional[dict]:
-        """Look up song by name"""
-        return find_song_by_name(song_name)
-    
-    def find_song_by_id(self, song_id: str) -> Optional[dict]:
-        """Look up song by ID"""
-        return find_song_by_id(song_id)
-    
-    def get_recordings_for_song(self, song_id: str) -> List[dict]:
-        """Get all recordings for a song, optionally filtered by artist"""
-        return get_recordings_for_song(song_id, self.artist_filter)
-    
-    def get_releases_for_song(self, song_id: str) -> List[dict]:
-        """Get all releases for a song, optionally filtered by artist"""
-        return get_releases_for_song(song_id, self.artist_filter)
-    
-    def get_releases_without_artwork(self) -> List[dict]:
-        """Get releases with Spotify URL but no cover artwork"""
-        return get_releases_without_artwork()
-    
-    def get_recordings_for_release(self, song_id: str, release_id: str, conn=None) -> List[dict]:
-        """Get recordings linked to a specific release for a specific song"""
-        return get_recordings_for_release(song_id, release_id, conn=conn)
-    
     def update_release_spotify_data(self, conn, release_id: str, spotify_data: dict,
                                     release_title: str = None, artist: str = None,
                                     year: int = None, index: int = None, total: int = None):
@@ -259,25 +215,6 @@ class SpotifyMatcher:
         if not self.dry_run:
             self.logger.info(f"    ✓ Updated with cover artwork")
             self.stats['releases_updated'] += 1
-    
-    def update_recording_release_track_id(self, conn, recording_id: str, release_id: str,
-                                          track_id: str, track_url: str,
-                                          disc_number: int = None, track_number: int = None,
-                                          track_title: str = None, duration_ms: int = None,
-                                          match_confidence: float = None,
-                                          match_method: str = 'fuzzy_search'):
-        """Update the recording_releases junction table with Spotify track info"""
-        update_recording_release_track_id(conn, recording_id, release_id, track_id, track_url,
-                                         disc_number=disc_number, track_number=track_number,
-                                         track_title=track_title, duration_ms=duration_ms,
-                                         match_confidence=match_confidence,
-                                         match_method=match_method,
-                                         dry_run=self.dry_run, log=self.logger)
-    
-    def update_recording_default_release(self, conn, song_id: str, release_id: str):
-        """Update recordings linked to a release to set it as their default_release"""
-        update_recording_default_release(conn, song_id, release_id,
-                                        dry_run=self.dry_run, log=self.logger)
 
     def match_recordings(self, song_identifier: str) -> Dict[str, Any]:
         """
@@ -327,9 +264,9 @@ class SpotifyMatcher:
         try:
             # Find the song
             if song_identifier.startswith('song-') or len(song_identifier) == 36:
-                song = self.find_song_by_id(song_identifier)
+                song = find_song_by_id(song_identifier)
             else:
-                song = self.find_song_by_name(song_identifier)
+                song = find_song_by_name(song_identifier)
             
             if not song:
                 return {
@@ -351,7 +288,7 @@ class SpotifyMatcher:
                 releases = get_releases_with_duration_mismatches(
                     song['id'], self.duration_mismatch_threshold, self.artist_filter)
             else:
-                releases = self.get_releases_for_song(song['id'])
+                releases = get_releases_for_song(song['id'], self.artist_filter)
             
             if not releases:
                 return {
@@ -406,7 +343,7 @@ class SpotifyMatcher:
                     # rematch_tracks mode (not rematch_all): Re-run track matching for releases with album IDs
                     # but only if there are recordings missing track IDs
                     existing_album_id = release.get('spotify_album_id')
-                    recordings = self.get_recordings_for_release(song['id'], release['id'])
+                    recordings = get_recordings_for_release(song['id'], release['id'])
                     needs_track_match = any(not r.get('spotify_track_id') for r in recordings)
 
                     if not needs_track_match:
@@ -513,10 +450,12 @@ class SpotifyMatcher:
 
                             # NEW: Set this as the default release for linked recordings
                             # (only if they don't already have a better default)
-                            self.update_recording_default_release(
+                            update_recording_default_release(
                                 conn,
                                 song['id'],
-                                release['id']
+                                release['id'],
+                                dry_run=self.dry_run,
+                                log=self.logger,
                             )
                         else:
                             # Album matched but no track found - cache this for future runs
@@ -544,7 +483,7 @@ class SpotifyMatcher:
                                 self.logger.info(f"    ✓ Cleared stale Spotify data")
                                 self.stats['releases_cleared'] += 1
                             # Also clear track-level links (may exist even if release-level was already cleared)
-                            recordings = self.get_recordings_for_release(song['id'], release['id'], conn=conn)
+                            recordings = get_recordings_for_release(song['id'], release['id'], conn=conn)
                             for recording in recordings:
                                 if recording.get('spotify_track_id'):
                                     clear_recording_release_track(
@@ -605,7 +544,7 @@ class SpotifyMatcher:
         self.logger.debug(f"    Matching tracks ({len(spotify_tracks)} tracks in album)...")
         
         # Get our recordings for this release (use existing connection to avoid idle timeout)
-        recordings = self.get_recordings_for_release(song_id, release_id, conn=conn)
+        recordings = get_recordings_for_release(song_id, release_id, conn=conn)
 
         any_matched = False
         for recording in recordings:
@@ -645,7 +584,7 @@ class SpotifyMatcher:
                 # Hard reject and log if confidence is too low
                 rescued = False
                 if confidence is not None and confidence <= 0.4:
-                    title_score = self.calculate_similarity(song_title, matched_track['name'])
+                    title_score = calculate_similarity(song_title, matched_track['name'])
                     duration_diff = abs(recording_duration_ms - matched_track['duration_ms'])
                     self.logger.info(
                         f"      Rejecting low-confidence match: '{song_title}' → '{matched_track['name']}' "
@@ -710,7 +649,7 @@ class SpotifyMatcher:
                     rescued = True
 
                 match_method = 'album_context' if rescued else 'fuzzy_search'
-                self.update_recording_release_track_id(
+                update_recording_release_track_id(
                     conn,
                     recording['recording_id'],
                     release_id,
@@ -722,6 +661,8 @@ class SpotifyMatcher:
                     duration_ms=matched_track.get('duration_ms'),
                     match_confidence=confidence,
                     match_method=match_method,
+                    dry_run=self.dry_run,
+                    log=self.logger,
                 )
                 self.stats['tracks_matched'] += 1
                 any_matched = True
@@ -774,7 +715,7 @@ class SpotifyMatcher:
         self.logger.info("")
         
         # Get releases without images
-        releases = self.get_releases_without_artwork()
+        releases = get_releases_without_artwork()
         
         if not releases:
             self.logger.info("No releases found that need cover artwork")
