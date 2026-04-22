@@ -58,7 +58,7 @@ jobs:
         env:
           PGPASSWORD: jazztest
         run: |
-          psql -h localhost -U jazztest -d jazz_test -f sql/jazz-db-schema.sql
+          psql -h localhost -U jazztest -d jazz_test -v ON_ERROR_STOP=1 -f sql/jazz-db-schema.sql
           # Replay numbered migrations on top so tests run against the same
           # schema as production. `|| true` per file so an idempotent
           # migration that fails because the change is already in the

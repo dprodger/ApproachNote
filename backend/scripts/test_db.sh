@@ -64,16 +64,9 @@ wait_for_pg() {
 
 apply_schema() {
   echo "Applying base schema..."
-  # ON_ERROR_STOP=0 matches .github/workflows/pytest.yml (which relies on
-  # psql's default lenient behavior). The base schema has a known
-  # forward-reference: two tables near line 233/251 reference users(id)
-  # before users is created near line 333. psql logs the error and
-  # continues; tests still pass because the auth suite doesn't touch
-  # those two FK columns. Proper fix = reorder the schema; tracked
-  # separately.
   psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" \
-    -v ON_ERROR_STOP=0 -f "$REPO_ROOT/sql/jazz-db-schema.sql" \
-    >/dev/null 2>&1 || true
+    -v ON_ERROR_STOP=1 -f "$REPO_ROOT/sql/jazz-db-schema.sql" \
+    >/dev/null
 
   echo "Applying numbered migrations..."
   # Matches the CI loop in .github/workflows/pytest.yml. ON_ERROR_STOP=0

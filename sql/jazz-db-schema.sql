@@ -211,6 +211,50 @@ CREATE TABLE release_performers (
 );
 
 -- ============================================================================
+-- CORE USER TABLES
+-- (defined here because streaming-links tables below reference users.id;
+-- refresh / password-reset / verification tables follow further down.)
+-- ============================================================================
+
+CREATE TABLE users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    email_verified BOOLEAN DEFAULT false,
+    password_hash VARCHAR(255),
+    display_name VARCHAR(255),
+    profile_image_url VARCHAR(500),
+    google_id VARCHAR(255) UNIQUE,
+    apple_id VARCHAR(255) UNIQUE,
+    is_active BOOLEAN DEFAULT true,
+    account_locked BOOLEAN DEFAULT false,
+    failed_login_attempts INTEGER DEFAULT 0,
+    last_failed_login_at TIMESTAMP WITH TIME ZONE,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    is_admin BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+COMMENT ON COLUMN users.is_admin IS
+    'True if user may access /admin web pages. Granted via backend/scripts/grant_admin.py.';
+
+CREATE INDEX IF NOT EXISTS idx_users_is_admin
+    ON users(is_admin)
+    WHERE is_admin = true;
+
+CREATE TABLE admin_users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    full_name VARCHAR(255),
+    role VARCHAR(50) DEFAULT 'editor',
+    is_active BOOLEAN DEFAULT true,
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ============================================================================
 -- STREAMING LINKS
 -- ============================================================================
 
@@ -327,46 +371,9 @@ CREATE TABLE artist_images (
 );
 
 -- ============================================================================
--- USER & AUTH TABLES
+-- AUTH SESSION & TOKEN TABLES
+-- (users and admin_users are defined earlier, before STREAMING LINKS)
 -- ============================================================================
-
-CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    email_verified BOOLEAN DEFAULT false,
-    password_hash VARCHAR(255),
-    display_name VARCHAR(255),
-    profile_image_url VARCHAR(500),
-    google_id VARCHAR(255) UNIQUE,
-    apple_id VARCHAR(255) UNIQUE,
-    is_active BOOLEAN DEFAULT true,
-    account_locked BOOLEAN DEFAULT false,
-    failed_login_attempts INTEGER DEFAULT 0,
-    last_failed_login_at TIMESTAMP WITH TIME ZONE,
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    is_admin BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
-COMMENT ON COLUMN users.is_admin IS
-    'True if user may access /admin web pages. Granted via backend/scripts/grant_admin.py.';
-
-CREATE INDEX IF NOT EXISTS idx_users_is_admin
-    ON users(is_admin)
-    WHERE is_admin = true;
-
-CREATE TABLE admin_users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    email VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(255) NOT NULL,
-    full_name VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'editor',
-    is_active BOOLEAN DEFAULT true,
-    last_login_at TIMESTAMP WITH TIME ZONE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
 
 CREATE TABLE refresh_tokens (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
