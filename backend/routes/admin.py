@@ -21,6 +21,7 @@ import secrets
 from core.auth_utils import hash_password
 from db_utils import get_db_connection
 from integrations.musicbrainz.release_importer import MBReleaseImporter
+from integrations.musicbrainz.parsing import parse_release_data
 from integrations.musicbrainz.performer_importer import PerformerImporter
 from integrations.musicbrainz.utils import MusicBrainzSearcher
 from integrations.spotify.db import is_track_manual_override
@@ -615,7 +616,7 @@ def _find_or_create_release_with_caa(conn, mb_release_id: str, orphan: dict) -> 
     importer._load_lookup_caches(conn)
 
     # Parse release data using the same logic as regular import
-    release_data = importer._parse_release_data(release_details)
+    release_data = parse_release_data(release_details)
 
     # Create the release
     release_id = importer._create_release(conn, release_data)
