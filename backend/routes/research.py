@@ -2,7 +2,7 @@
 from flask import Blueprint, jsonify, request
 import logging
 import db_utils as db_tools
-from core import research_queue
+from core import research_queue, research_jobs
 logger = logging.getLogger(__name__)
 research_bp = Blueprint('research', __name__)
 
@@ -192,3 +192,51 @@ def queue_all_songs_for_research():
             'error': 'Internal server error',
             'detail': str(e)
         }), 500
+
+# ============================================================================
+# Per-target research status (read-only, client-facing)
+# ----------------------------------------------------------------------------
+# Backed by core.research_jobs.status_for_target — returns the latest job per
+# source for a given (target_type, target_id). Used by iOS/Mac clients to
+# show fine-grained crawl status on song / recording / performer detail pages.
+# ============================================================================
+
+
+def _serialize_status_row(row: dict) -> dict:
+    """Render one research_jobs row for the status response (no payload/result)."""
+    return {
+        'job_id': row['id'],
+        'job_type': row['job_type'],
+        'status': row['status'],
+        'attempts': row['attempts'],
+        'max_attempts': row['max_attempts'],
+        'queued_at': row['created_at'].isoformat() if row.get('created_at') else None,
+        'claimed_at': row['claimed_at'].isoformat() if row.get('claimed_at') else None,
+        'finished_at': row['finished_at'].isoformat() if row.get('finished_at') else None,
+        'next_run_at': row['run_after'].isoformat() if row.get('run_after') else None,
+        'last_error': row.get('last_error'),
+    }
+
+
+def _status_response(target_type: str, target_id: str):
+    rows = research_jobs.status_for_target(target_type, target_id)
+    return jsonify({
+        'target_type': target_type,
+        'target_id': str(target_id),
+        'sources': {row['source']: _serialize_status_row(row) for row in rows},
+    })
+
+
+@research_bp.route('/songs/<song_id>/research_status', methods=['GET'])
+def song_research_status(song_id):
+    return _status_response(research_jobs.TARGET_SONG, song_id)
+
+
+@research_bp.route('/recordings/<recording_id>/research_status', methods=['GET'])
+def recording_research_status(recording_id):
+    return _status_response(research_jobs.TARGET_RECORDING, recording_id)
+
+
+@research_bp.route('/performers/<performer_id>/research_status', methods=['GET'])
+def performer_research_status(performer_id):
+    return _status_response(research_jobs.TARGET_PERFORMER, performer_id)
