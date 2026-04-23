@@ -24,15 +24,11 @@ import logging
 from typing import Dict, Any, Optional, List
 
 from db_utils import get_db_connection
-from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 
 from integrations.apple_music.client import (
     AppleMusicClient,
-    AppleMusicRateLimitError,
-    _CACHE_MISS,
     build_apple_music_album_url,
     build_apple_music_track_url,
-    SERVICE_NAME,
 )
 from integrations.apple_music.db import (
     find_song_by_name,
@@ -44,6 +40,7 @@ from integrations.apple_music.db import (
     upsert_track_streaming_link,
     upsert_release_imagery,
 )
+from integrations.apple_music.search import search_and_validate_album
 
 # Optional: Apple Music Feed catalog (much faster, no rate limits)
 try:
@@ -55,15 +52,10 @@ except ImportError:
 
 # Reuse matching utilities from Spotify - they're service-agnostic
 from integrations.spotify.matching import (
-    strip_ensemble_suffix,
-    strip_live_suffix,
     normalize_for_comparison,
     normalize_name_variants,
     calculate_similarity,
     is_substring_title_match,
-    extract_primary_artist,
-    validate_track_match,
-    validate_album_match,
     is_compilation_artist,
 )
 
@@ -306,8 +298,8 @@ class AppleMusicMatcher:
         self.logger.info(f"  {progress}Processing: {artist_credit} - {release_title}")
 
         # Search Apple Music for this album
-        apple_album = self._search_and_validate_album(
-            artist_credit, release_title, release_year
+        apple_album = search_and_validate_album(
+            self, artist_credit, release_title, release_year
         )
 
         if not apple_album:
@@ -370,254 +362,6 @@ class AppleMusicMatcher:
         self._match_track_on_release(
             conn, song_id, song_title, release_id, album_id, from_local
         )
-
-    def _search_and_validate_album(
-        self,
-        artist_name: str,
-        album_title: str,
-        release_year: int = None
-    ) -> Optional[Dict]:
-        """
-        Search Apple Music for an album and validate the match.
-
-        Uses multiple search strategies with progressively relaxed criteria.
-        If local catalog is available, searches there first (no rate limits).
-        Falls back to iTunes API if needed.
-
-        Args:
-            artist_name: Artist/performer name
-            album_title: Album title to search for
-            release_year: Optional year for validation
-
-        Returns:
-            Matched album dict with _match_confidence, or None
-        """
-        # Try local catalog first if available
-        if self.catalog:
-            result = self._search_local_catalog(artist_name, album_title, release_year)
-            if result:
-                self.stats['local_catalog_hits'] += 1
-                return result
-
-        # Skip API fallback if local_catalog_only mode
-        if self.local_catalog_only:
-            self.logger.debug("    Skipping API fallback (local catalog only mode)")
-            return None
-
-        # Fall back to iTunes API
-        return self._search_api(artist_name, album_title, release_year)
-
-    def _search_local_catalog(
-        self,
-        artist_name: str,
-        album_title: str,
-        release_year: int = None
-    ) -> Optional[Dict]:
-        """
-        Search the local Apple Music catalog for an album.
-
-        Args:
-            artist_name: Artist/performer name
-            album_title: Album title to search for
-            release_year: Optional year for validation
-
-        Returns:
-            Matched album dict with _match_confidence, or None
-        """
-        if not self.catalog:
-            return None
-
-        search_strategies = []
-
-        # Strategy 1: Full artist + album
-        search_strategies.append((artist_name, album_title))
-
-        # Strategy 2: Strip ensemble suffix
-        stripped_artist = strip_ensemble_suffix(artist_name)
-        if stripped_artist != artist_name:
-            search_strategies.append((stripped_artist, album_title))
-
-        # Strategy 3: Strip live suffix from album
-        stripped_album = strip_live_suffix(album_title)
-        if stripped_album != album_title:
-            search_strategies.append((artist_name, stripped_album))
-
-        # Strategy 4: Extract primary artist from collaborations
-        # Handles "Artist1 & Artist2" -> "Artist1"
-        primary_artist = extract_primary_artist(artist_name)
-        if primary_artist != artist_name:
-            search_strategies.append((primary_artist, album_title))
-
-        # Strategy 5: Album only (fallback for name variants like David/Dave)
-        # The validation will still check artist similarity
-        search_strategies.append((None, album_title))
-
-        # Strategy 6: Album with punctuation stripped
-        # Handles "Album: Subtitle" vs "Album (Subtitle)" differences
-        import re
-        stripped_album = re.sub(r'[:\-\(\)\[\]]', ' ', album_title)
-        stripped_album = ' '.join(stripped_album.split())  # normalize whitespace
-        if stripped_album != album_title:
-            search_strategies.append((None, stripped_album))
-
-        # Strategy 7: Main title only (before colon, dash, or parenthesis)
-        # Handles "Album: Subtitle" by searching just "Album"
-        main_title_match = re.match(r'^([^:\-\(\[]+)', album_title)
-        if main_title_match:
-            main_title = main_title_match.group(1).strip()
-            if main_title and len(main_title) >= 5 and main_title != album_title:
-                search_strategies.append((None, main_title))
-
-        for search_artist, search_album in search_strategies:
-            try:
-                # Use timeout to prevent catalog searches from hanging
-                albums = self._search_with_timeout(search_artist, search_album, timeout=30)
-
-                if not albums:
-                    continue
-
-                # Convert to our expected format and validate
-                for album_data in albums:
-                    album = self._convert_catalog_album(album_data)
-                    if album:
-                        is_valid, confidence = self._validate_album_match(
-                            album, artist_name, album_title, release_year
-                        )
-                        if is_valid:
-                            album['_match_confidence'] = confidence
-                            album['_source'] = 'local_catalog'
-                            return album
-
-            except FuturesTimeoutError:
-                self.logger.warning(f"    Catalog search timed out for: {search_artist} - {search_album}")
-                # Refresh connection after timeout
-                if self.catalog:
-                    self.catalog._refresh_conn()
-                continue
-            except Exception as e:
-                self.logger.debug(f"Local catalog search error: {e}")
-                continue
-
-        return None
-
-    def _search_with_timeout(
-        self,
-        artist_name: Optional[str],
-        album_title: str,
-        timeout: int = 30
-    ) -> List[Dict]:
-        """
-        Search the catalog with a timeout to prevent hangs.
-
-        Args:
-            artist_name: Artist name to search for (optional)
-            album_title: Album title to search for
-            timeout: Maximum seconds to wait for search
-
-        Returns:
-            List of matching albums, or empty list on timeout/error
-
-        Raises:
-            FuturesTimeoutError: If search exceeds timeout
-        """
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(
-                self.catalog.search_albums,
-                artist_name=artist_name,
-                album_title=album_title,
-                limit=50
-            )
-            return future.result(timeout=timeout)
-
-    def _convert_catalog_album(self, catalog_data: Dict) -> Optional[Dict]:
-        """
-        Convert local catalog album data to the format used by the matcher.
-
-        The catalog uses different field names than the iTunes API.
-        """
-        try:
-            # Map catalog fields to our expected format
-            album = {
-                'id': str(catalog_data.get('id', '')),
-                'name': catalog_data.get('name', ''),
-                'artist': catalog_data.get('artistName', ''),
-                'release_date': catalog_data.get('releaseDate', ''),
-                'track_count': catalog_data.get('trackCount', 0),
-            }
-
-            # Handle artwork if present
-            artwork_url = catalog_data.get('artworkUrl')
-            if artwork_url:
-                # Generate different sizes from template URL
-                album['artwork'] = {
-                    'small': artwork_url.replace('{w}x{h}', '100x100'),
-                    'medium': artwork_url.replace('{w}x{h}', '300x300'),
-                    'large': artwork_url.replace('{w}x{h}', '600x600'),
-                }
-
-            return album if album['id'] and album['name'] else None
-
-        except Exception as e:
-            self.logger.debug(f"Failed to convert catalog album: {e}")
-            return None
-
-    def _search_api(
-        self,
-        artist_name: str,
-        album_title: str,
-        release_year: int = None
-    ) -> Optional[Dict]:
-        """
-        Search iTunes API for an album (original API-based search).
-
-        Args:
-            artist_name: Artist/performer name
-            album_title: Album title to search for
-            release_year: Optional year for validation
-
-        Returns:
-            Matched album dict with _match_confidence, or None
-        """
-        search_strategies = []
-
-        # Strategy 1: Full artist + album
-        search_strategies.append((artist_name, album_title))
-
-        # Strategy 2: Strip ensemble suffix (e.g., "Bill Evans Trio" -> "Bill Evans")
-        stripped_artist = strip_ensemble_suffix(artist_name)
-        if stripped_artist != artist_name:
-            search_strategies.append((stripped_artist, album_title))
-
-        # Strategy 3: Strip live suffix from album
-        stripped_album = strip_live_suffix(album_title)
-        if stripped_album != album_title:
-            search_strategies.append((artist_name, stripped_album))
-
-        # Strategy 4: Album only (fallback for Various Artists, etc.)
-        search_strategies.append((None, album_title))
-
-        for search_artist, search_album in search_strategies:
-            albums = self.client.search_albums(
-                artist_name=search_artist or '',
-                album_title=search_album,
-                limit=10
-            )
-
-            if not albums:
-                continue
-
-            # Validate each result
-            for album in albums:
-                is_valid, confidence = self._validate_album_match(
-                    album, artist_name, album_title, release_year
-                )
-
-                if is_valid:
-                    album['_match_confidence'] = confidence
-                    album['_source'] = 'itunes_api'
-                    return album
-
-        return None
 
     def _validate_album_match(
         self,
