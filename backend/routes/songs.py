@@ -210,13 +210,14 @@ def get_songs():
     
     try:
         if search_query:
+            # unaccent() on both sides so "Besame" matches "Bésame" (#165)
             query = """
                 SELECT id, title, composer, composed_year, composed_key, structure, musicbrainz_id, wikipedia_url, song_reference, external_references,
                        created_at, updated_at
                 FROM songs
-                WHERE title ILIKE %s
-                   OR composer ILIKE %s
-                   OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE alt ILIKE %s)
+                WHERE unaccent(title) ILIKE unaccent(%s)
+                   OR unaccent(composer) ILIKE unaccent(%s)
+                   OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE unaccent(alt) ILIKE unaccent(%s))
                 ORDER BY title
             """
             params = (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%')
@@ -228,7 +229,7 @@ def get_songs():
                 ORDER BY title
             """
             params = None
-        
+
         songs = db_tools.execute_query(query, params)
         return jsonify(songs)
         
@@ -1111,14 +1112,15 @@ def search_songs():
         return jsonify([])
     
     try:
+        # unaccent() on both sides so "Besame" matches "Bésame" (#165)
         query = """
             SELECT id, title, composer, musicbrainz_id
             FROM songs
-            WHERE title ILIKE %s
-               OR composer ILIKE %s
-               OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE alt ILIKE %s)
+            WHERE unaccent(title) ILIKE unaccent(%s)
+               OR unaccent(composer) ILIKE unaccent(%s)
+               OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE unaccent(alt) ILIKE unaccent(%s))
             ORDER BY
-                CASE WHEN title ILIKE %s THEN 0 ELSE 1 END,
+                CASE WHEN unaccent(title) ILIKE unaccent(%s) THEN 0 ELSE 1 END,
                 title
             LIMIT 20
         """
@@ -1359,12 +1361,13 @@ def get_songs_index():
 
     try:
         if search_query:
+            # unaccent() on both sides so "Besame" matches "Bésame" (#165)
             query = """
                 SELECT id, title, composer, composed_year
                 FROM songs
-                WHERE title ILIKE %s
-                   OR composer ILIKE %s
-                   OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE alt ILIKE %s)
+                WHERE unaccent(title) ILIKE unaccent(%s)
+                   OR unaccent(composer) ILIKE unaccent(%s)
+                   OR EXISTS (SELECT 1 FROM unnest(alt_titles) AS alt WHERE unaccent(alt) ILIKE unaccent(%s))
                 ORDER BY title
             """
             params = (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%')

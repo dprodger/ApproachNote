@@ -385,9 +385,9 @@ def get_repertoire_songs(repertoire_id):
                         FROM songs s
                         INNER JOIN repertoire_songs rs ON s.id = rs.song_id
                         WHERE rs.repertoire_id = %s
-                          AND (s.title ILIKE %s
-                               OR s.composer ILIKE %s
-                               OR EXISTS (SELECT 1 FROM unnest(s.alt_titles) AS alt WHERE alt ILIKE %s))
+                          AND (unaccent(s.title) ILIKE unaccent(%s)
+                               OR unaccent(s.composer) ILIKE unaccent(%s)
+                               OR EXISTS (SELECT 1 FROM unnest(s.alt_titles) AS alt WHERE unaccent(alt) ILIKE unaccent(%s)))
                         ORDER BY s.title
                     """, (repertoire_id, f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
                 else:
