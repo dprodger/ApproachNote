@@ -10,13 +10,19 @@ Wraps the existing YouTubeMatcher (integrations/youtube/matcher.py) so the
 matching logic stays in one place — the worker just adds queueing,
 scheduling, and quota accounting around it.
 
-Quota accounting: the matcher's underlying client also tracks per-process
-quota, but the source of truth is now source_quotas. We call
-ctx.consume_quota up-front for the worst-case search budget before each
-matcher run, and we treat the upstream YouTubeQuotaExceededError as
-authoritative — when we see it, we slam the bucket via quota.mark_exhausted
-and surface QuotaExhausted to the loop. This guards against (a) our local
-counter drifting and (b) the API key being shared with another process.
+Quota accounting: source_quotas is the source of truth. To avoid burning
+budget on jobs that were going to no-op anyway, we:
+  1. Pre-check the matcher's skip conditions (`has_youtube`, missing default
+     recording_release) BEFORE consuming any units — those paths return
+     immediately and cost zero quota.
+  2. Reserve the worst-case (3 searches + 1 metadata = 301 units) before
+     calling the matcher, then refund whatever the client didn't actually
+     spend afterwards. Net cost matches reality (typically 101–301 units).
+
+Upstream signals override local accounting: if YouTube returns 403
+quotaExceeded, we slam the bucket to its limit via quota.mark_exhausted
+and re-raise as QuotaExhausted. No refund happens in that case — the API
+itself confirmed we're out, regardless of what our counter said.
 """
 
 from __future__ import annotations
@@ -54,6 +60,10 @@ WORST_CASE_SEARCHES = 3
 WORST_CASE_QUOTA = WORST_CASE_SEARCHES * QUOTA_COST_SEARCH + QUOTA_COST_VIDEOS
 
 
+def _skip_result(reason: str) -> dict[str, Any]:
+    return {'matched': False, 'skipped': reason, 'reason': f'skipped_{reason}'}
+
+
 @handler('youtube', 'match_recording')
 def match_recording(payload: dict[str, Any], ctx) -> dict[str, Any]:
     """Match a single recording to a YouTube video.
@@ -63,18 +73,29 @@ def match_recording(payload: dict[str, Any], ctx) -> dict[str, Any]:
     """
     recording_id = ctx.target_id
 
-    # Sanity check — fail loudly (and permanently) if the target row
-    # disappeared between enqueue and claim. No point retrying.
+    # Fail loudly (and permanently) if the target row disappeared between
+    # enqueue and claim — no point retrying.
     row = yt_db.load_recording(recording_id)
     if not row:
         raise PermanentError(f"recording not found: {recording_id}")
 
     rematch = bool(payload.get('rematch', False))
 
-    # Reserve the worst-case quota before doing any API work. If we're
-    # already exhausted this raises QuotaExhausted and the loop will
-    # release the job for the reset time without touching attempts.
+    # Pre-check the matcher's no-cost skip paths so we don't burn quota
+    # on jobs that would never have hit the API. Mirrors the early exits
+    # in YouTubeMatcher._process_recording.
+    if not row.get('default_recording_release_id'):
+        ctx.log.info("skip: no default recording_release row")
+        return _skip_result('no_default_release')
+    if row.get('has_youtube') and not rematch:
+        ctx.log.info("skip: already has youtube link (rematch=false)")
+        return _skip_result('has_youtube')
+
+    # Reserve the worst-case quota before any API work; we'll refund what
+    # the matcher didn't actually spend. If the bucket is empty this
+    # raises QuotaExhausted and the loop reschedules for the reset time.
     ctx.consume_quota(WORST_CASE_QUOTA)
+    quota_settled = False  # track whether we've already settled the bucket
 
     # max_units high enough that the client doesn't pre-empt us before
     # the upstream API does — quota accounting is owned by source_quotas.
@@ -86,18 +107,27 @@ def match_recording(payload: dict[str, Any], ctx) -> dict[str, Any]:
     )
 
     try:
-        result = matcher.match_recording(recording_id)
-    except YouTubeQuotaExceededError as e:
-        # Authoritative signal from upstream — empty the bucket and
-        # surface to the loop so the job reschedules at reset time.
-        resets_at = quota_mod.mark_exhausted('youtube', 'day')
-        raise QuotaExhausted('youtube', resets_at, str(e)) from e
-    except YouTubeAPIError as e:
-        # 4xx that wasn't quota — don't burn retries on bad input.
-        raise PermanentError(f"YouTube API error: {e}") from e
-    except Exception as e:
-        # Network blips, 5xx, parse errors — let backoff sort it out.
-        raise RetryableError(f"{type(e).__name__}: {e}") from e
+        try:
+            result = matcher.match_recording(recording_id)
+        except YouTubeQuotaExceededError as e:
+            # Upstream is authoritative — slam to limit, no refund.
+            resets_at = quota_mod.mark_exhausted('youtube', 'day')
+            quota_settled = True
+            raise QuotaExhausted('youtube', resets_at, str(e)) from e
+        except YouTubeAPIError as e:
+            raise PermanentError(f"YouTube API error: {e}") from e
+        except Exception as e:
+            raise RetryableError(f"{type(e).__name__}: {e}") from e
+    finally:
+        if not quota_settled:
+            actual_used = client.stats.get('quota_units', 0)
+            unused = WORST_CASE_QUOTA - actual_used
+            if unused > 0:
+                quota_mod.refund('youtube', 'day', unused)
+                ctx.log.debug(
+                    "quota: reserved=%s actual=%s refunded=%s",
+                    WORST_CASE_QUOTA, actual_used, unused,
+                )
 
     # Normalise matcher's internal shape into a flat, JSON-friendly dict.
     if result.get('matched'):

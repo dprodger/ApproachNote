@@ -107,6 +107,29 @@ def consume(source: str, window: str, cost: int) -> datetime:
     raise QuotaExhausted(source, resets)
 
 
+def refund(source: str, window: str, units: int) -> None:
+    """Return reserved-but-unused units to the bucket.
+
+    Used by handlers that pre-deduct a worst-case cost before an API call,
+    then settle up afterwards based on `client.stats`. GREATEST guards
+    against ever going below zero (e.g. if the window rolled over between
+    consume and refund).
+    """
+    if units <= 0:
+        return
+    sql = """
+        UPDATE source_quotas
+        SET units_used = GREATEST(units_used - %s, 0)
+        WHERE source = %s AND window_name = %s
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (units, source, window))
+    logger.debug(
+        "quota: refunded source=%s window=%s units=%s", source, window, units,
+    )
+
+
 def mark_exhausted(source: str, window: str) -> datetime:
     """Force the bucket to empty when the upstream API reports exhaustion.
 
