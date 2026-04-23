@@ -62,6 +62,21 @@ def refresh_song_data(song_id):
             if job_id is not None:
                 youtube_queued += 1
 
+        # Mirror Spotify matching onto the durable queue alongside the
+        # existing in-process flow. Both will run during the migration
+        # period — once we trust the new path we drop the in-process call
+        # in core/song_research.py. SpotifyMatcher.match_releases is
+        # idempotent, so the duplicate work is wasted API calls but not
+        # incorrect.
+        spotify_job_id = research_jobs.enqueue(
+            source=research_jobs.SOURCE_SPOTIFY,
+            job_type='match_song',
+            target_type=research_jobs.TARGET_SONG,
+            target_id=song['id'],
+            payload={'rematch': force_refresh},
+            priority=50,
+        )
+
         if success:
             return jsonify({
                 'success': True,
@@ -72,6 +87,7 @@ def refresh_song_data(song_id):
                 'queue_size': research_queue.get_queue_size(),
                 'youtube_jobs_queued': youtube_queued,
                 'recordings_total': len(recordings),
+                'spotify_job_id': spotify_job_id,
             }), 202  # 202 Accepted - processing will happen asynchronously
         else:
             return jsonify({
