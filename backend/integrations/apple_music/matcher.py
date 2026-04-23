@@ -21,7 +21,7 @@ Used by:
 """
 
 import logging
-from typing import Dict, Any, Optional, List
+from typing import Any, Dict
 
 from db_utils import get_db_connection
 
@@ -40,6 +40,7 @@ from integrations.apple_music.db import (
     upsert_track_streaming_link,
     upsert_release_imagery,
 )
+from integrations.apple_music.matching import find_matching_track
 from integrations.apple_music.search import search_and_validate_album
 
 # Optional: Apple Music Feed catalog (much faster, no rate limits)
@@ -50,13 +51,10 @@ except ImportError:
     FEED_AVAILABLE = False
     AppleMusicCatalog = None
 
-# Reuse matching utilities from Spotify - they're service-agnostic
+# Used only by the "Best candidate" debug log in _match_track_on_release
 from integrations.spotify.matching import (
-    normalize_for_comparison,
-    normalize_name_variants,
     calculate_similarity,
-    is_substring_title_match,
-    is_compilation_artist,
+    normalize_for_comparison,
 )
 
 logger = logging.getLogger(__name__)
@@ -363,96 +361,6 @@ class AppleMusicMatcher:
             conn, song_id, song_title, release_id, album_id, from_local
         )
 
-    def _validate_album_match(
-        self,
-        apple_album: Dict,
-        expected_artist: str,
-        expected_album: str,
-        expected_year: int = None
-    ) -> tuple[bool, float]:
-        """
-        Validate that an Apple Music album matches our expected album.
-
-        Args:
-            apple_album: Album dict from Apple Music API
-            expected_artist: Our artist name
-            expected_album: Our album title
-            expected_year: Our release year (optional)
-
-        Returns:
-            Tuple of (is_valid, confidence_score)
-        """
-        am_artist = apple_album.get('artist', '')
-        am_album = apple_album.get('name', '')
-
-        # Normalize for comparison
-        norm_expected_artist = normalize_for_comparison(expected_artist)
-        norm_expected_album = normalize_for_comparison(expected_album)
-        norm_am_artist = normalize_for_comparison(am_artist)
-        norm_am_album = normalize_for_comparison(am_album)
-
-        # Calculate similarities
-        artist_similarity = calculate_similarity(norm_expected_artist, norm_am_artist)
-        album_similarity = calculate_similarity(norm_expected_album, norm_am_album)
-
-        # Check for compilation artist mismatch - prevent false positives
-        expected_is_compilation = is_compilation_artist(expected_artist)
-        am_is_compilation = is_compilation_artist(am_artist)
-
-        if expected_is_compilation != am_is_compilation:
-            # One is compilation, the other is not - this is likely a false match
-            # e.g., "Various Artists - Midnight in Paris" should NOT match "Johnny Britt - Midnight in Paris"
-            self.logger.debug(f"    Compilation mismatch: expected={expected_artist} (comp={expected_is_compilation}) vs {am_artist} (comp={am_is_compilation})")
-            return False, 0.0
-
-        if expected_is_compilation and am_is_compilation:
-            # Both are compilations - only require album match
-            if album_similarity >= self.min_album_similarity:
-                return True, album_similarity / 100.0
-            return False, 0.0
-
-        # Standard matching
-        if artist_similarity < self.min_artist_similarity:
-            # Try substring matching for artist
-            if not is_substring_title_match(norm_expected_artist, norm_am_artist):
-                # Try name variant normalization (e.g., Dave -> David, Bill -> William)
-                norm_expected_with_variants = normalize_name_variants(norm_expected_artist)
-                norm_am_with_variants = normalize_name_variants(norm_am_artist)
-                variant_similarity = calculate_similarity(norm_expected_with_variants, norm_am_with_variants)
-
-                if variant_similarity >= self.min_artist_similarity:
-                    self.logger.debug(f"    Artist match via name variants: {expected_artist} vs {am_artist} ({variant_similarity:.1f}%)")
-                    artist_similarity = variant_similarity
-                elif is_substring_title_match(norm_expected_with_variants, norm_am_with_variants):
-                    self.logger.debug(f"    Artist match via name variant substring: {expected_artist} vs {am_artist}")
-                    artist_similarity = self.min_artist_similarity  # Treat as threshold match
-                else:
-                    self.logger.debug(f"    Artist mismatch: {expected_artist} vs {am_artist} ({artist_similarity}%)")
-                    return False, 0.0
-
-        if album_similarity < self.min_album_similarity:
-            # Try substring matching for album
-            if not is_substring_title_match(norm_expected_album, norm_am_album):
-                self.logger.debug(f"    Album mismatch: {expected_album} vs {am_album} ({album_similarity}%)")
-                return False, 0.0
-
-        # Year validation (optional, just for confidence scoring)
-        year_bonus = 0
-        if expected_year and apple_album.get('release_date'):
-            try:
-                am_year = int(apple_album['release_date'][:4])
-                if abs(am_year - expected_year) <= 1:
-                    year_bonus = 0.1
-            except (ValueError, TypeError):
-                pass
-
-        # Calculate overall confidence
-        confidence = (artist_similarity / 100.0 * 0.4 +
-                     album_similarity / 100.0 * 0.5 +
-                     year_bonus)
-
-        return True, min(confidence, 1.0)
-
     def _match_track_on_release(
         self,
         conn,
@@ -522,8 +430,8 @@ class AppleMusicMatcher:
                 continue
 
             # Find matching track
-            matched_track = self._find_matching_track(
-                our_title, am_tracks, our_disc, our_track
+            matched_track = find_matching_track(
+                self, our_title, am_tracks, our_disc, our_track
             )
 
             if matched_track:
@@ -565,62 +473,6 @@ class AppleMusicMatcher:
                             best_candidate = t.get('name', '')
                     if best_candidate:
                         self.logger.debug(f"        Best candidate: \"{best_candidate}\" ({best_sim:.1f}% < {self.min_track_similarity}%)")
-
-    def _find_matching_track(
-        self,
-        song_title: str,
-        apple_tracks: List[Dict],
-        expected_disc: int = None,
-        expected_track: int = None
-    ) -> Optional[Dict]:
-        """
-        Find a matching track from Apple Music album tracks.
-
-        Args:
-            song_title: Our song title
-            apple_tracks: List of track dicts from Apple Music
-            expected_disc: Expected disc number (optional)
-            expected_track: Expected track number (optional)
-
-        Returns:
-            Matched track dict with _match_confidence, or None
-        """
-        norm_title = normalize_for_comparison(song_title)
-        best_match = None
-        best_score = 0
-
-        for track in apple_tracks:
-            am_title = track.get('name', '')
-            norm_am_title = normalize_for_comparison(am_title)
-
-            similarity = calculate_similarity(norm_title, norm_am_title)
-
-            # Position bonus if disc/track match
-            position_bonus = 0
-            if expected_disc and expected_track:
-                if (track.get('disc_number') == expected_disc and
-                    track.get('track_number') == expected_track):
-                    position_bonus = 10  # Boost for exact position match
-
-            total_score = similarity + position_bonus
-
-            if total_score > best_score:
-                best_score = total_score
-                best_match = track
-
-        # Check if best match meets threshold
-        if best_match and best_score >= self.min_track_similarity:
-            best_match['_match_confidence'] = min(best_score / 100.0, 1.0)
-            return best_match
-
-        # Try substring matching as fallback
-        for track in apple_tracks:
-            am_title = track.get('name', '')
-            if is_substring_title_match(norm_title, normalize_for_comparison(am_title)):
-                track['_match_confidence'] = 0.7
-                return track
-
-        return None
 
     def _is_uuid(self, s: str) -> bool:
         """Check if string looks like a UUID"""

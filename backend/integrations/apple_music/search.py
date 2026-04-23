@@ -5,16 +5,15 @@ Top-level orchestration for finding an Apple Music album that matches a release.
 Tries the local Apple Music Feed catalog first (no rate limits), falls back to
 the iTunes Search API. Each source runs a ladder of progressively relaxed
 search strategies (strip ensemble suffix, strip live suffix, primary artist
-only, album-only, punctuation-stripped, main title only).
-
-Validation still lives on the matcher (`matcher._validate_album_match`) — that
-moves out in the next step.
+only, album-only, punctuation-stripped, main title only). Each candidate is
+scored against the expected artist/album via matching.validate_album_match.
 """
 
 import re
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeoutError
 from typing import Dict, List, Optional
 
+from integrations.apple_music.matching import validate_album_match
 from integrations.spotify.matching import (
     extract_primary_artist,
     strip_ensemble_suffix,
@@ -105,8 +104,8 @@ def search_local_catalog(
             for album_data in albums:
                 album = _convert_catalog_album(album_data, matcher.logger)
                 if album:
-                    is_valid, confidence = matcher._validate_album_match(
-                        album, artist_name, album_title, release_year
+                    is_valid, confidence = validate_album_match(
+                        matcher, album, artist_name, album_title, release_year
                     )
                     if is_valid:
                         album['_match_confidence'] = confidence
@@ -163,8 +162,8 @@ def search_api(
             continue
 
         for album in albums:
-            is_valid, confidence = matcher._validate_album_match(
-                album, artist_name, album_title, release_year
+            is_valid, confidence = validate_album_match(
+                matcher, album, artist_name, album_title, release_year
             )
 
             if is_valid:
