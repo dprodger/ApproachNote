@@ -30,6 +30,21 @@ from datetime import datetime
 from typing import Optional, Dict, List, Any, Set, Tuple
 
 from db_utils import get_db_connection
+from integrations.musicbrainz.db import (
+    create_recording,
+    find_song_by_id,
+    find_song_by_name,
+    get_all_recording_release_links,
+    get_existing_recording_release_links,
+    get_existing_recordings_batch,
+    get_existing_release_ids,
+    get_or_create_recording,
+    get_recordings_with_performers,
+    get_release_id_by_mb_id,
+    link_recording_to_release,
+    maybe_set_default_release,
+    update_recording_date_if_better,
+)
 from integrations.musicbrainz.parsing import (
     extract_recording_date_from_mb,
     log_release_info,
@@ -143,9 +158,9 @@ class MBReleaseImporter:
         
         # Check if it looks like a UUID
         if len(song_identifier) == 36 and '-' in song_identifier:
-            return self._find_song_by_id(song_identifier)
+            return find_song_by_id(song_identifier, log=self.logger)
         else:
-            return self._find_song_by_name(song_identifier)
+            return find_song_by_name(song_identifier, log=self.logger)
     
     def import_releases(self, song_identifier: str, limit: int = 200) -> Dict[str, Any]:
         """
@@ -231,29 +246,29 @@ class MBReleaseImporter:
                         all_mb_release_ids.append(rel.get('id'))
             
             # 1. Batch fetch: recordings with performers for THIS song (skip performer import)
-            recordings_with_performers = self._get_recordings_with_performers(
+            recordings_with_performers = get_recordings_with_performers(
                 conn, mb_recording_ids, song['id']
             )
             self.logger.debug(f"  Pre-fetched {len(recordings_with_performers)} recordings with performers")
-            
+
             # 2. Batch fetch: existing recordings by MB ID for THIS song
             # NOTE: We filter by song_id to handle medley recordings correctly.
             # A medley in MusicBrainz is one recording linked to multiple works,
             # but we create separate recording entries for each song.
-            existing_recordings = self._get_existing_recordings_batch(
+            existing_recordings = get_existing_recordings_batch(
                 conn, mb_recording_ids, song['id']
             )
             self.logger.debug(f"  Pre-fetched {len(existing_recordings)} existing recordings for this song")
-            
+
             # 3. Batch fetch: existing releases by MB ID
-            existing_releases_all = self._get_existing_release_ids(
+            existing_releases_all = get_existing_release_ids(
                 conn, all_mb_release_ids
             )
             self.logger.debug(f"  Pre-fetched {len(existing_releases_all)} existing releases")
-            
+
             # 4. Batch fetch: all recording-release links for existing recordings
             existing_recording_db_ids = list(existing_recordings.values())
-            all_existing_links = self._get_all_recording_release_links(
+            all_existing_links = get_all_recording_release_links(
                 conn, existing_recording_db_ids
             )
             self.logger.debug(f"  Pre-fetched {len(all_existing_links)} existing links")
@@ -295,105 +310,6 @@ class MBReleaseImporter:
             'recordings_processed': len(recordings),
             'stats': self.stats
         }
-    
-    def _get_recordings_with_performers(self, conn, mb_recording_ids: List[str],
-                                         song_id: str) -> Set[str]:
-        """
-        Get set of MusicBrainz recording IDs that already have performers linked
-        for a specific song.
-
-        OPTIMIZATION: Single query to check all recordings at once.
-        This allows us to skip add_performers_to_recording() entirely for
-        recordings that already have performers, saving 4 DB queries each.
-
-        NOTE: We filter by song_id because medley recordings may have performers
-        linked for one song but not another.
-
-        Args:
-            conn: Database connection
-            mb_recording_ids: List of MusicBrainz recording IDs to check
-            song_id: The song ID to filter by
-
-        Returns:
-            Set of MB recording IDs that have at least one performer for this song
-        """
-        if not mb_recording_ids:
-            return set()
-
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT DISTINCT r.musicbrainz_id
-                FROM recordings r
-                INNER JOIN recording_performers rp ON r.id = rp.recording_id
-                WHERE r.musicbrainz_id = ANY(%s)
-                  AND r.song_id = %s
-            """, (mb_recording_ids, song_id))
-
-            return {row['musicbrainz_id'] for row in cur.fetchall()}
-    
-    def _get_existing_recordings_batch(self, conn, mb_recording_ids: List[str],
-                                        song_id: str) -> Dict[str, str]:
-        """
-        Batch fetch existing recordings by MusicBrainz ID for a specific song.
-
-        OPTIMIZATION: Single query for all recordings instead of one per recording.
-
-        NOTE: We filter by song_id because medley recordings in MusicBrainz are
-        linked to multiple works (songs). Each song should have its own recording
-        entry in our database, even if they share the same MB recording ID.
-
-        Args:
-            conn: Database connection
-            mb_recording_ids: List of MusicBrainz recording IDs
-            song_id: The song ID to filter by
-
-        Returns:
-            Dict mapping MB recording ID -> our database recording ID
-        """
-        if not mb_recording_ids:
-            return {}
-
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT musicbrainz_id, id
-                FROM recordings
-                WHERE musicbrainz_id = ANY(%s)
-                  AND song_id = %s
-            """, (mb_recording_ids, song_id))
-
-            return {row['musicbrainz_id']: row['id'] for row in cur.fetchall()}
-    
-    def _get_all_recording_release_links(self, conn, recording_ids: List[str]) -> Dict[str, Set[str]]:
-        """
-        Batch fetch all recording-release links for multiple recordings.
-        
-        OPTIMIZATION: Single query for all recordings instead of one per recording.
-        
-        Args:
-            conn: Database connection
-            recording_ids: List of our recording IDs
-            
-        Returns:
-            Dict mapping recording_id -> set of linked release_ids
-        """
-        if not recording_ids:
-            return {}
-        
-        result = {}
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT recording_id, release_id
-                FROM recording_releases
-                WHERE recording_id = ANY(%s)
-            """, (recording_ids,))
-            
-            for row in cur.fetchall():
-                rec_id = row['recording_id']
-                if rec_id not in result:
-                    result[rec_id] = set()
-                result[rec_id].add(row['release_id'])
-        
-        return result
     
     def _load_lookup_caches(self, conn) -> None:
         """
@@ -483,12 +399,18 @@ class MBReleaseImporter:
             self.stats['recordings_existing'] += 1
         else:
             # Recording doesn't exist - need to create it
-            recording_id = self._create_recording(
+            recording_id, inserted = create_recording(
                 conn, song_id, mb_recording_id, date_info,
                 source_mb_work_id=source_mb_work_id,
                 title=mb_recording.get('title'),
-                duration_ms=mb_recording.get('length')
+                duration_ms=mb_recording.get('length'),
+                dry_run=self.dry_run,
+                log=self.logger,
             )
+            if inserted:
+                self.stats['recordings_created'] += 1
+            elif recording_id:
+                self.stats['recordings_existing'] += 1
             if recording_id:
                 # Add to cache for future reference
                 existing_recordings[mb_recording_id] = recording_id
@@ -506,7 +428,10 @@ class MBReleaseImporter:
                 # MusicBrainz has better data (instruments) - clear old and re-import
                 self.performer_importer.clear_recording_performers(conn, recording_id)
                 # Also update recording date if MB has better date info
-                self._update_recording_date_if_better(conn, recording_id, date_info)
+                update_recording_date_if_better(
+                    conn, recording_id, date_info,
+                    dry_run=self.dry_run, log=self.logger,
+                )
             else:
                 self.logger.debug(f"  Skipping performer check - recording already has performers")
                 self.stats['performers_skipped_existing'] += 1
@@ -551,197 +476,6 @@ class MBReleaseImporter:
                 conn, recording_id, mb_recording_id, mb_recording, 
                 mb_release, existing_releases, existing_links
             )
-    
-    def _create_recording(self, conn, song_id: str, mb_recording_id: str,
-                           date_info: Dict[str, Any],
-                           source_mb_work_id: Optional[str] = None,
-                           title: Optional[str] = None,
-                           duration_ms: Optional[int] = None) -> Optional[str]:
-        """
-        Create a new recording in the database.
-
-        Args:
-            conn: Database connection
-            song_id: Our database song ID
-            mb_recording_id: MusicBrainz recording ID
-            date_info: Dict from extract_recording_date_from_mb() containing:
-                - recording_date: Formatted date (YYYY-MM-DD)
-                - recording_year: Integer year
-                - recording_date_precision: 'day', 'month', or 'year'
-                - recording_date_source: 'mb_performer_relation' or 'mb_first_release'
-                - mb_first_release_date: Raw MB first-release-date
-            source_mb_work_id: MusicBrainz work ID this recording was imported from
-            title: MusicBrainz recording title (may differ from song title)
-            duration_ms: Recording duration in milliseconds (from MusicBrainz 'length' field)
-
-        Returns:
-            Recording ID if created, None otherwise
-        """
-        if self.dry_run:
-            source = date_info.get('recording_date_source', 'unknown')
-            year = date_info.get('recording_year')
-            title_info = f", title='{title}'" if title else ""
-            self.logger.info(f"  [DRY RUN] Would create recording: MB:{mb_recording_id} "
-                           f"(year={year}, source={source}{title_info})")
-            return None
-
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO recordings (
-                    song_id, recording_year, recording_date,
-                    recording_date_source, recording_date_precision, mb_first_release_date,
-                    is_canonical, musicbrainz_id, source_mb_work_id, title, duration_ms
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (musicbrainz_id, song_id) WHERE musicbrainz_id IS NOT NULL DO UPDATE
-                    SET updated_at = CURRENT_TIMESTAMP
-                RETURNING id, (xmax = 0) AS inserted
-            """, (
-                song_id,
-                date_info.get('recording_year'),
-                date_info.get('recording_date'),
-                date_info.get('recording_date_source'),
-                date_info.get('recording_date_precision'),
-                date_info.get('mb_first_release_date'),
-                False,
-                mb_recording_id,
-                source_mb_work_id,
-                title,
-                duration_ms
-            ))
-
-            result = cur.fetchone()
-            recording_id = result['id']
-
-            if result['inserted']:
-                source = date_info.get('recording_date_source', 'none')
-                year = date_info.get('recording_year', '?')
-                self.logger.info(f"  ✓ Created recording: MB:{mb_recording_id[:8]}... (year={year}, source={source})")
-                self.stats['recordings_created'] += 1
-            else:
-                self.logger.debug(f"  Recording exists (concurrent insert resolved)")
-                self.stats['recordings_existing'] += 1
-
-            return recording_id
-
-    def _update_recording_date_if_better(self, conn, recording_id: str,
-                                          date_info: Dict[str, Any]) -> bool:
-        """
-        Update recording date if MusicBrainz has better date info.
-
-        "Better" means:
-        - MusicBrainz has performer relation dates (actual session dates)
-        - Our database only has mb_first_release dates
-
-        Args:
-            conn: Database connection
-            recording_id: Our database recording ID
-            date_info: Dict from extract_recording_date_from_mb()
-
-        Returns:
-            bool: True if date was updated
-        """
-        if not recording_id or not date_info:
-            return False
-
-        # Only update if MusicBrainz has performer relation dates
-        new_source = date_info.get('recording_date_source')
-        if new_source != 'mb_performer_relation':
-            return False
-
-        if self.dry_run:
-            self.logger.info(f"  [DRY RUN] Would update recording date to {date_info.get('recording_date')}")
-            return True
-
-        with conn.cursor() as cur:
-            # Check current date source
-            cur.execute("""
-                SELECT recording_date_source FROM recordings WHERE id = %s
-            """, (recording_id,))
-            row = cur.fetchone()
-
-            if not row:
-                return False
-
-            current_source = row['recording_date_source']
-
-            # Only update if we have a worse source (release date) or no date
-            if current_source not in (None, 'mb_first_release'):
-                return False
-
-            # Update with better date info
-            cur.execute("""
-                UPDATE recordings
-                SET recording_date = %s,
-                    recording_year = %s,
-                    recording_date_source = %s,
-                    recording_date_precision = %s
-                WHERE id = %s
-            """, (
-                date_info.get('recording_date'),
-                date_info.get('recording_year'),
-                date_info.get('recording_date_source'),
-                date_info.get('recording_date_precision'),
-                recording_id
-            ))
-
-            self.logger.info(f"  Updated recording date: {date_info.get('recording_date')} "
-                           f"(source: {new_source})")
-            return True
-
-    def _get_existing_release_ids(self, conn, mb_release_ids: List[str]) -> Dict[str, str]:
-        """
-        Check which MusicBrainz release IDs already exist in the database
-        
-        OPTIMIZATION: Single batch query instead of one per release
-        Now returns mapping of MB ID -> our release ID for efficient lookup
-        
-        Args:
-            conn: Database connection
-            mb_release_ids: List of MusicBrainz release IDs to check
-            
-        Returns:
-            Dict mapping MusicBrainz release ID -> our database release ID
-        """
-        if not mb_release_ids:
-            return {}
-        
-        with conn.cursor() as cur:
-            # Use ANY() for efficient batch lookup, return both IDs
-            cur.execute("""
-                SELECT musicbrainz_release_id, id 
-                FROM releases 
-                WHERE musicbrainz_release_id = ANY(%s)
-            """, (mb_release_ids,))
-            
-            return {row['musicbrainz_release_id']: row['id'] for row in cur.fetchall()}
-    
-    def _get_existing_recording_release_links(self, conn, recording_id: str, 
-                                               release_ids: List[str]) -> Set[str]:
-        """
-        Check which recording-release links already exist
-        
-        OPTIMIZATION: Single batch query for all releases
-        
-        Args:
-            conn: Database connection
-            recording_id: Our recording ID
-            release_ids: List of our release IDs to check
-            
-        Returns:
-            Set of release IDs that are already linked to this recording
-        """
-        if not release_ids or not recording_id:
-            return set()
-        
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT release_id 
-                FROM recording_releases 
-                WHERE recording_id = %s AND release_id = ANY(%s)
-            """, (recording_id, release_ids))
-            
-            return {row['release_id'] for row in cur.fetchall()}
     
     def _process_release_in_transaction(
         self, conn, recording_id: Optional[str], mb_recording_id: str,
@@ -790,10 +524,12 @@ class MBReleaseImporter:
                 # Fetch full release details to get track positions
                 # (will use cache if available, so not as slow as it sounds)
                 release_details = self.mb_searcher.get_release_details(mb_release_id)
-                self._link_recording_to_release(
+                link_recording_to_release(
                     conn, recording_id, release_id, mb_recording_id,
-                    release_details or mb_release
+                    release_details or mb_release,
+                    log=self.logger,
                 )
+                self.stats['links_created'] += 1
             return
         
         # Release doesn't exist - fetch full details from MusicBrainz
@@ -821,7 +557,11 @@ class MBReleaseImporter:
 
             # Link recording to release (use release_details which has full track info)
             if recording_id:
-                self._link_recording_to_release(conn, recording_id, release_id, mb_recording_id, release_details)
+                link_recording_to_release(
+                    conn, recording_id, release_id, mb_recording_id, release_details,
+                    log=self.logger,
+                )
+                self.stats['links_created'] += 1
 
             # Link release-specific credits (producers, engineers, etc.)
             # These go to the RELEASE, not the recording
@@ -834,91 +574,6 @@ class MBReleaseImporter:
             # Import cover art from Cover Art Archive
             self._import_cover_art_for_release(conn, release_id, mb_release_id)
     
-    def _get_release_id_by_mb_id(self, conn, mb_release_id: str) -> Optional[str]:
-        """Get our database release ID by MusicBrainz release ID"""
-        with conn.cursor() as cur:
-            cur.execute("""
-                SELECT id FROM releases WHERE musicbrainz_release_id = %s
-            """, (mb_release_id,))
-            result = cur.fetchone()
-            return result['id'] if result else None
-    
-    def _get_or_create_recording(self, conn, song_id: str, mb_recording_id: str,
-                                  date_info: Dict[str, Any],
-                                  source_mb_work_id: Optional[str] = None) -> Optional[str]:
-        """
-        Get existing recording or create new one.
-
-        NOTE: This method is retained for backwards compatibility but the main import
-        path now uses _create_recording() with pre-cached existence checks.
-
-        IMPORTANT: For MusicBrainz imports, we ONLY match by MusicBrainz recording ID.
-
-        Args:
-            conn: Database connection
-            song_id: Song ID
-            mb_recording_id: MusicBrainz recording ID (unique identifier)
-            date_info: Dict from extract_recording_date_from_mb()
-            source_mb_work_id: MusicBrainz work ID this recording was imported from
-
-        Returns:
-            Recording ID or None
-        """
-        with conn.cursor() as cur:
-            # Match by MusicBrainz ID and song_id (same MB recording can appear
-            # under different songs for medleys/multi-work recordings)
-            cur.execute("""
-                SELECT id FROM recordings
-                WHERE musicbrainz_id = %s AND song_id = %s
-            """, (mb_recording_id, song_id))
-            result = cur.fetchone()
-
-            if result:
-                self.logger.debug(f"  Recording exists (by MB ID)")
-                self.stats['recordings_existing'] += 1
-                return result['id']
-
-            # Create new recording
-            if self.dry_run:
-                self.logger.info(f"  [DRY RUN] Would create recording: MB:{mb_recording_id}")
-                return None
-
-            cur.execute("""
-                INSERT INTO recordings (
-                    song_id, recording_year, recording_date,
-                    recording_date_source, recording_date_precision, mb_first_release_date,
-                    is_canonical, musicbrainz_id, source_mb_work_id
-                )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (musicbrainz_id, song_id) WHERE musicbrainz_id IS NOT NULL DO UPDATE
-                    SET updated_at = CURRENT_TIMESTAMP
-                RETURNING id, (xmax = 0) AS inserted
-            """, (
-                song_id,
-                date_info.get('recording_year'),
-                date_info.get('recording_date'),
-                date_info.get('recording_date_source'),
-                date_info.get('recording_date_precision'),
-                date_info.get('mb_first_release_date'),
-                False,
-                mb_recording_id,
-                source_mb_work_id
-            ))
-
-            result = cur.fetchone()
-            recording_id = result['id']
-
-            if result['inserted']:
-                source = date_info.get('recording_date_source', 'none')
-                year = date_info.get('recording_year', '?')
-                self.logger.info(f"  ✓ Created recording: MB:{mb_recording_id[:8]}... (year={year}, source={source})")
-                self.stats['recordings_created'] += 1
-            else:
-                self.logger.debug(f"  Recording exists (concurrent insert resolved)")
-                self.stats['recordings_existing'] += 1
-
-            return recording_id
-
     def _create_release(self, conn, release_data: Dict[str, Any]) -> Optional[str]:
         """
         Create a new release in the database, or return existing ID if duplicate
@@ -1032,75 +687,6 @@ class MBReleaseImporter:
         except Exception as e:
             self.logger.warning(f"      CAA error (non-fatal): {e}")
             # Don't increment error count - CAA failures shouldn't fail the release import
-
-    def _maybe_set_default_release(self, cur, recording_id: str, release_id: str) -> None:
-        """
-        Set default_release_id on recording if it doesn't have one.
-
-        This ensures recordings always have a default release for display purposes,
-        even when imported from MusicBrainz without Spotify matching.
-        """
-        cur.execute("""
-            UPDATE recordings
-            SET default_release_id = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-              AND default_release_id IS NULL
-        """, (release_id, recording_id))
-
-    def _link_recording_to_release(self, conn, recording_id: str, release_id: str,
-                                    mb_recording_id: str, mb_release: Dict[str, Any]) -> None:
-        """
-        Link a recording to a release
-
-        Args:
-            conn: Database connection
-            recording_id: Our database recording ID
-            release_id: Our database release ID
-            mb_recording_id: MusicBrainz recording ID (to find track position)
-            mb_release: MusicBrainz release data (must include media/tracks)
-        """
-        # Find track position by matching recording ID
-        track_number = None
-        disc_number = None
-
-        # Search through media/tracks for the matching recording
-        media = mb_release.get('media') or mb_release.get('medium-list') or []
-        for medium in media:
-            # Use MusicBrainz's 'position' field for disc number (1-indexed)
-            medium_position = medium.get('position', 1)
-            tracks = medium.get('tracks') or medium.get('track-list') or []
-
-            for track in tracks:
-                # Get recording info from track
-                track_recording = track.get('recording') or {}
-                track_recording_id = track_recording.get('id')
-
-                # Match by MusicBrainz recording ID
-                if track_recording_id == mb_recording_id:
-                    # Use MusicBrainz's 'position' field (integer), not 'number' (string like "A6")
-                    track_number = track.get('position')
-                    disc_number = medium_position
-                    self.logger.debug(f"      Found track position: disc {disc_number}, track {track_number}")
-                    break
-
-            if track_number is not None:
-                break
-
-        if track_number is None:
-            self.logger.debug(f"      Could not find track position for recording {mb_recording_id[:8]}")
-
-        with conn.cursor() as cur:
-            cur.execute("""
-                INSERT INTO recording_releases (recording_id, release_id, track_number, disc_number)
-                VALUES (%s, %s, %s, %s)
-                ON CONFLICT (recording_id, release_id) DO NOTHING
-            """, (recording_id, release_id, track_number, disc_number))
-
-            self.stats['links_created'] += 1
-
-            # Set default_release_id if recording doesn't have one
-            self._maybe_set_default_release(cur, recording_id, release_id)
 
     # ========================================================================
     # Lookup table helpers
@@ -1260,52 +846,6 @@ class MBReleaseImporter:
             self.logger.debug(f"  JazzBot: marked as {label} ({performer_count} performers)")
             return True
 
-    # ========================================================================
-    # Private methods - Database queries
-    # ========================================================================
-    
-    def _find_song_by_name(self, song_name: str) -> Optional[Dict[str, Any]]:
-        """Find a song in the database by name"""
-        self.logger.info(f"Searching for song: {song_name}")
-
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT id, title, composer, musicbrainz_id, second_mb_id
-                    FROM songs
-                    WHERE title ILIKE %s
-                    ORDER BY title
-                """, (f'%{song_name}%',))
-                
-                results = cur.fetchall()
-                
-                if not results:
-                    self.logger.warning(f"No songs found matching: {song_name}")
-                    return None
-                
-                if len(results) > 1:
-                    self.logger.info(f"Found {len(results)} songs, using first match:")
-                    for r in results[:5]:
-                        self.logger.info(f"  - {r['title']}")
-                
-                song = results[0]
-                return dict(song)
-    
-    def _find_song_by_id(self, song_id: str) -> Optional[Dict[str, Any]]:
-        """Find a song in the database by ID"""
-        self.logger.info(f"Looking up song by ID: {song_id}")
-
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("""
-                    SELECT id, title, composer, musicbrainz_id, second_mb_id
-                    FROM songs
-                    WHERE id = %s
-                """, (song_id,))
-
-                result = cur.fetchone()
-                return dict(result) if result else None
-    
     def _fetch_musicbrainz_recordings(self, work_id: str, limit: int) -> List[Dict[str, Any]]:
         """
         Fetch recordings for a MusicBrainz work
