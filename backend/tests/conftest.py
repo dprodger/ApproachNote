@@ -171,6 +171,122 @@ def _clean_auth_tables():
 
 
 @pytest.fixture(autouse=True)
+def _clean_research_tables():
+    """
+    TRUNCATE research_jobs and reset the source_quotas seed row after every
+    test. Autouse so research-related tests don't have to remember to opt in,
+    and tests that don't touch these tables pay only the cost of two cheap
+    statements.
+
+    source_quotas isn't truncated — the migration seeds the youtube/day row
+    and tests rely on it being present. Reset to a known clean state instead.
+    """
+    yield
+    with psycopg.connect(**_test_db_dsn()) as conn:
+        with conn.cursor() as cur:
+            cur.execute("TRUNCATE TABLE research_jobs RESTART IDENTITY")
+            # Reset every quota row to 0 used and far-future resets_at.
+            # Tests that need a specific resets_at can override via UPDATE.
+            cur.execute(
+                "UPDATE source_quotas "
+                "SET units_used = 0, resets_at = now() + interval '1 day'"
+            )
+        conn.commit()
+
+
+@pytest.fixture
+def make_job(db):
+    """Factory: insert a research_jobs row with sensible defaults, return id.
+
+    Override anything via kwargs. Returns the inserted id so the caller can
+    immediately query/mutate the row.
+    """
+    import json
+    from uuid import uuid4
+
+    def _make(
+        *,
+        source: str = "youtube",
+        job_type: str = "match_recording",
+        target_type: str = "recording",
+        target_id: str | None = None,
+        payload: dict | None = None,
+        status: str = "queued",
+        priority: int = 100,
+        attempts: int = 0,
+        max_attempts: int = 5,
+        run_after=None,  # None = now()
+    ) -> int:
+        target_id = target_id or str(uuid4())
+        payload_json = json.dumps(payload or {})
+        with db.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO research_jobs
+                    (source, job_type, target_type, target_id, payload,
+                     status, priority, attempts, max_attempts, run_after)
+                VALUES (%s, %s, %s, %s, %s::jsonb,
+                        %s, %s, %s, %s, COALESCE(%s, now()))
+                RETURNING id
+                """,
+                (
+                    source, job_type, target_type, target_id, payload_json,
+                    status, priority, attempts, max_attempts, run_after,
+                ),
+            )
+            row = cur.fetchone()
+        db.commit()
+        return row[0]
+
+    return _make
+
+
+@pytest.fixture
+def quota_row(db):
+    """Helpers for inspecting and mutating the youtube/day quota row.
+
+    Returns an object with `.snapshot()` and `.set(units_used=, resets_at=)`.
+    Reset by the autouse cleanup fixture, so tests don't need to undo changes.
+    """
+    class _Quota:
+        def snapshot(self) -> dict:
+            with db.cursor() as cur:
+                cur.execute(
+                    "SELECT units_used, units_limit, resets_at "
+                    "FROM source_quotas "
+                    "WHERE source = 'youtube' AND window_name = 'day'"
+                )
+                row = cur.fetchone()
+            return {
+                'units_used': row[0],
+                'units_limit': row[1],
+                'resets_at': row[2],
+            }
+
+        def set(self, *, units_used=None, resets_at=None) -> None:
+            sets = []
+            params = []
+            if units_used is not None:
+                sets.append("units_used = %s")
+                params.append(units_used)
+            if resets_at is not None:
+                sets.append("resets_at = %s")
+                params.append(resets_at)
+            if not sets:
+                return
+            params.extend(['youtube', 'day'])
+            with db.cursor() as cur:
+                cur.execute(
+                    f"UPDATE source_quotas SET {', '.join(sets)} "
+                    "WHERE source = %s AND window_name = %s",
+                    params,
+                )
+            db.commit()
+
+    return _Quota()
+
+
+@pytest.fixture(autouse=True)
 def _stub_external_email(mocker):
     """
     Replace the email-sending entry points with no-op mocks. Autouse so we
