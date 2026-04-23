@@ -39,9 +39,29 @@ def refresh_song_data(song_id):
                 'song_id': song_id
             }), 404
 
-        # Add to research queue
+        # Add to research queue (MusicBrainz / Spotify / Apple pipeline)
         success = research_queue.add_song_to_queue(song['id'], song['title'], force_refresh=force_refresh)
-        
+
+        # Also enqueue per-recording YouTube jobs on the new durable queue
+        # (sql/migrations/015_research_jobs.sql). The existing in-process
+        # pipeline doesn't handle YouTube; this is additive, not mirrored.
+        # Priority 50 so user-initiated refreshes jump ahead of any bulk
+        # backfill jobs that might be running.
+        recordings_sql = "SELECT id FROM recordings WHERE song_id = %s"
+        recordings = db_tools.execute_query(recordings_sql, (song['id'],)) or []
+        youtube_queued = 0
+        for rec in recordings:
+            job_id = research_jobs.enqueue(
+                source=research_jobs.SOURCE_YOUTUBE,
+                job_type='match_recording',
+                target_type=research_jobs.TARGET_RECORDING,
+                target_id=rec['id'],
+                payload={'rematch': force_refresh},
+                priority=50,
+            )
+            if job_id is not None:
+                youtube_queued += 1
+
         if success:
             return jsonify({
                 'success': True,
@@ -49,7 +69,9 @@ def refresh_song_data(song_id):
                 'song_id': song['id'],
                 'song_title': song['title'],
                 'force_refresh': force_refresh,
-                'queue_size': research_queue.get_queue_size()
+                'queue_size': research_queue.get_queue_size(),
+                'youtube_jobs_queued': youtube_queued,
+                'recordings_total': len(recordings),
             }), 202  # 202 Accepted - processing will happen asynchronously
         else:
             return jsonify({
