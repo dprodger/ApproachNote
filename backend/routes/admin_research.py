@@ -23,7 +23,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, render_template, request
 
 from core import research_jobs
 from db_utils import get_db_connection
@@ -39,6 +39,18 @@ _VALID_STATUSES = frozenset({'queued', 'running', 'done', 'failed', 'dead'})
 
 # Hard cap on `limit` so a misuse can't fetch the whole table.
 _MAX_LIMIT = 500
+
+
+# ---------------------------------------------------------------------------
+# HTML dashboard
+# ---------------------------------------------------------------------------
+
+@admin_research_bp.route('/', methods=['GET'])
+def dashboard():
+    """Render the research-worker dashboard. All data is fetched client-side
+    via the JSON endpoints below so the page can auto-refresh without a
+    full reload."""
+    return render_template('admin/research_dashboard.html')
 
 
 # ---------------------------------------------------------------------------

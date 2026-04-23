@@ -215,8 +215,17 @@
 
         <div class="section">
             <h2>System Status</h2>
-            <div class="status-section">
-                <h3>Research Queue</h3>
+            <div class="card-grid">
+                <a href="/admin/research/" class="card">
+                    <div class="card-icon">⚙️</div>
+                    <h3>Research Worker</h3>
+                    <p>Live view of the durable background job queue: per-source quotas, throughput stats, and a filterable list of queued, running, and failed jobs with retry/cancel controls.</p>
+                    <span class="endpoint">/admin/research/</span>
+                </a>
+            </div>
+
+            <div class="status-section" style="margin-top: 16px;">
+                <h3>Legacy In-Process Queue</h3>
                 <div id="queue-status">
                     <p>Loading...</p>
                 </div>

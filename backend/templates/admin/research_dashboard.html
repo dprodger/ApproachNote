@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Research Worker - Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        h1 { color: #1d1d1f; margin-bottom: 6px; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            color: #1d1d1f;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .card .last-updated {
+            font-weight: normal;
+            text-transform: none;
+            letter-spacing: 0;
+            color: #999;
+            font-size: 0.85em;
+        }
+
+        /* Quotas table */
+        table.quotas { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+        table.quotas th, table.quotas td {
+            text-align: left; padding: 6px 8px; border-bottom: 1px solid #f0f0f0;
+        }
+        table.quotas th { color: #888; font-weight: 600; font-size: 0.85em; }
+        .bar {
+            display: inline-block; width: 100%; max-width: 160px;
+            height: 8px; background: #eaeaea; border-radius: 4px; overflow: hidden;
+            vertical-align: middle;
+        }
+        .bar-fill { height: 100%; background: #34c759; transition: width 0.3s; }
+        .bar-fill.warn { background: #ff9500; }
+        .bar-fill.danger { background: #ff3b30; }
+
+        /* Stats grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+        .stat {
+            background: #f9f9fb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 1.5em; font-weight: 600; color: #1d1d1f; }
+        .stat-label { color: #888; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .by-source-table { width: 100%; border-collapse: collapse; font-size: 0.85em; }
+        .by-source-table th, .by-source-table td {
+            text-align: center; padding: 4px 8px; border-bottom: 1px solid #f0f0f0;
+        }
+        .by-source-table th:first-child, .by-source-table td:first-child { text-align: left; }
+        .by-source-table th { color: #888; font-weight: 600; font-size: 0.85em; }
+
+        /* Jobs section */
+        .jobs-section { margin-top: 8px; }
+        .toolbar {
+            display: flex; gap: 8px; flex-wrap: wrap;
+            margin-bottom: 12px; align-items: center;
+        }
+        .toolbar select, .toolbar input {
+            padding: 6px 10px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 0.9em;
+            background: #fff;
+        }
+        .toolbar button {
+            padding: 6px 14px;
+            border: 1px solid #0066cc;
+            background: #0066cc;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 0.9em;
+            cursor: pointer;
+        }
+        .toolbar button:hover { background: #0052a3; }
+        .toolbar .clear {
+            background: #fff; color: #333; border-color: #d0d0d0;
+        }
+
+        table.jobs {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            font-size: 0.88em;
+        }
+        table.jobs th, table.jobs td {
+            text-align: left; padding: 8px 12px;
+            border-bottom: 1px solid #efefef;
+        }
+        table.jobs th { background: #fafafa; color: #555; font-weight: 600; }
+        table.jobs tr:hover { background: #f9f9fb; }
+        .job-id { font-family: 'SF Mono', Monaco, monospace; color: #888; font-size: 0.85em; }
+        .target-id { font-family: 'SF Mono', Monaco, monospace; color: #555; font-size: 0.8em; }
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .status-queued  { background: #fff7e0; color: #b58900; }
+        .status-running { background: #e0f0ff; color: #0066cc; }
+        .status-done    { background: #e3f5e3; color: #2c8a2c; }
+        .status-failed  { background: #ffe5e5; color: #c0392b; }
+        .status-dead    { background: #f0e0e0; color: #8b3a3a; }
+        .timestamp { color: #888; font-size: 0.85em; }
+        .err {
+            color: #c0392b;
+            font-size: 0.8em;
+            max-width: 260px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .actions { white-space: nowrap; text-align: right; }
+        .actions button {
+            padding: 4px 10px;
+            border: 1px solid #d0d0d0;
+            background: #fff;
+            color: #333;
+            border-radius: 4px;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-left: 4px;
+        }
+        .actions button:hover { background: #f0f0f0; }
+        .actions button.cancel { color: #c0392b; border-color: #e8c0c0; }
+        .actions button.cancel:hover { background: #fff0f0; }
+        .actions button:disabled { opacity: 0.5; cursor: wait; }
+
+        .pagination {
+            display: flex; gap: 8px; align-items: center; justify-content: space-between;
+            padding-top: 12px; font-size: 0.9em; color: #666;
+        }
+        .pagination button {
+            padding: 4px 10px;
+            border: 1px solid #d0d0d0;
+            background: #fff;
+            border-radius: 4px;
+            font-size: 0.85em;
+            cursor: pointer;
+        }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .empty-state, .error-banner {
+            padding: 24px;
+            text-align: center;
+            background: #fff;
+            border-radius: 8px;
+            color: #888;
+            font-size: 0.9em;
+        }
+        .error-banner { color: #c0392b; background: #fff5f5; }
+
+        details { margin-top: 8px; }
+        details summary { cursor: pointer; font-size: 0.85em; color: #0066cc; }
+        details pre {
+            margin-top: 8px;
+            padding: 12px;
+            background: #1d1d1f;
+            color: #f0f0f0;
+            border-radius: 6px;
+            font-size: 0.8em;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+
+    <div class="container">
+        <h1>Research Worker</h1>
+        <p class="subtitle">
+            Background job queue + per-source quota accounting. Backed by
+            <code>research_jobs</code> and <code>source_quotas</code>.
+        </p>
+
+        <div id="error-banner" class="error-banner" style="display:none;"></div>
+
+        <div class="grid">
+            <div class="card">
+                <h2>Quotas <span id="quotas-updated" class="last-updated"></span></h2>
+                <table class="quotas">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Window</th>
+                            <th>Used</th>
+                            <th>Usage</th>
+                            <th>Resets</th>
+                        </tr>
+                    </thead>
+                    <tbody id="quotas-body">
+                        <tr><td colspan="5" style="color:#aaa;">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="card">
+                <h2>Stats <span id="stats-updated" class="last-updated"></span></h2>
+                <div class="stats-grid" id="stats-totals">
+                    <div class="stat"><div class="stat-value" id="total-queued">–</div><div class="stat-label">Queued</div></div>
+                    <div class="stat"><div class="stat-value" id="total-running">–</div><div class="stat-label">Running</div></div>
+                    <div class="stat"><div class="stat-value" id="total-done-24h">–</div><div class="stat-label">Done · 24h</div></div>
+                    <div class="stat"><div class="stat-value" id="total-dead">–</div><div class="stat-label">Dead</div></div>
+                </div>
+                <table class="by-source-table">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Queued</th>
+                            <th>Running</th>
+                            <th>Done</th>
+                            <th>Dead</th>
+                        </tr>
+                    </thead>
+                    <tbody id="stats-by-source">
+                        <tr><td colspan="5" style="color:#aaa;">Loading…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card jobs-section">
+            <h2>Jobs <span id="jobs-updated" class="last-updated"></span></h2>
+
+            <form class="toolbar" id="filter-form" onsubmit="return false;">
+                <select name="source" id="f-source">
+                    <option value="">All sources</option>
+                    <option value="youtube">youtube</option>
+                    <option value="spotify">spotify</option>
+                    <option value="apple">apple</option>
+                    <option value="musicbrainz">musicbrainz</option>
+                </select>
+                <select name="status" id="f-status">
+                    <option value="">All statuses</option>
+                    <option value="queued">queued</option>
+                    <option value="running">running</option>
+                    <option value="done">done</option>
+                    <option value="failed">failed</option>
+                    <option value="dead">dead</option>
+                </select>
+                <select name="target_type" id="f-target-type">
+                    <option value="">Any target type</option>
+                    <option value="song">song</option>
+                    <option value="recording">recording</option>
+                    <option value="performer">performer</option>
+                    <option value="release">release</option>
+                </select>
+                <input type="text" id="f-target-id" placeholder="target UUID (optional)" style="min-width:280px;">
+                <button type="button" id="apply-filters">Apply</button>
+                <button type="button" class="clear" id="clear-filters">Clear</button>
+            </form>
+
+            <table class="jobs">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Source</th>
+                        <th>Job</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>Att.</th>
+                        <th>Updated</th>
+                        <th>Last error</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody id="jobs-body">
+                    <tr><td colspan="9" style="color:#aaa; text-align:center;">Loading…</td></tr>
+                </tbody>
+            </table>
+
+            <div class="pagination">
+                <span id="pagination-summary">–</span>
+                <div>
+                    <button type="button" id="page-prev">&larr; Prev</button>
+                    <button type="button" id="page-next">Next &rarr;</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        // -------- helpers --------
+        function adminCsrfToken() {
+            const m = document.cookie.match(/(?:^|; )admin_csrf=([^;]*)/);
+            return m ? decodeURIComponent(m[1]) : '';
+        }
+
+        function fmtTime(iso) {
+            if (!iso) return '–';
+            const d = new Date(iso);
+            const now = new Date();
+            const diffMs = now - d;
+            const diffSec = Math.round(diffMs / 1000);
+            if (diffSec < 0) {
+                // Future timestamp (e.g. quota reset) — show absolute.
+                return d.toLocaleString();
+            }
+            if (diffSec < 60) return diffSec + 's ago';
+            if (diffSec < 3600) return Math.round(diffSec / 60) + 'm ago';
+            if (diffSec < 86400) return Math.round(diffSec / 3600) + 'h ago';
+            return Math.round(diffSec / 86400) + 'd ago';
+        }
+
+        function fmtAbs(iso) {
+            if (!iso) return '';
+            return new Date(iso).toLocaleString();
+        }
+
+        function setError(msg) {
+            const el = document.getElementById('error-banner');
+            if (msg) {
+                el.textContent = msg;
+                el.style.display = 'block';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+
+        async function api(path, opts) {
+            opts = opts || {};
+            opts.headers = Object.assign({
+                'Accept': 'application/json',
+            }, opts.headers || {});
+            if (opts.method && opts.method !== 'GET') {
+                opts.headers['X-CSRF-Token'] = adminCsrfToken();
+                if (!opts.headers['Content-Type']) {
+                    opts.headers['Content-Type'] = 'application/json';
+                }
+            }
+            const resp = await fetch(path, opts);
+            const ct = resp.headers.get('content-type') || '';
+            const body = ct.includes('json') ? await resp.json() : await resp.text();
+            if (!resp.ok) {
+                const msg = (body && body.error) || ('HTTP ' + resp.status);
+                throw new Error(msg);
+            }
+            return body;
+        }
+
+        // -------- quotas --------
+        async function loadQuotas() {
+            try {
+                const data = await api('/admin/research/quotas');
+                const tbody = document.getElementById('quotas-body');
+                if (!data.quotas.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;">No quota rows.</td></tr>';
+                } else {
+                    tbody.innerHTML = data.quotas.map(q => {
+                        const pct = q.percent_used || 0;
+                        const cls = pct >= 90 ? 'danger' : (pct >= 70 ? 'warn' : '');
+                        return `
+                          <tr>
+                            <td>${q.source}</td>
+                            <td>${q.window}</td>
+                            <td>${q.units_used.toLocaleString()} / ${q.units_limit.toLocaleString()}</td>
+                            <td>
+                              <span class="bar"><span class="bar-fill ${cls}" style="width:${Math.min(pct,100)}%"></span></span>
+                              <span style="color:#888; font-size:0.85em; margin-left:8px;">${pct}%</span>
+                            </td>
+                            <td class="timestamp" title="${fmtAbs(q.resets_at)}">${fmtTime(q.resets_at)}</td>
+                          </tr>
+                        `;
+                    }).join('');
+                }
+                document.getElementById('quotas-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+                setError('');
+            } catch (e) {
+                setError('Failed to load quotas: ' + e.message);
+            }
+        }
+
+        // -------- stats --------
+        async function loadStats() {
+            try {
+                const data = await api('/admin/research/stats');
+                const t = data.totals || {};
+                document.getElementById('total-queued').textContent = (t.queued_now ?? 0).toLocaleString();
+                document.getElementById('total-running').textContent = (t.running_now ?? 0).toLocaleString();
+                document.getElementById('total-done-24h').textContent = (t.done_24h ?? 0).toLocaleString();
+                document.getElementById('total-dead').textContent = (t.dead_total ?? 0).toLocaleString();
+
+                const bySource = data.by_source || {};
+                const sources = Object.keys(bySource).sort();
+                const tbody = document.getElementById('stats-by-source');
+                if (!sources.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;">No jobs yet.</td></tr>';
+                } else {
+                    tbody.innerHTML = sources.map(s => {
+                        const row = bySource[s];
+                        return `
+                          <tr>
+                            <td>${s}</td>
+                            <td>${(row.queued ?? 0).toLocaleString()}</td>
+                            <td>${(row.running ?? 0).toLocaleString()}</td>
+                            <td>${(row.done ?? 0).toLocaleString()}</td>
+                            <td>${(row.dead ?? 0).toLocaleString()}</td>
+                          </tr>
+                        `;
+                    }).join('');
+                }
+                document.getElementById('stats-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+                setError('');
+            } catch (e) {
+                setError('Failed to load stats: ' + e.message);
+            }
+        }
+
+        // -------- jobs list --------
+        const PAGE_SIZE = 25;
+        const state = { offset: 0, total: 0, lastQuery: '' };
+
+        function buildJobsUrl() {
+            const params = new URLSearchParams();
+            const f = id => document.getElementById(id).value.trim();
+            if (f('f-source')) params.set('source', f('f-source'));
+            if (f('f-status')) params.set('status', f('f-status'));
+            if (f('f-target-type')) params.set('target_type', f('f-target-type'));
+            if (f('f-target-id')) params.set('target_id', f('f-target-id'));
+            params.set('limit', PAGE_SIZE);
+            params.set('offset', state.offset);
+            const qs = params.toString();
+            state.lastQuery = qs;
+            return '/admin/research/jobs?' + qs;
+        }
+
+        function renderJob(j) {
+            const targetShort = j.target_id.slice(0, 8) + '…';
+            const errShort = (j.last_error || '').slice(0, 80);
+            const isTerminal = j.status === 'done' || j.status === 'dead';
+            return `
+              <tr data-job-id="${j.id}">
+                <td class="job-id">#${j.id}</td>
+                <td>${j.source}</td>
+                <td>${j.job_type}</td>
+                <td>
+                  <div>${j.target_type}</div>
+                  <div class="target-id" title="${j.target_id}">${targetShort}</div>
+                </td>
+                <td><span class="status-badge status-${j.status}">${j.status}</span></td>
+                <td>${j.attempts}/${j.max_attempts}</td>
+                <td class="timestamp" title="${fmtAbs(j.updated_at)}">${fmtTime(j.updated_at)}</td>
+                <td class="err" title="${(j.last_error || '').replace(/"/g, '&quot;')}">${errShort}</td>
+                <td class="actions">
+                  <button type="button" data-action="retry" data-id="${j.id}">Retry</button>
+                  <button type="button" class="cancel" data-action="cancel" data-id="${j.id}" ${isTerminal ? 'disabled' : ''}>Cancel</button>
+                </td>
+              </tr>
+            `;
+        }
+
+        async function loadJobs() {
+            try {
+                const data = await api(buildJobsUrl());
+                state.total = data.total;
+                const tbody = document.getElementById('jobs-body');
+                if (!data.jobs.length) {
+                    tbody.innerHTML = '<tr><td colspan="9" style="color:#aaa; text-align:center;">No jobs match those filters.</td></tr>';
+                } else {
+                    tbody.innerHTML = data.jobs.map(renderJob).join('');
+                }
+                const start = state.total === 0 ? 0 : state.offset + 1;
+                const end = Math.min(state.offset + PAGE_SIZE, state.total);
+                document.getElementById('pagination-summary').textContent =
+                    `${start}–${end} of ${state.total.toLocaleString()}`;
+                document.getElementById('page-prev').disabled = state.offset === 0;
+                document.getElementById('page-next').disabled = end >= state.total;
+                document.getElementById('jobs-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
+                setError('');
+            } catch (e) {
+                setError('Failed to load jobs: ' + e.message);
+            }
+        }
+
+        // -------- actions --------
+        async function performAction(jobId, action) {
+            const verb = action === 'retry' ? 'Retry' : 'Cancel';
+            if (!window.confirm(`${verb} job #${jobId}?`)) return;
+
+            const btns = document.querySelectorAll(
+                `tr[data-job-id="${jobId}"] button`
+            );
+            btns.forEach(b => b.disabled = true);
+            try {
+                await api(`/admin/research/jobs/${jobId}/${action}`, { method: 'POST' });
+                await Promise.all([loadJobs(), loadStats()]);
+            } catch (e) {
+                setError(`${verb} failed for #${jobId}: ${e.message}`);
+                btns.forEach(b => b.disabled = false);
+            }
+        }
+
+        // -------- wire up --------
+        document.getElementById('apply-filters').addEventListener('click', () => {
+            state.offset = 0;
+            loadJobs();
+        });
+        document.getElementById('clear-filters').addEventListener('click', () => {
+            ['f-source', 'f-status', 'f-target-type', 'f-target-id']
+                .forEach(id => document.getElementById(id).value = '');
+            state.offset = 0;
+            loadJobs();
+        });
+        document.getElementById('page-prev').addEventListener('click', () => {
+            state.offset = Math.max(0, state.offset - PAGE_SIZE);
+            loadJobs();
+        });
+        document.getElementById('page-next').addEventListener('click', () => {
+            state.offset += PAGE_SIZE;
+            loadJobs();
+        });
+        // Event delegation for retry/cancel buttons (rebuilt every refresh).
+        document.getElementById('jobs-body').addEventListener('click', (e) => {
+            const btn = e.target.closest('button[data-action]');
+            if (!btn) return;
+            performAction(btn.dataset.id, btn.dataset.action);
+        });
+
+        // Initial + auto-refresh.
+        function refreshAll() {
+            loadQuotas();
+            loadStats();
+            loadJobs();
+        }
+        refreshAll();
+        setInterval(refreshAll, 10000);
+    })();
+    </script>
+</body>
+</html>
