@@ -4,8 +4,12 @@ Coordinates background research tasks for songs
 
 It uses:
 - MBReleaseImporter for MusicBrainz releases and performer data
-- SpotifyMatcher for Spotify release and track matching (with caching)
 - AppleMusicMatcher for Apple Music release and track matching (with caching)
+
+Spotify matching used to live here too but was moved to the durable
+research queue (research_worker/handlers/spotify.py) — it now runs in
+the separate worker service and is enqueued by the refresh route
+alongside the in-process research call.
 """
 
 import logging
@@ -13,7 +17,6 @@ import os
 from typing import Dict, Any
 
 from integrations.musicbrainz.release_importer import MBReleaseImporter
-from integrations.spotify.utils import SpotifyMatcher
 from integrations.apple_music.matcher import AppleMusicMatcher
 from db_utils import get_db_connection
 from integrations.musicbrainz.utils import MusicBrainzSearcher, update_song_composer, update_song_wikipedia_url, update_song_composed_year
@@ -29,9 +32,10 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
     """
     Research a song and update its data
 
-    This is the main entry point called by the background worker thread.
-    It imports MusicBrainz releases and performer credits, then matches
-    Spotify tracks for the song's recordings.
+    This is the main entry point called by the in-process background worker
+    thread. It imports MusicBrainz releases and performer credits, then
+    matches Apple Music. Spotify matching is handled on the durable research
+    queue (research_worker/handlers/spotify.py) and runs in parallel.
 
     The function is designed to be fault-tolerant and will not raise exceptions
     to the caller - all errors are logged and returned in the result dict.
@@ -120,40 +124,11 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
         if not composed_year_updated:
             logger.debug("Composed year not updated (already set or not found)")
 
-        # Step 2: Match Spotify releases and tracks
-        # Cache behavior controlled by force_refresh parameter
-        matcher = SpotifyMatcher(
-            dry_run=False,
-            strict_mode=True,
-            force_refresh=force_refresh,
-            rematch_tracks=force_refresh,
-            logger=logger,
-            progress_callback=progress_callback
-        )
-        
-        logger.info("Matching Spotify releases...")
-        spotify_result = matcher.match_releases(str(song_id))
-        
-        if not spotify_result['success']:
-            # Spotify matching failed, but MusicBrainz succeeded
-            # Continue to Apple Music matching
-            error = spotify_result.get('error', 'Unknown error')
-            logger.warning(f"⚠ Spotify matching failed: {error}")
-            spotify_stats = {'error': error}
-        else:
-            spotify_stats = spotify_result['stats']
-            logger.info(f"✓ Spotify matching complete")
-            logger.info(f"  Releases processed: {spotify_stats['releases_processed']}")
-            logger.info(f"  Spotify matches found: {spotify_stats['releases_with_spotify']}")
-            logger.info(f"  Releases updated: {spotify_stats['releases_updated']}")
-            logger.info(f"  No match found: {spotify_stats['releases_no_match']}")
-            logger.info(f"  Already had URL: {spotify_stats['releases_skipped']}")
-            logger.info(f"  Tracks matched: {spotify_stats['tracks_matched']}")
-            logger.info(f"  Tracks skipped: {spotify_stats['tracks_skipped']}")
-            logger.info(f"  Tracks no match: {spotify_stats['tracks_no_match']}")
-            logger.info(f"  Cache hits: {spotify_stats['cache_hits']}")
-            logger.info(f"  API calls: {spotify_stats['api_calls']}")
-        
+        # Step 2: Spotify matching moved to the durable research queue
+        # (see research_worker/handlers/spotify.py). The refresh route
+        # enqueues a ('spotify', 'match_song') job in parallel with this
+        # call; no in-process Spotify work happens here anymore.
+
         # Step 3: Match Apple Music releases and tracks
         # AppleMusicMatcher uses the normalized streaming_links tables
         if APPLE_MUSIC_MATCHING_ENABLED:
@@ -191,11 +166,12 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
             logger.info("⏭ Skipping Apple Music matching (temporarily disabled)")
             apple_stats = {'skipped': True}
 
-        # Combine stats from all operations
+        # Combine stats from in-process operations. Spotify stats live on
+        # the research_jobs row for the enqueued ('spotify', 'match_song')
+        # job — see the admin research dashboard or the job's `result` field.
         combined_stats = {
             'musicbrainz': mb_stats,
-            'spotify': spotify_stats,
-            'apple_music': apple_stats
+            'apple_music': apple_stats,
         }
 
         logger.info(f"✓ Successfully researched {song_name}")
