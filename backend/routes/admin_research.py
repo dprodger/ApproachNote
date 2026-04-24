@@ -63,13 +63,19 @@ def _iso(value: datetime | None) -> str | None:
 
 def _serialize_job(row: dict[str, Any], *, include_payload: bool) -> dict[str, Any]:
     """Render a research_jobs row as JSON. payload + result included only on
-    the detail endpoint to keep the list response light."""
+    the detail endpoint to keep the list response light.
+
+    `target_title` is populated when the row was fetched with a LEFT JOIN
+    against songs (target_type='song'). Other target types currently leave
+    it null; extend the join as needed.
+    """
     out: dict[str, Any] = {
         'id': row['id'],
         'source': row['source'],
         'job_type': row['job_type'],
         'target_type': row['target_type'],
         'target_id': str(row['target_id']),
+        'target_title': row.get('target_title'),
         'status': row['status'],
         'priority': row['priority'],
         'attempts': row['attempts'],
@@ -86,6 +92,18 @@ def _serialize_job(row: dict[str, Any], *, include_payload: bool) -> dict[str, A
         out['payload'] = row.get('payload') or {}
         out['result'] = row.get('result')
     return out
+
+
+# Jobs queries need target-row metadata (e.g. song title) to be useful in
+# the admin UI. Keep the join narrow — only song titles for now — and
+# widen it as we need more target types.
+_JOBS_SELECT_WITH_TITLE = """
+    SELECT j.*,
+           CASE WHEN j.target_type = 'song' THEN s.title END AS target_title
+    FROM research_jobs j
+    LEFT JOIN songs s
+           ON j.target_type = 'song' AND s.id = j.target_id
+"""
 
 
 def _serialize_quota(row: dict[str, Any]) -> dict[str, Any]:
@@ -136,7 +154,13 @@ def list_jobs():
         filters.append(f"{arg} = %s")
         params.append(val)
 
-    where = f"WHERE {' AND '.join(filters)}" if filters else ''
+    # Filter columns live on research_jobs (aliased `j` in the join). None
+    # conflict with songs columns today, but prefix for clarity / future-
+    # proofing against a column named 'title' etc. landing in research_jobs.
+    prefixed_where = (
+        "WHERE " + " AND ".join(f"j.{f}" for f in filters) if filters else ''
+    )
+    bare_where = f"WHERE {' AND '.join(filters)}" if filters else ''
 
     try:
         limit = min(int(request.args.get('limit', 50)), _MAX_LIMIT)
@@ -145,12 +169,14 @@ def list_jobs():
         return jsonify({'error': 'limit and offset must be integers'}), 400
 
     sql = f"""
-        SELECT * FROM research_jobs
-        {where}
-        ORDER BY created_at DESC, id DESC
+        {_JOBS_SELECT_WITH_TITLE}
+        {prefixed_where}
+        ORDER BY j.created_at DESC, j.id DESC
         LIMIT %s OFFSET %s
     """
-    count_sql = f"SELECT count(*) AS total FROM research_jobs {where}"
+    # Count against the base table — LEFT JOIN wouldn't change row count
+    # (songs.id is unique) but the bare query is cheaper anyway.
+    count_sql = f"SELECT count(*) AS total FROM research_jobs {bare_where}"
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -169,8 +195,12 @@ def list_jobs():
 
 @admin_research_bp.route('/jobs/<int:job_id>', methods=['GET'])
 def get_job(job_id: int):
-    """Full job row, including payload + result."""
-    row = research_jobs.get_job(job_id)
+    """Full job row, including payload + result + target title."""
+    sql = f"{_JOBS_SELECT_WITH_TITLE} WHERE j.id = %s"
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (job_id,))
+            row = cur.fetchone()
     if row is None:
         return jsonify({'error': 'not found', 'job_id': job_id}), 404
     return jsonify(_serialize_job(row, include_payload=True))

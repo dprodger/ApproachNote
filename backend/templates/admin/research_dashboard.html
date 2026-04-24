@@ -131,6 +131,38 @@
         table.jobs tr:hover { background: #f9f9fb; }
         .job-id { font-family: 'SF Mono', Monaco, monospace; color: #888; font-size: 0.85em; }
         .target-id { font-family: 'SF Mono', Monaco, monospace; color: #555; font-size: 0.8em; }
+        .target-title {
+            font-size: 0.85em;
+            color: #1d1d1f;
+            font-weight: 500;
+            margin-bottom: 2px;
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .id-cell { display: inline-flex; align-items: center; gap: 4px; }
+        .copy-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 18px;
+            height: 18px;
+            padding: 0;
+            margin: 0;
+            border: none;
+            background: transparent;
+            color: #999;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: color 0.15s, background 0.15s;
+        }
+        .copy-btn:hover { color: #0066cc; background: #f0f4f9; }
+        .copy-btn svg { width: 12px; height: 12px; }
+        .copy-btn .icon-check { display: none; }
+        .copy-btn.copied { color: #2c8a2c; }
+        .copy-btn.copied .icon-clipboard { display: none; }
+        .copy-btn.copied .icon-check { display: inline; }
         .status-badge {
             display: inline-block;
             padding: 2px 8px;
@@ -469,19 +501,63 @@
             return '/admin/research/jobs?' + qs;
         }
 
+        // Inline SVGs for the copy button. Swapped via CSS .copied class.
+        const CLIPBOARD_SVG = `
+          <svg class="icon-clipboard" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="2"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <rect x="8" y="8" width="14" height="14" rx="2"/>
+            <path d="M4 16H3a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1"/>
+          </svg>
+          <svg class="icon-check" viewBox="0 0 24 24" fill="none"
+               stroke="currentColor" stroke-width="3"
+               stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+        `;
+
+        function copyBtn(value) {
+            // value is embedded via data-copy so the click handler can read
+            // it without us re-escaping here. aria-label + title give it
+            // the accessible "Copy to clipboard" affordance.
+            const safe = String(value).replace(/"/g, '&quot;');
+            return `<button type="button" class="copy-btn" data-copy="${safe}"
+                            aria-label="Copy to clipboard"
+                            title="Copy to clipboard">${CLIPBOARD_SVG}</button>`;
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, (c) => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;',
+            }[c]));
+        }
+
+        function renderTargetCell(j) {
+            const titleRow = (j.target_type === 'song' && j.target_title)
+                ? `<div class="target-title" title="${escapeHtml(j.target_title)}">${escapeHtml(j.target_title)}</div>`
+                : '';
+            const short = j.target_id.slice(0, 8) + '…';
+            return `
+              ${titleRow}
+              <div>${j.target_type}</div>
+              <div class="id-cell">
+                <span class="target-id" title="${escapeHtml(j.target_id)}">${short}</span>
+                ${copyBtn(j.target_id)}
+              </div>
+            `;
+        }
+
         function renderJob(j) {
-            const targetShort = j.target_id.slice(0, 8) + '…';
             const errShort = (j.last_error || '').slice(0, 80);
             const isTerminal = j.status === 'done' || j.status === 'dead';
             return `
               <tr data-job-id="${j.id}">
-                <td class="job-id">#${j.id}</td>
+                <td class="job-id">
+                  <span class="id-cell">#${j.id} ${copyBtn(j.id)}</span>
+                </td>
                 <td>${j.source}</td>
                 <td>${j.job_type}</td>
-                <td>
-                  <div>${j.target_type}</div>
-                  <div class="target-id" title="${j.target_id}">${targetShort}</div>
-                </td>
+                <td>${renderTargetCell(j)}</td>
                 <td><span class="status-badge status-${j.status}">${j.status}</span></td>
                 <td>${j.attempts}/${j.max_attempts}</td>
                 <td class="timestamp" title="${fmtAbs(j.updated_at)}">${fmtTime(j.updated_at)}</td>
@@ -554,8 +630,26 @@
             state.offset += PAGE_SIZE;
             loadJobs();
         });
-        // Event delegation for retry/cancel buttons (rebuilt every refresh).
-        document.getElementById('jobs-body').addEventListener('click', (e) => {
+        // Event delegation for retry/cancel + copy buttons. Rows are
+        // rebuilt every refresh, so listeners on the tbody survive that.
+        document.getElementById('jobs-body').addEventListener('click', async (e) => {
+            const copy = e.target.closest('.copy-btn');
+            if (copy) {
+                e.preventDefault();
+                const text = copy.dataset.copy;
+                try {
+                    await navigator.clipboard.writeText(text);
+                    copy.classList.add('copied');
+                    copy.setAttribute('title', 'Copied!');
+                    setTimeout(() => {
+                        copy.classList.remove('copied');
+                        copy.setAttribute('title', 'Copy to clipboard');
+                    }, 1200);
+                } catch (err) {
+                    setError('Copy failed: ' + err.message);
+                }
+                return;
+            }
             const btn = e.target.closest('button[data-action]');
             if (!btn) return;
             performAction(btn.dataset.id, btn.dataset.action);
