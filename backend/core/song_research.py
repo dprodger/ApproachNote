@@ -18,14 +18,72 @@ from typing import Dict, Any
 
 from integrations.musicbrainz.release_importer import MBReleaseImporter
 from integrations.apple_music.matcher import AppleMusicMatcher
-from db_utils import get_db_connection
+from db_utils import get_db_connection, execute_query
 from integrations.musicbrainz.utils import MusicBrainzSearcher, update_song_composer, update_song_wikipedia_url, update_song_composed_year
-from core import research_queue
+from core import research_queue, research_jobs
 logger = logging.getLogger(__name__)
 
 # Apple Music matching uses MotherDuck catalog (no rate limits)
 # Set APPLE_MUSIC_CATALOG_DB=md:apple_music_feed and motherduck_token in env
 APPLE_MUSIC_MATCHING_ENABLED = True
+
+
+def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
+    """Queue Spotify + per-recording YouTube jobs on the durable queue.
+
+    Called from research_song() AFTER MusicBrainz import completes so the
+    jobs see the freshly-created recordings + releases. Failures here are
+    logged but don't abort the in-process flow — the refresh still has
+    value even if the queue is temporarily unavailable.
+
+    Priority 50 so these user-initiated jobs jump ahead of any bulk
+    backfill work the worker might be chewing on. payload.rematch mirrors
+    the refresh's force_refresh flag so handlers know whether to honor
+    existing matches or re-evaluate them.
+    """
+    # Spotify: one job per song.
+    try:
+        research_jobs.enqueue(
+            source=research_jobs.SOURCE_SPOTIFY,
+            job_type='match_song',
+            target_type=research_jobs.TARGET_SONG,
+            target_id=song_id,
+            payload={'rematch': force_refresh},
+            priority=50,
+        )
+    except Exception:
+        logger.exception("failed to enqueue spotify job for song %s", song_id)
+
+    # YouTube: one job per recording. Empty set is fine — nothing to match.
+    try:
+        recordings = execute_query(
+            "SELECT id FROM recordings WHERE song_id = %s", (song_id,),
+        ) or []
+    except Exception:
+        logger.exception("failed to query recordings for youtube enqueue")
+        return
+
+    queued = 0
+    for rec in recordings:
+        try:
+            if research_jobs.enqueue(
+                source=research_jobs.SOURCE_YOUTUBE,
+                job_type='match_recording',
+                target_type=research_jobs.TARGET_RECORDING,
+                target_id=rec['id'],
+                payload={'rematch': force_refresh},
+                priority=50,
+            ) is not None:
+                queued += 1
+        except Exception:
+            logger.exception(
+                "failed to enqueue youtube job for recording %s", rec['id'],
+            )
+    logger.info(
+        "Enqueued downstream research jobs for song %s: "
+        "spotify=1, youtube=%d/%d recordings",
+        song_id, queued, len(recordings),
+    )
 
 
 def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> Dict[str, Any]:
@@ -105,7 +163,19 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
             logger.info(f"  CAA images created: {mb_stats['caa_images_created']}")
         if mb_stats['errors'] > 0:
             logger.info(f"  Errors: {mb_stats['errors']}")
-        
+
+        # Step 1.9: Enqueue downstream research jobs on the durable queue.
+        #
+        # These MUST happen after MB import so they see the freshly-created
+        # recordings + releases. Enqueueing here (not in the HTTP handler)
+        # also means a brand-new song with no recordings yet still gets
+        # YouTube jobs once MB creates them — something the old route-side
+        # enqueue couldn't do.
+        #
+        # Apple Music continues to run in-process below (Step 3). Spotify
+        # and YouTube run concurrently with Apple via the worker threads.
+        _enqueue_downstream_jobs(str(song_id), force_refresh)
+
         # Step 1.5: Update composer from MusicBrainz if needed
         logger.info("Checking for composer update...")
         composer_updated = update_song_composer(str(song_id))

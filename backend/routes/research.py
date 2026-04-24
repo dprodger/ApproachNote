@@ -39,42 +39,14 @@ def refresh_song_data(song_id):
                 'song_id': song_id
             }), 404
 
-        # Add to research queue (MusicBrainz / Spotify / Apple pipeline)
-        success = research_queue.add_song_to_queue(song['id'], song['title'], force_refresh=force_refresh)
-
-        # Also enqueue per-recording YouTube jobs on the new durable queue
-        # (sql/migrations/015_research_jobs.sql). The existing in-process
-        # pipeline doesn't handle YouTube; this is additive, not mirrored.
-        # Priority 50 so user-initiated refreshes jump ahead of any bulk
-        # backfill jobs that might be running.
-        recordings_sql = "SELECT id FROM recordings WHERE song_id = %s"
-        recordings = db_tools.execute_query(recordings_sql, (song['id'],)) or []
-        youtube_queued = 0
-        for rec in recordings:
-            job_id = research_jobs.enqueue(
-                source=research_jobs.SOURCE_YOUTUBE,
-                job_type='match_recording',
-                target_type=research_jobs.TARGET_RECORDING,
-                target_id=rec['id'],
-                payload={'rematch': force_refresh},
-                priority=50,
-            )
-            if job_id is not None:
-                youtube_queued += 1
-
-        # Mirror Spotify matching onto the durable queue alongside the
-        # existing in-process flow. Both will run during the migration
-        # period — once we trust the new path we drop the in-process call
-        # in core/song_research.py. SpotifyMatcher.match_releases is
-        # idempotent, so the duplicate work is wasted API calls but not
-        # incorrect.
-        spotify_job_id = research_jobs.enqueue(
-            source=research_jobs.SOURCE_SPOTIFY,
-            job_type='match_song',
-            target_type=research_jobs.TARGET_SONG,
-            target_id=song['id'],
-            payload={'rematch': force_refresh},
-            priority=50,
+        # Add to the in-process research queue. MusicBrainz + Apple Music
+        # run synchronously inside that worker; once MusicBrainz completes
+        # it enqueues per-recording YouTube jobs and a per-song Spotify
+        # job on the durable queue (research_worker/). Enqueueing happens
+        # AFTER MB import so brand-new songs with no recordings yet still
+        # get matched — see core.song_research._enqueue_downstream_jobs.
+        success = research_queue.add_song_to_queue(
+            song['id'], song['title'], force_refresh=force_refresh,
         )
 
         if success:
@@ -85,9 +57,6 @@ def refresh_song_data(song_id):
                 'song_title': song['title'],
                 'force_refresh': force_refresh,
                 'queue_size': research_queue.get_queue_size(),
-                'youtube_jobs_queued': youtube_queued,
-                'recordings_total': len(recordings),
-                'spotify_job_id': spotify_job_id,
             }), 202  # 202 Accepted - processing will happen asynchronously
         else:
             return jsonify({
