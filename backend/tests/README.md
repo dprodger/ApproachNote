@@ -1,7 +1,9 @@
 # Backend tests
 
-Pytest suite for the Flask backend. Currently covers the auth flow; matchers,
-research queue, and rate-limit smoke tests are tracked as follow-up issues.
+Pytest suite for the Flask backend. Covers the auth flow, the research
+queue / worker, the job-handler plumbing for each source, and the pure
+matching functions behind Spotify and Apple Music. Rate-limit smoke
+tests are still tracked as a follow-up.
 
 ## Running locally
 
