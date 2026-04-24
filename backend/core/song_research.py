@@ -2,14 +2,18 @@
 Song Research Module
 Coordinates background research tasks for songs
 
-It uses:
+In-process responsibilities (this module):
 - MBReleaseImporter for MusicBrainz releases and performer data
-- AppleMusicMatcher for Apple Music release and track matching (with caching)
+- Song-metadata updates (composer, wikipedia url, composed year)
 
-Spotify matching used to live here too but was moved to the durable
-research queue (research_worker/handlers/spotify.py) — it now runs in
-the separate worker service and is enqueued by the refresh route
-alongside the in-process research call.
+After MusicBrainz import succeeds, _enqueue_downstream_jobs fans out
+durable-queue jobs for the matchers that have been migrated:
+- Spotify  -> research_worker/handlers/spotify.py
+- Apple    -> research_worker/handlers/apple.py
+- YouTube  -> research_worker/handlers/youtube.py (one per recording)
+
+The worker service (research_worker/run.py) drains those jobs in
+parallel with the in-process song-metadata updates.
 """
 
 import logging
@@ -17,15 +21,10 @@ import os
 from typing import Dict, Any
 
 from integrations.musicbrainz.release_importer import MBReleaseImporter
-from integrations.apple_music.matcher import AppleMusicMatcher
 from db_utils import get_db_connection, execute_query
 from integrations.musicbrainz.utils import MusicBrainzSearcher, update_song_composer, update_song_wikipedia_url, update_song_composed_year
 from core import research_queue, research_jobs
 logger = logging.getLogger(__name__)
-
-# Apple Music matching uses MotherDuck catalog (no rate limits)
-# Set APPLE_MUSIC_CATALOG_DB=md:apple_music_feed and motherduck_token in env
-APPLE_MUSIC_MATCHING_ENABLED = True
 
 
 def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
@@ -41,18 +40,19 @@ def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
     the refresh's force_refresh flag so handlers know whether to honor
     existing matches or re-evaluate them.
     """
-    # Spotify: one job per song.
-    try:
-        research_jobs.enqueue(
-            source=research_jobs.SOURCE_SPOTIFY,
-            job_type='match_song',
-            target_type=research_jobs.TARGET_SONG,
-            target_id=song_id,
-            payload={'rematch': force_refresh},
-            priority=50,
-        )
-    except Exception:
-        logger.exception("failed to enqueue spotify job for song %s", song_id)
+    # Per-song jobs (Spotify + Apple Music).
+    for source in (research_jobs.SOURCE_SPOTIFY, research_jobs.SOURCE_APPLE):
+        try:
+            research_jobs.enqueue(
+                source=source,
+                job_type='match_song',
+                target_type=research_jobs.TARGET_SONG,
+                target_id=song_id,
+                payload={'rematch': force_refresh},
+                priority=50,
+            )
+        except Exception:
+            logger.exception("failed to enqueue %s job for song %s", source, song_id)
 
     # YouTube: one job per recording. Empty set is fine — nothing to match.
     try:
@@ -81,7 +81,7 @@ def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
             )
     logger.info(
         "Enqueued downstream research jobs for song %s: "
-        "spotify=1, youtube=%d/%d recordings",
+        "spotify=1, apple=1, youtube=%d/%d recordings",
         song_id, queued, len(recordings),
     )
 
@@ -91,9 +91,10 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
     Research a song and update its data
 
     This is the main entry point called by the in-process background worker
-    thread. It imports MusicBrainz releases and performer credits, then
-    matches Apple Music. Spotify matching is handled on the durable research
-    queue (research_worker/handlers/spotify.py) and runs in parallel.
+    thread. It imports MusicBrainz releases and performer credits, updates
+    song-level metadata, and enqueues the per-source matching jobs onto
+    the durable research queue. Spotify, Apple Music, and YouTube matching
+    all run on the worker service.
 
     The function is designed to be fault-tolerant and will not raise exceptions
     to the caller - all errors are logged and returned in the result dict.
@@ -172,8 +173,8 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
         # YouTube jobs once MB creates them — something the old route-side
         # enqueue couldn't do.
         #
-        # Apple Music continues to run in-process below (Step 3). Spotify
-        # and YouTube run concurrently with Apple via the worker threads.
+        # Spotify, Apple Music, and YouTube matching all run in the
+        # worker service in parallel with the song-metadata updates below.
         _enqueue_downstream_jobs(str(song_id), force_refresh)
 
         # Step 1.5: Update composer from MusicBrainz if needed
@@ -194,54 +195,12 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
         if not composed_year_updated:
             logger.debug("Composed year not updated (already set or not found)")
 
-        # Step 2: Spotify matching moved to the durable research queue
-        # (see research_worker/handlers/spotify.py). The refresh route
-        # enqueues a ('spotify', 'match_song') job in parallel with this
-        # call; no in-process Spotify work happens here anymore.
-
-        # Step 3: Match Apple Music releases and tracks
-        # AppleMusicMatcher uses the normalized streaming_links tables
-        if APPLE_MUSIC_MATCHING_ENABLED:
-            apple_matcher = AppleMusicMatcher(
-                dry_run=False,
-                strict_mode=True,
-                force_refresh=force_refresh,
-                logger=logger,
-                progress_callback=progress_callback,
-                local_catalog_only=True,  # Use MotherDuck only, no iTunes API fallback
-            )
-
-            logger.info("Matching Apple Music releases...")
-            apple_result = apple_matcher.match_releases(str(song_id))
-
-            if not apple_result['success']:
-                # Apple Music matching failed, but others succeeded
-                # This is a partial success - log warning but don't fail
-                error = apple_result.get('message', 'Unknown error')
-                logger.warning(f"⚠ Apple Music matching failed: {error}")
-                apple_stats = {'error': error}
-            else:
-                apple_stats = apple_result['stats']
-                logger.info(f"✓ Apple Music matching complete")
-                logger.info(f"  Releases processed: {apple_stats['releases_processed']}")
-                logger.info(f"  Apple Music matches found: {apple_stats['releases_matched']}")
-                logger.info(f"  No match found: {apple_stats['releases_no_match']}")
-                logger.info(f"  Already had Apple: {apple_stats['releases_with_apple_music']}")
-                logger.info(f"  Tracks matched: {apple_stats['tracks_matched']}")
-                logger.info(f"  Tracks no match: {apple_stats['tracks_no_match']}")
-                logger.info(f"  Artwork added: {apple_stats['artwork_added']}")
-                logger.info(f"  Cache hits: {apple_stats['cache_hits']}")
-                logger.info(f"  API calls: {apple_stats['api_calls']}")
-        else:
-            logger.info("⏭ Skipping Apple Music matching (temporarily disabled)")
-            apple_stats = {'skipped': True}
-
-        # Combine stats from in-process operations. Spotify stats live on
-        # the research_jobs row for the enqueued ('spotify', 'match_song')
-        # job — see the admin research dashboard or the job's `result` field.
+        # Spotify, Apple Music, and YouTube matching all run on the
+        # durable research queue (research_worker/handlers/*). Their
+        # per-job stats live on the research_jobs row's `result` field —
+        # see the admin research dashboard for live state.
         combined_stats = {
             'musicbrainz': mb_stats,
-            'apple_music': apple_stats,
         }
 
         logger.info(f"✓ Successfully researched {song_name}")
