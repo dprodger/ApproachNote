@@ -78,16 +78,32 @@ def _user_id_or_ip_key():
     """
     Key function for endpoints that are rate-limited per authenticated user.
 
-    If the request carries a valid user identity (set on ``flask.g`` by the
-    auth middleware), key by user ID. Otherwise fall back to the client IP.
-    Used for ``/auth/change-password``.
+    Decodes the access token from the ``Authorization`` header to extract
+    the user id. We can't read ``flask.g.current_user`` here because the
+    ``@require_auth`` decorator that populates it runs INSIDE the limiter's
+    view-dispatch wrapper — so ``g`` is empty at the moment Flask-Limiter
+    calls this function. Decoding the JWT directly sidesteps the ordering
+    problem and is cheap (HS256 verify on a ~200-byte token).
+
+    Falls back to client IP if the token is missing, malformed, expired,
+    or not an access token. That matches the behavior of unauthenticated
+    requests hitting per-IP-keyed endpoints.
     """
-    # Avoid importing flask.g at module load time in case of circular imports;
-    # do it at call time.
-    from flask import g
-    user = getattr(g, 'current_user', None)
-    if user and isinstance(user, dict) and user.get('id'):
-        return f"user:{user['id']}"
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header[7:].strip()
+        if token:
+            try:
+                # Lazy import: avoids a circular dependency at module load
+                # time (auth_utils → ... → rate_limit).
+                from core.auth_utils import decode_token
+                payload = decode_token(token)
+                if payload.get('type') == 'access' and payload.get('user_id'):
+                    return f"user:{payload['user_id']}"
+            except Exception:
+                # Any decode failure (expired, bad signature, malformed) —
+                # treat as unauthenticated and fall through to IP keying.
+                pass
     return get_remote_address()
 
 

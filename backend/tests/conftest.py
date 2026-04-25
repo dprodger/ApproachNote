@@ -16,6 +16,17 @@ Defaults set BEFORE backend imports
 ``rate_limit.py`` and ``core.auth_utils`` respectively. They MUST be set
 before the ``app`` fixture imports the Flask app, so we set sane defaults
 at the very top of this file.
+
+Why ``RATELIMIT_ENABLED=true`` for tests
+----------------------------------------
+We default it to ``true`` so ``Limiter.init_app`` runs its full wiring
+(storage, ``before_request`` hook, headers) at app-import time. Once
+that's done, individual tests toggle ``limiter.enabled`` at runtime to
+gate actual enforcement — the autouse ``_disable_rate_limiter_default``
+fixture below flips it OFF for the whole suite, and ``test_rate_limit.py``
+flips it back ON for its own scope. Doing the wiring up-front avoids
+``"setup method 'before_request' can no longer be called"`` errors that
+hit if we tried to (re-)init the limiter after the first request.
 """
 
 import os
@@ -27,7 +38,12 @@ from pathlib import Path
 # These need to be in place before ``rate_limit`` and ``core.auth_utils``
 # are imported (which happens transitively when the ``app`` fixture imports
 # ``app``).
-os.environ.setdefault("RATELIMIT_ENABLED", "false")
+# Force RATELIMIT_ENABLED=true so the limiter's init_app runs its full
+# wiring (storage + before_request hook). Overrides any external setting
+# (e.g. RATELIMIT_ENABLED=false in .env.test or CI). We disable runtime
+# enforcement via an autouse fixture below; ``test_rate_limit.py`` flips
+# it back on.
+os.environ["RATELIMIT_ENABLED"] = "true"
 os.environ.setdefault("JWT_SECRET", "pytest-test-secret")
 
 # Make ``backend/`` importable so we can ``from app import app`` etc.
@@ -284,6 +300,24 @@ def quota_row(db):
             db.commit()
 
     return _Quota()
+
+
+@pytest.fixture(autouse=True)
+def _disable_rate_limiter_default(app):
+    """
+    Force the limiter OFF for the whole suite. ``test_rate_limit.py``
+    overrides with its own autouse fixture that flips it back on.
+
+    Note: the limiter is wired up (storage, before_request hook) at app
+    import time because ``RATELIMIT_ENABLED=true`` is set at the top of
+    this file. We can't toggle enforcement by re-running ``init_app``
+    after the first request — Flask blocks adding before_request hooks
+    once it's started serving — so we leave it wired and gate on the
+    runtime ``enabled`` flag instead.
+    """
+    from rate_limit import limiter
+    limiter.enabled = False
+    yield
 
 
 @pytest.fixture(autouse=True)

@@ -1,9 +1,9 @@
 # Backend tests
 
 Pytest suite for the Flask backend. Covers the auth flow, the research
-queue / worker, the job-handler plumbing for each source, and the pure
-matching functions behind Spotify and Apple Music. Rate-limit smoke
-tests are still tracked as a follow-up.
+queue / worker, the job-handler plumbing for each source, the pure
+matching functions behind Spotify and Apple Music, and per-endpoint
+rate-limit enforcement.
 
 ## Running locally
 
@@ -80,9 +80,12 @@ Don't make a habit of it.
 - **Email**: `core.email_service.send_*` and the `routes.auth` import-site
   bindings are mocked out by another autouse fixture. No tests can
   accidentally hit SendGrid.
-- **Rate limiting**: disabled via `RATELIMIT_ENABLED=false` in the test env.
-  Tests that specifically exercise rate-limiter behavior will need to
-  re-enable it in their own fixture.
+- **Rate limiting**: the limiter is wired up at app-import time (conftest
+  forces `RATELIMIT_ENABLED=true` to make `init_app` run its full wiring),
+  but a suite-wide autouse fixture flips `limiter.enabled = False` so
+  tight per-endpoint limits don't cause flakes. `test_rate_limit.py`
+  overrides the autouse fixture to re-enable enforcement and reset the
+  in-memory counters between tests.
 - **External OAuth**: Google / Apple sign-in is not covered yet — both
   require mocking remote JWKS clients and live in a follow-up issue.
 
