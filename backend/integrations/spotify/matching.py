@@ -483,6 +483,87 @@ def calculate_similarity(text1: str, text2: str) -> float:
     return score
 
 
+def split_title_qualifier(title: str) -> tuple:
+    """Split a track/song title into (base, qualifier).
+
+    A qualifier is a trailing annotation that disambiguates a variant of
+    the same underlying tune — e.g. "(Take 2)", "[Live]", or
+    " - From the 1957 Riverside Sessions". Three syntaxes are accepted:
+
+        "Foo (qualifier)"   -> ("Foo", "qualifier")
+        "Foo [qualifier]"   -> ("Foo", "qualifier")
+        "Foo - qualifier"   -> ("Foo", "qualifier")  (whitespace around the
+                                                       dash is required, so
+                                                       hyphenated names like
+                                                       "Saint-Saëns" survive)
+
+    Returns (title, None) when no qualifier is present. Strings come back
+    NOT yet normalized — caller should pass each through
+    normalize_for_comparison() before comparing.
+    """
+    if not title:
+        return ('', None)
+    t = title.strip()
+
+    m = re.search(r'\s*\(([^)]+)\)\s*$', t)
+    if m:
+        return (t[:m.start()].rstrip(), m.group(1).strip())
+
+    m = re.search(r'\s*\[([^\]]+)\]\s*$', t)
+    if m:
+        return (t[:m.start()].rstrip(), m.group(1).strip())
+
+    # Whitespace REQUIRED on both sides so we don't split "Saint-Saëns" or
+    # "Tin Pan Alley"-style names.
+    m = re.search(r'\s+-\s+(.+)$', t)
+    if m:
+        return (t[:m.start()].rstrip(), m.group(1).strip())
+
+    return (t, None)
+
+
+def _normalize_for_structural_match(s: str) -> str:
+    """Stricter-than-`normalize_for_comparison` normalization for the
+    structural title match. Strips ornamental punctuation (commas,
+    semicolons, colons) that doesn't change meaning but DOES break exact
+    string equality — real case: MB "Well, You Needn't" vs Spotify
+    "Well You Needn't" only differ by a comma.
+
+    Kept private because it's tuned for structural-match comparisons,
+    not the broader fuzzy-similarity scoring.
+    """
+    s = normalize_for_comparison(s)
+    s = re.sub(r'[,;:]', ' ', s)
+    return ' '.join(s.split())
+
+
+def is_structural_title_match(t1: str, t2: str) -> bool:
+    """True when two titles share the same base AND same qualifier (or
+    both lack a qualifier), regardless of which annotation syntax is used.
+
+        "Take Five (Live)" matches "Take Five - Live"
+        "Well You Needn't (opening)" matches "Well You Needn't - Opening"
+
+    But:
+        "Take Five (Live)" does NOT match "Take Five (Studio)"
+        "Take Five (Live)" does NOT match "Take Five" — having vs missing a
+            qualifier makes them different recordings, not the same one.
+
+    This is the cross-syntax equivalent of "exact normalized match" — used
+    by match_track_to_recording to break ties between Spotify candidates
+    that all score 100% via different paths in calculate_similarity.
+    """
+    base1, qual1 = split_title_qualifier(t1)
+    base2, qual2 = split_title_qualifier(t2)
+    if _normalize_for_structural_match(base1) != _normalize_for_structural_match(base2):
+        return False
+    if qual1 is None and qual2 is None:
+        return True
+    if qual1 is None or qual2 is None:
+        return False
+    return _normalize_for_structural_match(qual1) == _normalize_for_structural_match(qual2)
+
+
 def is_substring_title_match(title1: str, title2: str) -> bool:
     """
     Check if one normalized title is a complete substring of the other.
@@ -1044,17 +1125,26 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
         if it wins. Returns True when this candidate became the new best."""
         nonlocal best_match, best_score, best_was_exact
 
+        is_exact = is_structural_title_match(query_title, track['name'])
+
+        # Structural-match candidates are guaranteed to clear the threshold,
+        # even when their fuzzy score doesn't. Real case (issue #100): an
+        # MB recording titled "Well, You Needn't (opening)" against a
+        # Spotify track titled "Well You Needn't - Opening" only fuzz-scores
+        # 78% — below the 85% threshold — because the parenthetical-strip
+        # rescue in calculate_similarity doesn't normalize across paren-vs-
+        # dash syntax. Without this floor the variant Spotify track gets
+        # filtered out before the exact-preference logic below ever sees
+        # it, leaving only the long "Well You Needn't" track as a candidate.
         title_score = calculate_similarity(query_title, track['name'])
+        if is_exact and title_score < 100:
+            title_score = 100.0
+
         if title_score < min_track_similarity:
             return False
 
         adjusted_score = duration_adjusted_score(
             title_score, expected_duration_ms, track.get('duration_ms'))
-
-        is_exact = (
-            normalize_for_comparison(query_title)
-            == normalize_for_comparison(track['name'])
-        )
 
         # Exact-normalized-match always preferred over non-exact, regardless
         # of score/duration. Among exacts, the higher adjusted score wins

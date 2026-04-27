@@ -23,10 +23,12 @@ from integrations.spotify.matching import (
     duration_confidence,
     extract_primary_artist,
     is_compilation_artist,
+    is_structural_title_match,
     is_substring_title_match,
     match_track_to_recording,
     normalize_for_comparison,
     normalize_name_variants,
+    split_title_qualifier,
     strip_ensemble_suffix,
     strip_live_suffix,
     track_artist_matches_recording_leader,
@@ -221,6 +223,85 @@ class TestStripLiveSuffix:
     ])
     def test_strips_suffix(self, title, expected):
         assert strip_live_suffix(title) == expected
+
+
+class TestSplitTitleQualifier:
+    @pytest.mark.parametrize("title,expected", [
+        ("Well You Needn't", ("Well You Needn't", None)),
+        ("Well You Needn't (opening)", ("Well You Needn't", "opening")),
+        ("Well You Needn't [opening]", ("Well You Needn't", "opening")),
+        ("Well You Needn't - Opening", ("Well You Needn't", "Opening")),
+        # Whitespace required around the dash so hyphenated names survive:
+        ("Saint-Saëns", ("Saint-Saëns", None)),
+        ("Tin-Pan-Alley", ("Tin-Pan-Alley", None)),
+        # Trailing whitespace handled
+        ("Foo (bar) ", ("Foo", "bar")),
+        ("", ('', None)),
+    ])
+    def test_extracts_qualifier(self, title, expected):
+        assert split_title_qualifier(title) == expected
+
+
+class TestIsStructuralTitleMatch:
+    """Cross-syntax title equivalence — backbone of the fix in issue #100.
+
+    The parenthetical-strip rescue in calculate_similarity makes
+    "Well You Needn't" and "Well You Needn't (opening)" both score 100%
+    against either query. is_structural_title_match cuts through that by
+    requiring the qualifier itself to match (or both be absent), regardless
+    of which annotation syntax is used.
+    """
+
+    def test_identical_titles_match(self):
+        assert is_structural_title_match("Take Five", "Take Five")
+
+    def test_paren_vs_dash_syntax_match(self):
+        # Real case from production: MB uses parens, Spotify uses dash.
+        assert is_structural_title_match(
+            "Well, You Needn't (opening)",
+            "Well You Needn't - Opening",
+        )
+
+    def test_paren_vs_bracket_syntax_match(self):
+        assert is_structural_title_match(
+            "Take Five (Live)", "Take Five [Live]",
+        )
+
+    def test_qualifier_text_must_match(self):
+        # Same base, different qualifier text — different recordings.
+        assert not is_structural_title_match(
+            "Take Five (Live)", "Take Five (Studio)",
+        )
+        assert not is_structural_title_match(
+            "Take Five - Take 1", "Take Five - Take 2",
+        )
+
+    def test_qualifier_present_vs_absent_does_not_match(self):
+        # An (opening) variant is NOT the canonical track — must not match.
+        assert not is_structural_title_match(
+            "Well You Needn't", "Well You Needn't (opening)",
+        )
+        assert not is_structural_title_match(
+            "Well You Needn't (opening)", "Well You Needn't",
+        )
+
+    def test_different_base_does_not_match(self):
+        assert not is_structural_title_match("Take Five", "Blue Monk")
+
+    def test_qualifier_is_compared_case_insensitively(self):
+        # Real case: MB lowercases, Spotify titlecases.
+        assert is_structural_title_match(
+            "Well You Needn't (opening)",
+            "Well You Needn't (Opening)",
+        )
+
+    def test_hyphenated_artist_survives(self):
+        # Whitespace-around-dash requirement protects names with embedded
+        # hyphens from being misread as a base+qualifier split.
+        assert is_structural_title_match("Saint-Saëns Tune", "Saint-Saëns Tune")
+        assert not is_structural_title_match(
+            "Saint-Saëns Tune", "Saint-Saëns Different",
+        )
 
 
 class TestIsSubstringTitleMatch:
@@ -457,46 +538,62 @@ class TestMatchTrackToRecording:
         )
         assert match is not None and match['id'] == 'near'
 
-    def test_exact_normalized_match_beats_paren_strip_rescue(self):
+    def test_structural_match_beats_paren_strip_rescue(self):
         """Issue #100 regression: when an album carries multiple variations
-        of the same song (e.g. both "Well You Needn't" and
-        "Well You Needn't (opening)"), the parenthetical-strip rescue in
-        calculate_similarity makes BOTH candidates score 100% no matter
-        which side of the variation we query for. Without an exact-match
-        preference, the duration tiebreaker is the only remaining signal —
-        and it can pick the wrong track when durations are ambiguous.
+        of the same song (e.g. both "Well You Needn't" and the variant
+        "Well You Needn't - Opening"), the parenthetical-strip rescue in
+        calculate_similarity makes the canonical Spotify track score 100%
+        against the variant query. Without a structural-match preference,
+        the duration tiebreaker is the only remaining signal and it can
+        pick the wrong track when durations are ambiguous.
 
-        After the fix, an exact-normalized-match candidate beats a
-        paren-strip-rescued one regardless of duration."""
+        Realistic shape — MB uses "(opening)" parens, Spotify uses
+        "- Opening" dash — so the variant track's fuzz score against the
+        MB query is only 78%, below the 85% threshold. The structural-
+        match floor pulls it back into the candidate set."""
         tracks = [
-            _track('main', "Well You Needn't", duration_ms=300_000),
-            _track('opening', "Well You Needn't (opening)", duration_ms=30_000),
+            # Spotify uses dash-suffix syntax for the variant; MB will
+            # query with parens.
+            _track('main', "Well You Needn't", duration_ms=683_000),  # 11:23
+            _track('opening', "Well You Needn't - Opening", duration_ms=86_000),  # 1:26
         ]
 
-        # Asking for the variant title — 'opening' is exact, 'main' is
-        # rescued via paren-strip. Even with a duration that strongly
-        # favors 'main' (close to 'main', far from 'opening'), the exact
-        # match should win.
+        # Variant query, paren syntax — must structurally match the dash-
+        # syntax Spotify track, even when its fuzz score (78%) falls
+        # below the threshold.
         match = match_track_to_recording(
-            log, {}, 85, "Well You Needn't (opening)", tracks,
-            expected_duration_ms=295_000,  # 5s off main, 4.4min off opening
+            log, {}, 85, "Well, You Needn't (opening)", tracks,
+            expected_duration_ms=86_000,
         )
         assert match is not None and match['id'] == 'opening', (
-            "Recording-specific title 'Well You Needn't (opening)' should "
-            "match the exact Spotify variant track even when duration "
-            "favors the canonical track"
+            "Recording 'Well, You Needn't (opening)' (parens) should "
+            "structurally match Spotify 'Well You Needn't - Opening' "
+            "(dash syntax) and pick that variant track"
         )
 
-        # Asking for the canonical title — 'main' is exact, 'opening' is
-        # rescued. Same shape in reverse.
+        # And the canonical query lands on the canonical track.
         match = match_track_to_recording(
             log, {}, 85, "Well You Needn't", tracks,
-            expected_duration_ms=35_000,  # 5s off opening, 4.4min off main
+            expected_duration_ms=683_000,
         )
-        assert match is not None and match['id'] == 'main', (
-            "Canonical title 'Well You Needn't' should match the exact "
-            "Spotify main track even when duration favors the variant"
+        assert match is not None and match['id'] == 'main'
+
+    def test_structural_match_resists_misleading_duration(self):
+        """The harder case: structural-match exactness must out-rank a
+        candidate whose duration is closer. A recording titled
+        "(opening)" with a misleading duration should still pick the
+        Spotify (opening) variant."""
+        tracks = [
+            _track('main', "Well You Needn't", duration_ms=300_000),
+            _track('opening', "Well You Needn't - Opening", duration_ms=30_000),
+        ]
+        match = match_track_to_recording(
+            log, {}, 85, "Well, You Needn't (opening)", tracks,
+            # Way closer to 'main' than 'opening' — exactly the kind of
+            # case where pure-duration tiebreaking would pick the wrong one.
+            expected_duration_ms=295_000,
         )
+        assert match is not None and match['id'] == 'opening'
 
     def test_exact_match_preference_does_not_override_score_threshold(self):
         # An exact-match candidate must still clear the title-similarity
