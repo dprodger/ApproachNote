@@ -857,7 +857,7 @@
     <!-- Sticky Header (appears on scroll) -->
     <div class="sticky-header" id="stickyHeader">
         <div class="sticky-header-left">
-            <a href="/admin/orphans" class="back-link">&larr; Back</a>
+            <a href="{{ admin_url('/admin/orphans') }}" class="back-link">&larr; Back</a>
             <span class="sticky-header-title">{{ song.title }}</span>
             <div class="sticky-header-stats">
                 <span class="sticky-stat">
@@ -882,7 +882,7 @@
 
     <div class="container">
         <div class="header">
-            <a href="/admin/orphans" class="back-link">&larr; Back to Songs</a>
+            <a href="{{ admin_url('/admin/orphans') }}" class="back-link">&larr; Back to Songs</a>
             <h1>{{ song.title }}</h1>
             <p class="song-meta">
                 {% if song.composer %}{{ song.composer }} &bull; {% endif %}

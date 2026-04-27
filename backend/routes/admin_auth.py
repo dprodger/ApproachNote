@@ -43,6 +43,7 @@ from core.auth_utils import (
     ADMIN_CSRF_COOKIE,
 )
 from middleware.admin_middleware import cookie_secure, generate_csrf_token
+from middleware.admin_subdomain import admin_url, is_admin_subdomain
 from rate_limit import limiter, LOGIN_LIMIT
 
 # Google OAuth: accept tokens from both the iOS/Mac client and the web client.
@@ -78,20 +79,52 @@ _apple_jwk_client = PyJWKClient(APPLE_JWKS_URL, cache_keys=True)
 
 
 def _safe_next(next_param: str | None) -> str:
-    """Only allow relative /admin or /admin/... targets. Anything else
-    (open-redirect attempts, /adminfoo, /admin=) collapses to /admin/."""
+    """Validate a `next` redirect target and return the browser-facing URL
+    for the current host.
+
+    Accepts either form coming in:
+      - `/admin/...` (legacy / API host / dev — what the templates emit there)
+      - `/...` without the prefix (admin.approachnote.com — what the WSGI
+        middleware leaves in the address bar)
+
+    Anything that fails validation collapses to the dashboard root for the
+    current host."""
+    fallback = admin_url('/admin/')
     if not next_param:
-        return '/admin/'
+        return fallback
     parsed = urlparse(next_param)
     if parsed.scheme or parsed.netloc:
-        return '/admin/'
+        return fallback
     path = parsed.path
-    if path != '/admin' and not path.startswith('/admin/'):
-        return '/admin/'
-    # Re-attach query string if present (e.g. /admin/orphans?foo=bar)
+    # Normalise to the internal representation (`/admin/...`) for validation,
+    # then map back out via admin_url for the response.
+    if path == '/admin' or path.startswith('/admin/'):
+        internal_path = path
+    elif is_admin_subdomain() and (path == '/' or path.startswith('/')):
+        internal_path = '/admin' if path == '/' else '/admin' + path
+    else:
+        return fallback
+    if internal_path != '/admin' and not internal_path.startswith('/admin/'):
+        return fallback
+    external = admin_url(internal_path)
     if parsed.query:
-        return f"{path}?{parsed.query}"
-    return path
+        return f"{external}?{parsed.query}"
+    return external
+
+
+def _cookie_path() -> str:
+    """The admin cookies are scoped to the path under which the admin UI is
+    mounted on the current host:
+
+      - admin.approachnote.com → '/' (everything on this host is admin)
+      - api.approachnote.com / localhost → '/admin' (legacy/dev surface)
+
+    The path must match what the BROWSER sees in the URL bar so the cookie
+    actually gets sent on subsequent requests. On the admin subdomain the
+    WSGI middleware rewrites `/foo` → `/admin/foo` server-side, but the
+    browser only ever sees `/foo` — hence path '/'.
+    """
+    return '/' if is_admin_subdomain() else '/admin'
 
 
 def _set_admin_cookies(resp, user_id: str):
@@ -100,6 +133,7 @@ def _set_admin_cookies(resp, user_id: str):
     csrf_token = generate_csrf_token()
     secure = cookie_secure()
     max_age = int(ADMIN_SESSION_EXPIRY.total_seconds())
+    path = _cookie_path()
 
     resp.set_cookie(
         ADMIN_SESSION_COOKIE,
@@ -108,7 +142,7 @@ def _set_admin_cookies(resp, user_id: str):
         secure=secure,
         httponly=True,
         samesite='Lax',
-        path='/admin',
+        path=path,
     )
     resp.set_cookie(
         ADMIN_CSRF_COOKIE,
@@ -117,20 +151,21 @@ def _set_admin_cookies(resp, user_id: str):
         secure=secure,
         httponly=False,  # intentionally readable by JS so fetch() can echo it
         samesite='Lax',
-        path='/admin',
+        path=path,
     )
     return resp
 
 
 def _clear_admin_cookies(resp):
     secure = cookie_secure()
+    path = _cookie_path()
     resp.set_cookie(
         ADMIN_SESSION_COOKIE, '', expires=0, max_age=0,
-        secure=secure, httponly=True, samesite='Lax', path='/admin',
+        secure=secure, httponly=True, samesite='Lax', path=path,
     )
     resp.set_cookie(
         ADMIN_CSRF_COOKIE, '', expires=0, max_age=0,
-        secure=secure, httponly=False, samesite='Lax', path='/admin',
+        secure=secure, httponly=False, samesite='Lax', path=path,
     )
     return resp
 
@@ -207,7 +242,7 @@ def _ensure_csrf_cookie(resp):
         secure=cookie_secure(),
         httponly=False,
         samesite='Lax',
-        path='/admin',
+        path=_cookie_path(),
     )
     return resp
 
@@ -437,8 +472,9 @@ def admin_logout():
     if cookie_tok and (not submitted or submitted != cookie_tok):
         return jsonify({'error': 'CSRF token missing or invalid'}), 403
 
+    login_target = admin_url('/admin/login')
     if request.is_json or request.headers.get('Accept', '').startswith('application/json'):
-        resp = jsonify({'ok': True, 'next': '/admin/login'})
+        resp = jsonify({'ok': True, 'next': login_target})
     else:
-        resp = redirect('/admin/login', code=302)
+        resp = redirect(login_target, code=302)
     return _clear_admin_cookies(resp)

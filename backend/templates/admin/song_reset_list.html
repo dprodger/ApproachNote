@@ -182,18 +182,18 @@
                 Remove all recordings and related data for a song to allow re-import from MusicBrainz
             </p>
             <div class="nav-links">
-                <a href="/admin">&larr; Admin Dashboard</a>
-                <a href="/admin/orphans">Orphan Recordings</a>
-                <a href="/admin/recommendations">Recommendations</a>
+                <a href="{{ admin_url('/admin') }}">&larr; Admin Dashboard</a>
+                <a href="{{ admin_url('/admin/orphans') }}">Orphan Recordings</a>
+                <a href="{{ admin_url('/admin/recommendations') }}">Recommendations</a>
             </div>
         </div>
 
-        <form class="search-bar" method="get" action="/admin/song-reset">
+        <form class="search-bar" method="get" action="{{ admin_url('/admin/song-reset') }}">
             <input type="text" name="q" placeholder="Search songs by title..."
                    value="{{ search_query }}" autofocus>
             <button type="submit">Search</button>
             {% if search_query %}
-            <a href="/admin/song-reset" class="clear-btn" style="background: #666; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Clear</a>
+            <a href="{{ admin_url('/admin/song-reset') }}" class="clear-btn" style="background: #666; color: #fff; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-size: 14px;">Clear</a>
             {% endif %}
         </form>
 
@@ -242,7 +242,7 @@
                     </td>
                     <td>
                         {% if song.recording_count > 0 %}
-                        <a href="/admin/song-reset/{{ song.id }}" class="btn-reset">Reset Recordings</a>
+                        <a href="{{ admin_url('/admin/song-reset/') }}{{ song.id }}" class="btn-reset">Reset Recordings</a>
                         {% else %}
                         <span class="btn-reset disabled">No Recordings</span>
                         {% endif %}

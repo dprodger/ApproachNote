@@ -521,7 +521,7 @@
     {% include 'admin/_nav.html' %}
     <div class="container">
         <div class="header">
-            <a href="/admin/apple-matches" class="back-link">&larr; Back to Apple Music Matches</a>
+            <a href="{{ admin_url('/admin/apple-matches') }}" class="back-link">&larr; Back to Apple Music Matches</a>
             <h1>{{ song.title }}</h1>
             <div class="song-meta">
                 {% if song.composer %}{{ song.composer }} &bull; {% endif %}

@@ -250,8 +250,8 @@
                 Review and validate Apple Music album and track matches for jazz standards
             </p>
             <div class="nav-links">
-                <a href="/admin/orphans">Orphan Recordings</a>
-                <a href="/admin/recommendations">Authority Recommendations</a>
+                <a href="{{ admin_url('/admin/orphans') }}">Orphan Recordings</a>
+                <a href="{{ admin_url('/admin/recommendations') }}">Authority Recommendations</a>
             </div>
         </div>
 
@@ -326,7 +326,7 @@
                 <tr data-status="{{ status }}" data-title="{{ song.title | lower }}">
                     <td>
                         <div class="song-title">
-                            <a href="/admin/apple-matches/{{ song.id }}">{{ song.title }}</a>
+                            <a href="{{ admin_url('/admin/apple-matches/') }}{{ song.id }}">{{ song.title }}</a>
                         </div>
                         {% if song.composer %}
                         <div class="song-composer">{{ song.composer }}</div>
@@ -355,7 +355,7 @@
                         <span style="color: #666;">/{{ song.total_recordings }}</span>
                     </td>
                     <td>
-                        <a href="/admin/apple-matches/{{ song.id }}" class="btn-review">Review</a>
+                        <a href="{{ admin_url('/admin/apple-matches/') }}{{ song.id }}" class="btn-review">Review</a>
                     </td>
                 </tr>
                 {% endfor %}

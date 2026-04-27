@@ -335,7 +335,7 @@
 <body>
     {% include 'admin/_nav.html' %}
     <div class="container">
-        <a href="/admin/duration-mismatches?threshold={{ threshold }}" class="back-link">&larr; Back to Duration Mismatches</a>
+        <a href="{{ admin_url('/admin/duration-mismatches?threshold=') }}{{ threshold }}" class="back-link">&larr; Back to Duration Mismatches</a>
 
         <h1>Duration Mismatches</h1>
         <p class="subtitle">
@@ -485,7 +485,7 @@
     <script>
         function updateThreshold() {
             const threshold = document.getElementById('thresholdInput').value;
-            window.location.href = `/admin/duration-mismatches/{{ song.id }}?threshold=${threshold}`;
+            window.location.href = `{{ admin_url("/admin/duration-mismatches/") }}{{ song.id }}?threshold=${threshold}`;
         }
 
         // Enter key in threshold input

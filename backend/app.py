@@ -38,6 +38,13 @@ init_app_config(app)
 # (e.g. Cloudflare), bump this to 2.
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
+# Map `admin.approachnote.com/<path>` onto the internal `/admin/<path>` route
+# surface, install the matching `Location:` header rewriter, and expose
+# `admin_url()` to Jinja. Must come AFTER ProxyFix so X-Forwarded-Host has
+# already been folded into HTTP_HOST.
+from middleware.admin_subdomain import install as install_admin_subdomain
+install_admin_subdomain(app)
+
 # Initialize the rate limiter against the Flask app. MUST come after
 # ProxyFix is installed, so the key function sees the real client IP
 # from the very first request.
@@ -75,6 +82,7 @@ def landing_page():
 
 # Define which hosts serve which content
 API_HOSTS = ['api.approachnote.com', 'localhost:5001', '127.0.0.1:5001']
+ADMIN_HOSTS = ['admin.approachnote.com']
 WEB_HOSTS = ['approachnote.com', 'www.approachnote.com']
 
 # Routes that should only be served from the website (not API subdomain)
@@ -86,8 +94,16 @@ WEB_ONLY_PATHS = ['/']
 @app.before_request
 def enforce_host_routing():
     """
-    Enforce that API routes are only accessible via api.approachnote.com
-    and website routes are only accessible via www/root domain.
+    Enforce that API, admin, and website routes are only served from their
+    respective hosts.
+
+    Admin is served from admin.approachnote.com (and localhost for dev).
+    Browser-facing URLs on the admin host don't carry a `/admin` prefix —
+    `middleware.admin_subdomain.AdminSubdomainMiddleware` rewrites incoming
+    PATH_INFO to `/admin/...` before Flask routes the request, so by the
+    time we run here the path always looks like `/admin/...` for admin
+    traffic. Hitting `api.approachnote.com/admin/...` is an explicit 404:
+    the only sanctioned admin entry point is the dedicated subdomain.
     """
     # Check X-Forwarded-Host first (set by reverse proxies like Render)
     # Fall back to request.host
@@ -104,23 +120,35 @@ def enforce_host_routing():
     if path.startswith('/static/'):
         return None
 
-    # Admin routes are only served from API hosts and localhost. The admin
-    # session cookie is scoped to a single host, so letting /admin resolve
-    # anywhere would cause inconsistent sessions.
+    is_admin_host = host_normalized in ['admin.approachnote.com']
+    is_localhost = host_normalized in ['localhost', '127.0.0.1']
+
+    # Admin routes are only served from the dedicated admin subdomain or
+    # localhost (dev). Any /admin/* hit on the API or web host is a hard 404.
     if path.startswith('/admin'):
-        if host_normalized in ['localhost', '127.0.0.1'] or 'api.' in host_normalized:
+        if is_admin_host or is_localhost:
             return None
         return jsonify({'error': 'Not found'}), 404
 
+    # On the admin host, only /admin/* (already rewritten by the WSGI
+    # middleware) and /static/* are valid. Anything else has slipped past the
+    # rewrite — bail out.
+    if is_admin_host:
+        return jsonify({'error': 'Not found'}), 404
+
     # Allow all routes on localhost (development)
-    if host_normalized in ['localhost', '127.0.0.1']:
+    if is_localhost:
         return None
 
     # Check if this is an API host (check if host contains 'api.')
-    is_api_host = 'api.' in host_normalized or host_normalized in ['localhost', '127.0.0.1']
+    is_api_host = 'api.' in host_normalized
 
-    # Check if this is a web host (www or root domain, but not api)
-    is_web_host = ('approachnote.com' in host_normalized) and ('api.' not in host_normalized)
+    # Check if this is a web host (www or root domain, but not api/admin)
+    is_web_host = (
+        'approachnote.com' in host_normalized
+        and 'api.' not in host_normalized
+        and not is_admin_host
+    )
 
     logger.debug(f"Host check: is_api_host={is_api_host}, is_web_host={is_web_host}")
 

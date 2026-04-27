@@ -258,8 +258,8 @@
                 {% endif %}
             </p>
             <div class="nav-links">
-                <a href="/admin/orphans">Orphan Recordings</a>
-                <a href="/admin/recommendations">Recommendations</a>
+                <a href="{{ admin_url('/admin/orphans') }}">Orphan Recordings</a>
+                <a href="{{ admin_url('/admin/recommendations') }}">Recommendations</a>
             </div>
         </div>
 
@@ -335,7 +335,7 @@
                     data-title="{{ song.title | lower }}">
                     <td>
                         <div class="song-title">
-                            <a href="/admin/recommendations/{{ song.id }}{% if selected_repertoire_id %}?repertoire_id={{ selected_repertoire_id }}{% endif %}">{{ song.title }}</a>
+                            <a href="{{ admin_url('/admin/recommendations/') }}{{ song.id }}{% if selected_repertoire_id %}?repertoire_id={{ selected_repertoire_id }}{% endif %}">{{ song.title }}</a>
                         </div>
                         {% if song.composer %}
                         <div class="song-composer">{{ song.composer }}</div>
@@ -382,7 +382,7 @@
                         </div>
                     </td>
                     <td>
-                        <a href="/admin/recommendations/{{ song.id }}{% if selected_repertoire_id %}?repertoire_id={{ selected_repertoire_id }}{% endif %}" class="btn-review">Review</a>
+                        <a href="{{ admin_url('/admin/recommendations/') }}{{ song.id }}{% if selected_repertoire_id %}?repertoire_id={{ selected_repertoire_id }}{% endif %}" class="btn-review">Review</a>
                     </td>
                 </tr>
                 {% endfor %}

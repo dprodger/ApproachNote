@@ -96,18 +96,18 @@
                 song with a detailed change report.
             </p>
             <div class="nav-links">
-                <a href="/admin">&larr; Admin Dashboard</a>
-                <a href="/admin/streaming-availability">Streaming Availability</a>
-                <a href="/admin/duration-mismatches">Duration Mismatches</a>
+                <a href="{{ admin_url('/admin') }}">&larr; Admin Dashboard</a>
+                <a href="{{ admin_url('/admin/streaming-availability') }}">Streaming Availability</a>
+                <a href="{{ admin_url('/admin/duration-mismatches') }}">Duration Mismatches</a>
             </div>
         </div>
 
-        <form class="search-bar" method="get" action="/admin/spotify-rematch">
+        <form class="search-bar" method="get" action="{{ admin_url('/admin/spotify-rematch') }}">
             <input type="text" name="q" placeholder="Search songs by title..."
                    value="{{ search }}" autofocus>
             <button type="submit">Search</button>
             {% if search %}
-            <a href="/admin/spotify-rematch" class="clear-btn">Clear</a>
+            <a href="{{ admin_url('/admin/spotify-rematch') }}" class="clear-btn">Clear</a>
             {% endif %}
         </form>
 
@@ -143,7 +143,7 @@
                         </span>
                     </td>
                     <td>
-                        <a href="/admin/spotify-rematch/{{ song.id }}" class="btn-examine">Examine</a>
+                        <a href="{{ admin_url('/admin/spotify-rematch/') }}{{ song.id }}" class="btn-examine">Examine</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -181,7 +181,7 @@
                     <td>{{ run.song.title }}</td>
                     <td class="count-cell">{{ run.change_count }}</td>
                     <td>
-                        <a href="/admin/spotify-rematch/{{ run.song.id }}/run/{{ run.run_id }}"
+                        <a href="{{ admin_url('/admin/spotify-rematch/') }}{{ run.song.id }}/run/{{ run.run_id }}"
                            class="btn-examine">View report</a>
                     </td>
                 </tr>

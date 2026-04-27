@@ -490,7 +490,7 @@
     {% include 'admin/_nav.html' %}
     <div class="container">
         <div class="header">
-            <a href="/admin/recommendations{% if repertoire_id %}?repertoire_id={{ repertoire_id }}{% endif %}" class="back-link">&larr; Back to Songs</a>
+            <a href="{{ admin_url('/admin/recommendations') }}{% if repertoire_id %}?repertoire_id={{ repertoire_id }}{% endif %}" class="back-link">&larr; Back to Songs</a>
             <h1>{{ song.title }}</h1>
             <p class="song-meta">
                 {% if song.composer %}{{ song.composer }} &bull; {% endif %}

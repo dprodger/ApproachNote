@@ -120,7 +120,7 @@
         <div class="error">{{ error }}</div>
         {% endif %}
 
-        <form method="POST" action="/admin/login{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}">
+        <form method="POST" action="{{ admin_url('/admin/login') }}{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}">
             <label for="email">Email</label>
             <input id="email" name="email" type="email" autocomplete="email" required autofocus>
             <label for="password">Password</label>
@@ -161,6 +161,11 @@
     </div>
 
     <script>
+        // Login URL for the current host — `/admin/login` on the API host
+        // and localhost dev, `/login` on admin.approachnote.com. Used by the
+        // Google/Apple JSON POSTs and the Apple redirectURI below.
+        var ADMIN_LOGIN_URL = '{{ admin_url("/admin/login") }}';
+
         // Read admin_csrf cookie once and stamp the hidden field so the form
         // POST carries it even though SameSite=Lax already covers us.
         (function () {
@@ -172,7 +177,7 @@
 
         async function postJson(payload) {
             var nextParam = new URLSearchParams(window.location.search).get('next');
-            var url = '/admin/login' + (nextParam ? ('?next=' + encodeURIComponent(nextParam)) : '');
+            var url = ADMIN_LOGIN_URL + (nextParam ? ('?next=' + encodeURIComponent(nextParam)) : '');
             var resp = await fetch(url, {
                 method: 'POST',
                 credentials: 'same-origin',
@@ -209,7 +214,7 @@
                 window.AppleID.auth.init({
                     clientId: appleDiv.dataset.clientId,
                     scope: 'email',
-                    redirectURI: window.location.origin + '/admin/login',
+                    redirectURI: window.location.origin + ADMIN_LOGIN_URL,
                     usePopup: true
                 });
                 document.addEventListener('AppleIDSignInOnSuccess', function (ev) {

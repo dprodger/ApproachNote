@@ -153,12 +153,12 @@
         <p class="subtitle">Registered accounts, sorted by most recent login.</p>
 
         <div class="toolbar">
-            <form class="search-form" method="get" action="/admin/users">
+            <form class="search-form" method="get" action="{{ admin_url('/admin/users') }}">
                 <input type="text" name="search" value="{{ search }}" placeholder="Search by email (partial match)">
                 <input type="hidden" name="per_page" value="{{ per_page }}">
                 <button type="submit">Search</button>
                 {% if search %}
-                <a class="clear" href="/admin/users">Clear</a>
+                <a class="clear" href="{{ admin_url('/admin/users') }}">Clear</a>
                 {% endif %}
             </form>
             <div class="summary">
@@ -259,7 +259,7 @@
         <div class="empty-state">
             <h2>No users found</h2>
             {% if search %}
-            <p>No accounts match <code>{{ search }}</code>. <a href="/admin/users">Clear search</a>.</p>
+            <p>No accounts match <code>{{ search }}</code>. <a href="{{ admin_url('/admin/users') }}">Clear search</a>.</p>
             {% endif %}
         </div>
         {% endif %}

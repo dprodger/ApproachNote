@@ -111,7 +111,7 @@
                 {% for song in songs %}
                 <tr>
                     <td>
-                        <a href="/admin/orphans/{{ song.id }}" class="song-link">{{ song.title }}</a>
+                        <a href="{{ admin_url('/admin/orphans/') }}{{ song.id }}" class="song-link">{{ song.title }}</a>
                         {% if song.composer %}
                         <div class="composer">{{ song.composer }}</div>
                         {% endif %}

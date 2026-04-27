@@ -344,34 +344,34 @@
                         {% endif %}
                     </td>
                     <td>
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=all" class="count" style="text-decoration: none;">{{ song.total_recordings }}</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=all" class="count" style="text-decoration: none;">{{ song.total_recordings }}</a>
                     </td>
                     <td>
                         {% if song.spotify_recordings > 0 %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=spotify" class="badge badge-spotify" style="text-decoration: none;">{{ song.spotify_recordings }}</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=spotify" class="badge badge-spotify" style="text-decoration: none;">{{ song.spotify_recordings }}</a>
                         {% else %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=spotify" class="count count-zero" style="text-decoration: none;">0</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=spotify" class="count count-zero" style="text-decoration: none;">0</a>
                         {% endif %}
                     </td>
                     <td>
                         {% if song.apple_recordings > 0 %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=apple" class="badge badge-apple" style="text-decoration: none;">{{ song.apple_recordings }}</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=apple" class="badge badge-apple" style="text-decoration: none;">{{ song.apple_recordings }}</a>
                         {% else %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=apple" class="count count-zero" style="text-decoration: none;">0</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=apple" class="count count-zero" style="text-decoration: none;">0</a>
                         {% endif %}
                     </td>
                     <td>
                         {% if song.both_recordings > 0 %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=both" class="badge badge-both" style="text-decoration: none;">{{ song.both_recordings }}</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=both" class="badge badge-both" style="text-decoration: none;">{{ song.both_recordings }}</a>
                         {% else %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=both" class="count count-zero" style="text-decoration: none;">0</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=both" class="count count-zero" style="text-decoration: none;">0</a>
                         {% endif %}
                     </td>
                     <td>
                         {% if song.no_streaming_recordings > 0 %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=neither" class="badge badge-none" style="text-decoration: none;">{{ song.no_streaming_recordings }}</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=neither" class="badge badge-none" style="text-decoration: none;">{{ song.no_streaming_recordings }}</a>
                         {% else %}
-                        <a href="/admin/streaming-diagnostics/{{ song.song_id }}?filter=neither" class="count count-zero" style="text-decoration: none;">0</a>
+                        <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.song_id }}?filter=neither" class="count count-zero" style="text-decoration: none;">0</a>
                         {% endif %}
                     </td>
                     <td>

@@ -89,7 +89,7 @@
         {% if not song %}
         <div class="card">
             <h1>Song not found</h1>
-            <p><a href="/admin/spotify-rematch">&larr; Back to song list</a></p>
+            <p><a href="{{ admin_url('/admin/spotify-rematch') }}">&larr; Back to song list</a></p>
         </div>
         {% else %}
         <div class="header">
@@ -99,9 +99,9 @@
             {% endif %}
             <div class="song-id">{{ song.id }}</div>
             <div class="nav-links">
-                <a href="/admin/spotify-rematch">&larr; Song list</a>
-                <a href="/admin/streaming-diagnostics/{{ song.id }}">Streaming Diagnostics</a>
-                <a href="/admin/duration-mismatches/{{ song.id }}">Duration Mismatches</a>
+                <a href="{{ admin_url('/admin/spotify-rematch') }}">&larr; Song list</a>
+                <a href="{{ admin_url('/admin/streaming-diagnostics/') }}{{ song.id }}">Streaming Diagnostics</a>
+                <a href="{{ admin_url('/admin/duration-mismatches/') }}{{ song.id }}">Duration Mismatches</a>
             </div>
         </div>
 
@@ -164,7 +164,7 @@
                         <td>{{ run.stats.get('tracks_matched', 0) }}</td>
                         <td>
                             <a class="btn-link"
-                               href="/admin/spotify-rematch/{{ song.id }}/run/{{ run.run_id }}">
+                               href="{{ admin_url('/admin/spotify-rematch/') }}{{ song.id }}/run/{{ run.run_id }}">
                                 View report &rarr;
                             </a>
                         </td>

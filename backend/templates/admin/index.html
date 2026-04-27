@@ -145,25 +145,25 @@
         <div class="section">
             <h2>Data Review</h2>
             <div class="card-grid">
-                <a href="/admin/orphans" class="card">
+                <a href="{{ admin_url('/admin/orphans') }}" class="card">
                     <div class="card-icon">📦</div>
                     <h3>Orphan Recordings</h3>
                     <p>Review MusicBrainz recordings that couldn't be automatically linked to existing database recordings. Import or reject them.</p>
-                    <span class="endpoint">/admin/orphans</span>
+                    <span class="endpoint">{{ admin_url('/admin/orphans') }}</span>
                 </a>
 
-                <a href="/admin/recommendations" class="card">
+                <a href="{{ admin_url('/admin/recommendations') }}" class="card">
                     <div class="card-icon">⭐</div>
                     <h3>Authority Recommendations</h3>
                     <p>Match authority recommendations (from jazzstandards.com, etc.) to recordings in the database.</p>
-                    <span class="endpoint">/admin/recommendations</span>
+                    <span class="endpoint">{{ admin_url('/admin/recommendations') }}</span>
                 </a>
 
-                <a href="/admin/song-reset" class="card">
+                <a href="{{ admin_url('/admin/song-reset') }}" class="card">
                     <div class="card-icon">🔄</div>
                     <h3>Reset Song Recordings</h3>
                     <p>Remove all recordings and related data for a song to allow clean re-import from MusicBrainz.</p>
-                    <span class="endpoint">/admin/song-reset</span>
+                    <span class="endpoint">{{ admin_url('/admin/song-reset') }}</span>
                 </a>
             </div>
         </div>
@@ -171,32 +171,32 @@
         <div class="section">
             <h2>Streaming Services</h2>
             <div class="card-grid">
-                <a href="/admin/apple-matches" class="card">
+                <a href="{{ admin_url('/admin/apple-matches') }}" class="card">
                     <div class="card-icon">🍎</div>
                     <h3>Apple Music Matching</h3>
                     <p>Review and run Apple Music track matching for songs. Diagnose matching issues and manually trigger re-matches.</p>
-                    <span class="endpoint">/admin/apple-matches</span>
+                    <span class="endpoint">{{ admin_url('/admin/apple-matches') }}</span>
                 </a>
 
-                <a href="/admin/streaming-availability" class="card">
+                <a href="{{ admin_url('/admin/streaming-availability') }}" class="card">
                     <div class="card-icon">🎧</div>
                     <h3>Streaming Availability</h3>
                     <p>Check streaming availability across services. See which recordings have Spotify, Apple Music, or other streaming links.</p>
-                    <span class="endpoint">/admin/streaming-availability</span>
+                    <span class="endpoint">{{ admin_url('/admin/streaming-availability') }}</span>
                 </a>
 
-                <a href="/admin/duration-mismatches" class="card">
+                <a href="{{ admin_url('/admin/duration-mismatches') }}" class="card">
                     <div class="card-icon">⏱️</div>
                     <h3>Spotify Duration Mismatches</h3>
                     <p>Find Spotify tracks whose duration differs significantly from the MusicBrainz recording. Review and delete bad matches.</p>
-                    <span class="endpoint">/admin/duration-mismatches</span>
+                    <span class="endpoint">{{ admin_url('/admin/duration-mismatches') }}</span>
                 </a>
 
-                <a href="/admin/spotify-rematch" class="card">
+                <a href="{{ admin_url('/admin/spotify-rematch') }}" class="card">
                     <div class="card-icon">🎯</div>
                     <h3>Spotify Rematch Diagnostics</h3>
                     <p>Run the Spotify track matcher for a single song and see a before/after diff of what was added, updated, or cleared.</p>
-                    <span class="endpoint">/admin/spotify-rematch</span>
+                    <span class="endpoint">{{ admin_url('/admin/spotify-rematch') }}</span>
                 </a>
             </div>
         </div>
@@ -204,11 +204,11 @@
         <div class="section">
             <h2>Accounts</h2>
             <div class="card-grid">
-                <a href="/admin/users" class="card">
+                <a href="{{ admin_url('/admin/users') }}" class="card">
                     <div class="card-icon">👤</div>
                     <h3>Users</h3>
                     <p>Browse registered user accounts. Search by email, see most recent login, and spot locked or unverified accounts.</p>
-                    <span class="endpoint">/admin/users</span>
+                    <span class="endpoint">{{ admin_url('/admin/users') }}</span>
                 </a>
             </div>
         </div>
@@ -216,11 +216,11 @@
         <div class="section">
             <h2>System Status</h2>
             <div class="card-grid">
-                <a href="/admin/research/" class="card">
+                <a href="{{ admin_url('/admin/research/') }}" class="card">
                     <div class="card-icon">⚙️</div>
                     <h3>Research Worker</h3>
                     <p>Live view of the durable background job queue: per-source quotas, throughput stats, and a filterable list of queued, running, and failed jobs with retry/cancel controls.</p>
-                    <span class="endpoint">/admin/research/</span>
+                    <span class="endpoint">{{ admin_url('/admin/research/') }}</span>
                 </a>
             </div>
 

@@ -38,6 +38,7 @@ from core.auth_utils import (
     decode_token,
 )
 from db_utils import get_db_connection
+from middleware.admin_subdomain import admin_url, is_admin_subdomain
 
 
 logger = logging.getLogger(__name__)
@@ -69,19 +70,25 @@ def _wants_json() -> bool:
 
 
 def _login_redirect():
-    """302 the user to /admin/login with a sanitised `next` target."""
+    """302 the user to the login page with a sanitised `next` target.
+
+    Internal paths always look like `/admin/...` because the WSGI
+    subdomain middleware injects that prefix before routing. We pass the
+    internal form through as the `next` value so it round-trips cleanly
+    regardless of which host the user came in on; admin_url() then maps
+    both the login URL and the next= target to the right browser-facing
+    shape.
+    """
     target = request.full_path if request.query_string else request.path
     # Strip a trailing '?' that Flask appends when query_string is empty but
     # full_path is used. Keeps the URL clean.
     if target.endswith('?'):
         target = target[:-1]
-    # Only allow /admin or /admin/... as the bounce-back target. Anything
-    # like /admin= or /adminfoo gets scrubbed to /admin/ so we never hand
-    # the browser a URL the admin_session cookie (Path=/admin) won't match.
     path_only = target.split('?', 1)[0]
     if path_only != '/admin' and not path_only.startswith('/admin/'):
         target = '/admin/'
-    return redirect(f"/admin/login?next={quote(target, safe='/')}", code=302)
+    login_url = admin_url('/admin/login')
+    return redirect(f"{login_url}?next={quote(target, safe='/')}", code=302)
 
 
 def _json_error(status: int, message: str):

@@ -243,8 +243,8 @@
                 {% if song.composer %}{{ song.composer }}{% endif %}
             </p>
             <div class="nav-links">
-                <a href="/admin/song-reset">&larr; Back to Song List</a>
-                <a href="/admin">Admin Dashboard</a>
+                <a href="{{ admin_url('/admin/song-reset') }}">&larr; Back to Song List</a>
+                <a href="{{ admin_url('/admin') }}">Admin Dashboard</a>
             </div>
         </div>
 
@@ -299,7 +299,7 @@
             <h3>Confirm Reset</h3>
             <p>Are you sure you want to delete all recordings for "{{ song.title }}"?</p>
             <div class="btn-group">
-                <a href="/admin/song-reset" class="btn btn-cancel">Cancel</a>
+                <a href="{{ admin_url('/admin/song-reset') }}" class="btn btn-cancel">Cancel</a>
                 <button id="resetBtn" class="btn btn-danger" onclick="executeReset()">
                     Delete All Recordings
                 </button>
@@ -345,7 +345,7 @@
 
                     // Redirect after a moment
                     setTimeout(() => {
-                        window.location.href = '/admin/song-reset';
+                        window.location.href = '{{ admin_url("/admin/song-reset") }}';
                     }, 2000);
                 } else {
                     throw new Error(data.error || 'Unknown error');

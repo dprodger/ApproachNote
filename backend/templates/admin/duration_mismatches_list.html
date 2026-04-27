@@ -189,7 +189,7 @@
 <body>
     {% include 'admin/_nav.html' %}
     <div class="container">
-        <a href="/admin" class="back-link">&larr; Back to Admin Dashboard</a>
+        <a href="{{ admin_url('/admin') }}" class="back-link">&larr; Back to Admin Dashboard</a>
 
         <h1>Spotify Duration Mismatches</h1>
         <p class="subtitle">Songs with Spotify tracks whose duration differs significantly from the MusicBrainz recording duration</p>
@@ -249,7 +249,7 @@
                 {% for song in songs %}
                 <tr>
                     <td>
-                        <a href="/admin/duration-mismatches/{{ song.song_id }}?threshold={{ threshold }}" class="song-link">
+                        <a href="{{ admin_url('/admin/duration-mismatches/') }}{{ song.song_id }}?threshold={{ threshold }}" class="song-link">
                             <div class="song-title">{{ song.title }}</div>
                             {% if song.composer %}
                             <div class="composer">{{ song.composer }}</div>
