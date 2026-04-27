@@ -182,11 +182,6 @@
                 const btn = document.getElementById('run-btn');
                 const status = document.getElementById('run-status');
 
-                function adminCsrfToken() {
-                    const m = document.cookie.match(/(?:^|; )admin_csrf=([^;]*)/);
-                    return m ? decodeURIComponent(m[1]) : '';
-                }
-
                 btn.addEventListener('click', async () => {
                     btn.disabled = true;
                     status.className = 'status running';
@@ -199,7 +194,6 @@
                                 method: 'POST',
                                 headers: {
                                     'Accept': 'application/json',
-                                    'X-CSRF-Token': adminCsrfToken(),
                                 },
                             }
                         );

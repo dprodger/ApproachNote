@@ -3,3 +3,8 @@
     <span style="color: #ccc;" aria-hidden="true">|</span>
     <a href="{{ admin_url('/admin/') }}" style="color: #0066cc; text-decoration: none;">Admin home page</a>
 </nav>
+{# admin.js patches window.fetch to attach the X-CSRF-Token header on every
+   state-changing call to /admin/*. Loading it from this shared partial means
+   any admin page that includes _nav.html automatically gets CSRF coverage —
+   no per-template inline cookie reading required (issue #153). #}
+<script src="/static/js/admin.js"></script>

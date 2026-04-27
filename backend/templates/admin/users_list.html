@@ -266,11 +266,6 @@
     </div>
     <script>
         (function () {
-            function adminCsrfToken() {
-                const m = document.cookie.match(/(?:^|; )admin_csrf=([^;]*)/);
-                return m ? decodeURIComponent(m[1]) : '';
-            }
-
             function resultEl(userId) {
                 return document.querySelector('[data-result-for="' + userId + '"]');
             }
@@ -302,7 +297,6 @@
                                 headers: {
                                     'Accept': 'application/json',
                                     'Content-Type': 'application/json',
-                                    'X-CSRF-Token': adminCsrfToken(),
                                 },
                                 body: '{}',
                             }

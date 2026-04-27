@@ -358,11 +358,6 @@
     <script>
     (function () {
         // -------- helpers --------
-        function adminCsrfToken() {
-            const m = document.cookie.match(/(?:^|; )admin_csrf=([^;]*)/);
-            return m ? decodeURIComponent(m[1]) : '';
-        }
-
         function fmtTime(iso) {
             if (!iso) return '–';
             const d = new Date(iso);
@@ -400,7 +395,8 @@
                 'Accept': 'application/json',
             }, opts.headers || {});
             if (opts.method && opts.method !== 'GET') {
-                opts.headers['X-CSRF-Token'] = adminCsrfToken();
+                // X-CSRF-Token is injected automatically by static/js/admin.js
+                // (loaded via _nav.html) for any state-changing fetch to /admin/*.
                 if (!opts.headers['Content-Type']) {
                     opts.headers['Content-Type'] = 'application/json';
                 }
