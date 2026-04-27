@@ -560,15 +560,38 @@ class SpotifyMatcher:
             # Match song title to a track, passing position info for fallback matching
             # Pass conn to avoid nested connections and idle timeout issues
             recording_duration_ms = recording.get('recording_duration_ms')
+
+            # Prefer the MB recording's own title over the song's canonical
+            # title when they meaningfully differ — disambiguates releases
+            # that carry several variations of the same song (e.g. an album
+            # with both "Well You Needn't (opening)" and "Well You Needn't").
+            # Without this, both recordings ask "find the closest track to
+            # 'Well You Needn't'" and tie at 100% after the parenthetical-
+            # strip rescue in calculate_similarity, leaving only the duration
+            # tiebreaker — which is fragile when track durations are similar.
+            # When they're equal (the common case), behaviour is unchanged.
+            recording_title = recording.get('recording_title')
+            if (recording_title
+                    and recording_title.strip().lower()
+                    != song_title.strip().lower()):
+                track_title = recording_title
+                # Keep song_title as an alt-title fallback so very-different
+                # recording titles still match the canonical via the second
+                # pass in match_track_to_recording.
+                track_alt_titles = list(alt_titles or []) + [song_title]
+            else:
+                track_title = song_title
+                track_alt_titles = alt_titles
+
             matched_track = match_track_to_recording(
                 self.logger,
                 self.stats,
                 self.min_track_similarity,
-                song_title,
+                track_title,
                 spotify_tracks,
                 expected_disc=recording.get('disc_number'),
                 expected_track=recording.get('track_number'),
-                alt_titles=alt_titles,
+                alt_titles=track_alt_titles,
                 song_id=song_id,
                 conn=conn,
                 expected_duration_ms=recording_duration_ms
@@ -584,10 +607,15 @@ class SpotifyMatcher:
                 # Hard reject and log if confidence is too low
                 rescued = False
                 if confidence is not None and confidence <= 0.4:
-                    title_score = calculate_similarity(song_title, matched_track['name'])
+                    # title_score recalc and the audit/rejection logs all use
+                    # the same title the matcher used to decide (track_title),
+                    # not the canonical song_title — otherwise the score we
+                    # log can disagree with the matcher's actual choice when
+                    # a recording-specific title was used.
+                    title_score = calculate_similarity(track_title, matched_track['name'])
                     duration_diff = abs(recording_duration_ms - matched_track['duration_ms'])
                     self.logger.info(
-                        f"      Rejecting low-confidence match: '{song_title}' → '{matched_track['name']}' "
+                        f"      Rejecting low-confidence match: '{track_title}' → '{matched_track['name']}' "
                         f"(title {title_score}%, duration diff {duration_diff/1000:.0f}s, confidence {confidence})")
 
                     # Album context rescue: compare full MB vs Spotify tracklists
@@ -604,7 +632,7 @@ class SpotifyMatcher:
                             f"{'RESCUE' if would_rescue else 'still reject'}")
                         log_album_context_audit(
                             self.logger,
-                            song_title=song_title,
+                            song_title=track_title,
                             recording_id=recording['recording_id'],
                             release_id=release_id,
                             spotify_track_id=matched_track['id'],
@@ -624,7 +652,7 @@ class SpotifyMatcher:
                     if not rescued:
                         log_duration_rejection(
                             self.logger,
-                            song_title=song_title,
+                            song_title=track_title,
                             recording_id=recording['recording_id'],
                             release_id=release_id,
                             spotify_track_id=matched_track['id'],
@@ -670,9 +698,9 @@ class SpotifyMatcher:
                 # Show what tracks are on the album to help debug
                 track_names = [t['name'] for t in spotify_tracks[:8]]
                 more = f"... (+{len(spotify_tracks) - 8} more)" if len(spotify_tracks) > 8 else ""
-                self.logger.debug(f"      No track match for '{song_title}'")
-                if alt_titles:
-                    self.logger.debug(f"      Also tried alt titles: {alt_titles}")
+                self.logger.debug(f"      No track match for '{track_title}'")
+                if track_alt_titles:
+                    self.logger.debug(f"      Also tried alt titles: {track_alt_titles}")
                 self.logger.debug(f"      Album tracks: {track_names}{more}")
                 self.stats['tracks_no_match'] += 1
 

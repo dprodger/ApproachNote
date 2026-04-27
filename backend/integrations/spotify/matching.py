@@ -973,6 +973,15 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
     """
     best_match = None
     best_score = 0
+    # An exact-normalized-match candidate always beats a non-exact one,
+    # regardless of duration tiebreaker. Issue #100: when an album carries
+    # multiple variations of the same song (e.g. both "Well You Needn't"
+    # and "Well You Needn't (opening)"), the parenthetical-strip rescue
+    # in calculate_similarity makes both candidates score 100% no matter
+    # which side of the variation we're querying for. Without this hard
+    # preference, only the duration tiebreaker decides — and small
+    # duration ambiguities pick the wrong track.
+    best_was_exact = False
 
     # Build set of blocked track IDs for this song (more efficient than per-track DB calls)
     blocked_track_ids = set()
@@ -982,29 +991,53 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
         if blocked_track_ids:
             log.debug(f"      Found {len(blocked_track_ids)} blocked track(s) for this song")
 
+    def _consider(track, query_title: str) -> bool:
+        """Score `track` against `query_title`; update best_match in place
+        if it wins. Returns True when this candidate became the new best."""
+        nonlocal best_match, best_score, best_was_exact
+
+        title_score = calculate_similarity(query_title, track['name'])
+        if title_score < min_track_similarity:
+            return False
+
+        adjusted_score = duration_adjusted_score(
+            title_score, expected_duration_ms, track.get('duration_ms'))
+
+        is_exact = (
+            normalize_for_comparison(query_title)
+            == normalize_for_comparison(track['name'])
+        )
+
+        # Exact-normalized-match always preferred over non-exact, regardless
+        # of score/duration. Among exacts, the higher adjusted score wins
+        # (so a closer-duration exact match beats a farther one). Among
+        # non-exacts, same rule — score+duration decides as before.
+        if is_exact and not best_was_exact:
+            best_match = track
+            best_score = adjusted_score
+            best_was_exact = True
+            return True
+        if is_exact == best_was_exact and adjusted_score > best_score:
+            best_match = track
+            best_score = adjusted_score
+            return True
+        return False
+
     # First pass: standard fuzzy matching with primary title, duration-adjusted
     for track in spotify_tracks:
         if track['id'] in blocked_track_ids:
             log.debug(f"      Skipping blocked track: {track['id']} ('{track['name']}')")
             stats['tracks_blocked'] = stats.get('tracks_blocked', 0) + 1
             continue
-
-        title_score = calculate_similarity(song_title, track['name'])
-
-        if title_score >= min_track_similarity:
-            adjusted_score = duration_adjusted_score(
-                title_score, expected_duration_ms, track.get('duration_ms'))
-
-            if adjusted_score > best_score:
-                best_score = adjusted_score
-                best_match = track
+        _consider(track, song_title)
 
     if best_match:
         duration_info = ""
         if expected_duration_ms and best_match.get('duration_ms'):
             diff = abs(expected_duration_ms - best_match['duration_ms']) / 1000
             duration_info = f", duration diff {diff:.0f}s"
-        log.debug(f"      Track match: '{song_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info})")
+        exact_info = " exact" if best_was_exact else ""
+        log.debug(f"      Track match: '{song_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info}{exact_info})")
         return best_match
 
     # Second pass: try alternative titles
@@ -1013,23 +1046,15 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
             for track in spotify_tracks:
                 if track['id'] in blocked_track_ids:
                     continue
-
-                title_score = calculate_similarity(alt_title, track['name'])
-
-                if title_score >= min_track_similarity:
-                    adjusted_score = duration_adjusted_score(
-                        title_score, expected_duration_ms, track.get('duration_ms'))
-
-                    if adjusted_score > best_score:
-                        best_score = adjusted_score
-                        best_match = track
+                _consider(track, alt_title)
 
             if best_match:
                 duration_info = ""
                 if expected_duration_ms and best_match.get('duration_ms'):
                     diff = abs(expected_duration_ms - best_match['duration_ms']) / 1000
                     duration_info = f", duration diff {diff:.0f}s"
-                log.debug(f"      Track match via alt title: '{alt_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info})")
+                exact_info = " exact" if best_was_exact else ""
+                log.debug(f"      Track match via alt title: '{alt_title}' → '{best_match['name']}' ({best_score:.0f}%{duration_info}{exact_info})")
                 return best_match
 
     # Fallback: if positions provided and no fuzzy match, try position-based substring match.

@@ -396,6 +396,64 @@ class TestMatchTrackToRecording:
         )
         assert match is not None and match['id'] == 'near'
 
+    def test_exact_normalized_match_beats_paren_strip_rescue(self):
+        """Issue #100 regression: when an album carries multiple variations
+        of the same song (e.g. both "Well You Needn't" and
+        "Well You Needn't (opening)"), the parenthetical-strip rescue in
+        calculate_similarity makes BOTH candidates score 100% no matter
+        which side of the variation we query for. Without an exact-match
+        preference, the duration tiebreaker is the only remaining signal —
+        and it can pick the wrong track when durations are ambiguous.
+
+        After the fix, an exact-normalized-match candidate beats a
+        paren-strip-rescued one regardless of duration."""
+        tracks = [
+            _track('main', "Well You Needn't", duration_ms=300_000),
+            _track('opening', "Well You Needn't (opening)", duration_ms=30_000),
+        ]
+
+        # Asking for the variant title — 'opening' is exact, 'main' is
+        # rescued via paren-strip. Even with a duration that strongly
+        # favors 'main' (close to 'main', far from 'opening'), the exact
+        # match should win.
+        match = match_track_to_recording(
+            log, {}, 85, "Well You Needn't (opening)", tracks,
+            expected_duration_ms=295_000,  # 5s off main, 4.4min off opening
+        )
+        assert match is not None and match['id'] == 'opening', (
+            "Recording-specific title 'Well You Needn't (opening)' should "
+            "match the exact Spotify variant track even when duration "
+            "favors the canonical track"
+        )
+
+        # Asking for the canonical title — 'main' is exact, 'opening' is
+        # rescued. Same shape in reverse.
+        match = match_track_to_recording(
+            log, {}, 85, "Well You Needn't", tracks,
+            expected_duration_ms=35_000,  # 5s off opening, 4.4min off main
+        )
+        assert match is not None and match['id'] == 'main', (
+            "Canonical title 'Well You Needn't' should match the exact "
+            "Spotify main track even when duration favors the variant"
+        )
+
+    def test_exact_match_preference_does_not_override_score_threshold(self):
+        # An exact-match candidate must still clear the title-similarity
+        # threshold to be considered. (Defensive: we don't want the exact-
+        # match preference to accept obviously-wrong candidates whose
+        # normalized form happens to match by coincidence.)
+        # Here both tracks have a title that is well below the 85%
+        # threshold against the query — neither is "exact normalized" to
+        # the query either, so both fall out cleanly.
+        tracks = [
+            _track('a', 'Totally Unrelated Tune', duration_ms=240_000),
+        ]
+        match = match_track_to_recording(
+            log, {}, 85, "Round Midnight", tracks,
+            expected_duration_ms=240_000,
+        )
+        assert match is None
+
 
 # ---------------------------------------------------------------------------
 # verify_album_contains_track

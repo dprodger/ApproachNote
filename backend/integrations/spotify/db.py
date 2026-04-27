@@ -344,7 +344,13 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
 
     Returns:
         List of recording dicts with 'recording_id', 'song_title',
-        'disc_number', 'track_number', 'spotify_track_id' (existing if any)
+        'recording_title', 'disc_number', 'track_number', 'spotify_track_id'
+        (existing if any), 'recording_duration_ms'.
+
+        `recording_title` is the MB recording's own title (e.g.
+        "Well You Needn't (opening)"). The matcher uses it to disambiguate
+        same-song-multiple-variations cases — see match_tracks_for_release
+        in integrations/spotify/matcher.py.
     """
     def _execute(c):
         with c.cursor() as cur:
@@ -353,6 +359,7 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
                 SELECT
                     rr.recording_id,
                     s.title as song_title,
+                    rec.title as recording_title,
                     rr.disc_number,
                     rr.track_number,
                     rrsl.service_id as spotify_track_id,
