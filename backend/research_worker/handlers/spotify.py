@@ -1,7 +1,7 @@
 """
 Spotify handlers on the durable queue.
 
-Two job types are registered here:
+Three job types are registered here:
 
 1. ('spotify', 'match_song'), target_type='song'
    Wraps integrations/spotify/matcher.SpotifyMatcher.match_releases — a
@@ -15,6 +15,16 @@ Two job types are registered here:
    from Spotify's batch /v1/tracks endpoint (50 IDs per call). Used to
    backfill historic rows that were inserted before the matcher started
    capturing duration. Issue #100.
+
+3. ('spotify', 'rematch_duration_mismatches'), target_type='song'
+   For one song, re-runs the SpotifyMatcher against only the releases
+   whose linked Spotify track's duration_ms differs from the recording's
+   canonical duration_ms by more than `threshold_ms` (default 60_000 — 60s).
+   The matcher decides whether to swap the link to a better track or
+   leave the existing match alone. No auto-unlinking — leftover bad
+   matches stay visible in the /admin/duration-mismatches review page.
+   Separate job_type from match_song so a bulk-cleanup sweep doesn't
+   collide on the unique index with a user-triggered rematch. Issue #100.
 
 Quota accounting: skipped. Spotify uses HTTP 429 rate limits, not a daily
 budget like YouTube. The SpotifyClient already retries 429s internally
@@ -206,3 +216,73 @@ def backfill_durations(payload: dict[str, Any], ctx) -> dict[str, Any]:
         )
 
     return stats
+
+
+# ---------------------------------------------------------------------------
+# rematch_duration_mismatches — issue #100, second phase
+# ---------------------------------------------------------------------------
+
+# Default threshold matches the /admin/duration-mismatches review page and
+# the matcher's existing CLI default. 60s is wide enough to ignore Spotify's
+# usual 1-2s duration drift, narrow enough to catch wrong-track matches
+# (e.g. a 4-min recording linked to a 2-min track).
+_DEFAULT_DURATION_MISMATCH_THRESHOLD_MS = 60_000
+
+
+@handler('spotify', 'rematch_duration_mismatches')
+def rematch_duration_mismatches(payload: dict[str, Any], ctx) -> dict[str, Any]:
+    """Re-run the Spotify matcher on this song's mismatched releases.
+
+    Constructs `SpotifyMatcher(duration_mismatch_threshold=...)` and
+    delegates to `match_releases(song_id)` — same code path the
+    `match_spotify_tracks.py --duration-mismatches` CLI uses. The matcher
+    will only walk releases whose existing Spotify link's duration_ms
+    differs from the recording's canonical duration_ms by more than the
+    threshold, swapping in a better track if one is found.
+
+    payload may include:
+        threshold_ms: int — override the 60_000 ms default. Useful for
+            running tighter sweeps (e.g. 30s) once the obvious cases are
+            cleaned up.
+    """
+    song_id = ctx.target_id
+    threshold_ms = int(
+        payload.get('threshold_ms', _DEFAULT_DURATION_MISMATCH_THRESHOLD_MS)
+    )
+
+    matcher = SpotifyMatcher(
+        duration_mismatch_threshold=threshold_ms,
+        logger=ctx.log,
+    )
+    result = matcher.match_releases(song_id)
+
+    if result.get('success'):
+        stats = result.get('stats') or {}
+        return {
+            'threshold_ms': threshold_ms,
+            'releases_processed': stats.get('releases_processed', 0),
+            'releases_updated': stats.get('releases_updated', 0),
+            'releases_no_match': stats.get('releases_no_match', 0),
+            'tracks_matched': stats.get('tracks_matched', 0),
+            'tracks_had_previous': stats.get('tracks_had_previous', 0),
+            'cache_hits': stats.get('cache_hits', 0),
+            'api_calls': stats.get('api_calls', 0),
+            'rate_limit_hits': stats.get('rate_limit_hits', 0),
+        }
+
+    error = result.get('error') or 'unknown error'
+    error_lower = error.lower()
+
+    if any(marker in error_lower for marker in _PERMANENT_ERROR_MARKERS):
+        raise PermanentError(f"Spotify rematch: {error}")
+
+    if any(marker in error_lower for marker in _NO_OP_ERROR_MARKERS):
+        # Song existed but had no mismatched releases above threshold by the
+        # time the worker got to it — fine, treat as a clean no-op.
+        return {
+            'threshold_ms': threshold_ms,
+            'reason': 'no_mismatched_releases',
+            'releases_processed': 0,
+        }
+
+    raise RetryableError(f"Spotify rematch failed: {error}")
