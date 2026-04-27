@@ -344,13 +344,21 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
 
     Returns:
         List of recording dicts with 'recording_id', 'song_title',
-        'recording_title', 'disc_number', 'track_number', 'spotify_track_id'
-        (existing if any), 'recording_duration_ms'.
+        'recording_title', 'recording_leader_name', 'disc_number',
+        'track_number', 'spotify_track_id' (existing if any),
+        'recording_duration_ms'.
 
         `recording_title` is the MB recording's own title (e.g.
         "Well You Needn't (opening)"). The matcher uses it to disambiguate
         same-song-multiple-variations cases — see match_tracks_for_release
         in integrations/spotify/matcher.py.
+
+        `recording_leader_name` is the name of the performer credited
+        with role='leader' on this recording (NULL when no leader is
+        credited, or there are multiple leaders — we take the first by
+        name to keep this query stable). The matcher uses it to validate
+        track-level artists on compilation-album matches, where the
+        album-level artist check (Various Artists) carries no signal.
     """
     def _execute(c):
         with c.cursor() as cur:
@@ -363,7 +371,16 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
                     rr.disc_number,
                     rr.track_number,
                     rrsl.service_id as spotify_track_id,
-                    rec.duration_ms as recording_duration_ms
+                    rec.duration_ms as recording_duration_ms,
+                    (
+                        SELECT p.name
+                        FROM recording_performers rp
+                        JOIN performers p ON p.id = rp.performer_id
+                        WHERE rp.recording_id = rec.id
+                          AND rp.role = 'leader'
+                        ORDER BY p.name
+                        LIMIT 1
+                    ) as recording_leader_name
                 FROM recording_releases rr
                 JOIN recordings rec ON rr.recording_id = rec.id
                 JOIN songs s ON rec.song_id = s.id

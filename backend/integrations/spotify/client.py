@@ -589,7 +589,12 @@ class SpotifyClient:
 
         Returns:
             List of track dicts with 'id', 'name', 'track_number', 'disc_number',
-            'url', 'duration_ms', or None if failed.
+            'url', 'duration_ms', 'artists' (list of artist names), or None if failed.
+
+            'artists' is populated for compilation-album track-artist
+            verification — see match_tracks_for_release in matcher.py.
+            Old cache entries (written before the field was added) won't
+            carry it; callers must treat its absence as "no artist info".
         """
         cache_path = self._get_album_cache_path(album_id)
         cached_result = self._load_from_cache(cache_path)
@@ -629,6 +634,7 @@ class SpotifyClient:
                         'disc_number': item['disc_number'],
                         'url': item['external_urls']['spotify'],
                         'duration_ms': item.get('duration_ms'),
+                        'artists': [a['name'] for a in item.get('artists') or []],
                     })
 
                 url = data.get('next')

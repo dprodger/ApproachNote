@@ -29,6 +29,7 @@ from integrations.spotify.matching import (
     normalize_name_variants,
     strip_ensemble_suffix,
     strip_live_suffix,
+    track_artist_matches_recording_leader,
     validate_album_match,
     validate_track_match,
     verify_album_contains_track,
@@ -149,6 +150,66 @@ class TestIsCompilationArtist:
     ])
     def test_detects_compilations(self, artist, expected):
         assert is_compilation_artist(artist) is expected
+
+
+class TestTrackArtistMatchesRecordingLeader:
+    """Issue #100 phase 3: track-level artist verification on compilations.
+
+    The matcher uses this to reject "wrong-curator's-compilation" matches
+    where the album title and track title are shared but the actual
+    performers differ — e.g. a Spotify compilation crediting "Recife All
+    Stars" for Watermelon Man, vs the MB recording crediting Mongo
+    Santamaría.
+    """
+
+    def test_returns_true_when_no_recording_leader(self):
+        # Missing data must not cause rejection — degrade gracefully.
+        ok, sim = track_artist_matches_recording_leader(None, ["Some Artist"])
+        assert ok is True
+        assert sim == 100.0
+
+    def test_returns_true_when_no_track_artists(self):
+        ok, sim = track_artist_matches_recording_leader("Mongo Santamaría", [])
+        assert ok is True
+        assert sim == 100.0
+
+    def test_accepts_exact_match(self):
+        ok, _ = track_artist_matches_recording_leader(
+            "Mongo Santamaría", ["Mongo Santamaría"],
+        )
+        assert ok is True
+
+    def test_accepts_substring_containment(self):
+        # Common ensemble-suffix variation — the recording's leader is
+        # contained in the Spotify track's artist string.
+        ok, _ = track_artist_matches_recording_leader(
+            "Mongo Santamaría", ["Mongo Santamaría & His Orchestra"],
+        )
+        assert ok is True
+
+    def test_accepts_one_of_many_track_artists(self):
+        # Spotify track credits multiple artists; one matches.
+        ok, _ = track_artist_matches_recording_leader(
+            "Mongo Santamaría",
+            ["Tito Puente", "Mongo Santamaría", "Cal Tjader"],
+        )
+        assert ok is True
+
+    def test_rejects_completely_different_artist(self):
+        # The Watermelon Man case: same track title, different curator's
+        # compilation, completely unrelated artist.
+        ok, sim = track_artist_matches_recording_leader(
+            "Mongo Santamaría", ["Recife All Stars"],
+        )
+        assert ok is False
+        assert sim < 50
+
+    def test_rejects_unrelated_jazz_artists(self):
+        # Defensive: two real artists that share no name tokens.
+        ok, _ = track_artist_matches_recording_leader(
+            "Stan Getz", ["Bill Evans"],
+        )
+        assert ok is False
 
 
 class TestStripLiveSuffix:

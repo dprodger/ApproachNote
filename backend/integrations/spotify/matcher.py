@@ -32,7 +32,9 @@ from integrations.spotify.matching import (
     extract_primary_artist,
     duration_confidence,
     check_album_context_via_tracklist,
+    is_compilation_artist,
     match_track_to_recording,
+    track_artist_matches_recording_leader,
 )
 from integrations.spotify.search import search_spotify_album
 from integrations.spotify.diagnostics import (
@@ -368,7 +370,8 @@ class SpotifyMatcher:
                             existing_album_id,
                             song['title'],
                             alt_titles=song.get('alt_titles'),
-                            spotify_tracks=spotify_tracks
+                            spotify_tracks=spotify_tracks,
+                            expected_album_artist=artist_name,
                         )
                         if track_matched:
                             self.stats['releases_with_spotify'] += 1
@@ -431,7 +434,8 @@ class SpotifyMatcher:
                             spotify_match['id'],
                             song['title'],
                             alt_titles=song.get('alt_titles'),
-                            spotify_tracks=spotify_tracks
+                            spotify_tracks=spotify_tracks,
+                            expected_album_artist=artist_name,
                         )
 
                         if track_matched:
@@ -509,7 +513,8 @@ class SpotifyMatcher:
     def match_tracks_for_release(self, conn, song_id: str, release_id: str,
                                   spotify_album_id: str, song_title: str,
                                   alt_titles: List[str] = None,
-                                  spotify_tracks: List[dict] = None) -> bool:
+                                  spotify_tracks: List[dict] = None,
+                                  expected_album_artist: str = None) -> bool:
         """
         Match Spotify tracks to recordings for a release
 
@@ -530,6 +535,12 @@ class SpotifyMatcher:
                            the API call. IMPORTANT: Pass this when calling from within
                            a DB transaction to avoid holding the connection idle during
                            API calls (which can cause connection timeouts).
+            expected_album_artist: The MB release's artist credit (e.g.
+                "Various Artists", "Bill Evans Trio"). Used to detect
+                compilation albums — when this is a compilation marker,
+                the matcher post-validates each track-level artist
+                against the recording's leader performer, since the
+                album-level artist check at search time was bypassed.
 
         Returns:
             bool: True if at least one track was matched, False otherwise
@@ -675,6 +686,39 @@ class SpotifyMatcher:
                         f"      ✓ Rescued by album context (match_method='album_context')")
                     self.stats['tracks_album_context_rescued'] += 1
                     rescued = True
+
+                # Compilation-album track-artist check.
+                #
+                # On compilations (Various Artists), validate_album_match
+                # accepts the album based purely on the song title appearing
+                # somewhere in its tracklist — artist similarity is meaningless
+                # at the album level. That lets a different curator's
+                # compilation with the same album title slip through, and we
+                # then match the wrong-artist track. Re-check track-level
+                # artists here against the recording's leader.
+                if (expected_album_artist
+                        and is_compilation_artist(expected_album_artist)):
+                    leader = recording.get('recording_leader_name')
+                    track_artists = matched_track.get('artists') or []
+                    if leader and track_artists:
+                        ok, sim = track_artist_matches_recording_leader(
+                            leader, track_artists,
+                        )
+                        if not ok:
+                            self.logger.info(
+                                f"      Rejecting compilation track match: "
+                                f"recording leader '{leader}' vs Spotify "
+                                f"track artists {track_artists} "
+                                f"(best similarity {sim:.0f}% < 50%)"
+                            )
+                            # Clear existing bad link if rematching, mirroring
+                            # the duration-rejection cleanup path above.
+                            if recording.get('spotify_track_id'):
+                                clear_recording_release_track(
+                                    conn, recording['recording_id'], release_id,
+                                    dry_run=self.dry_run, log=self.logger)
+                            self.stats['tracks_no_match'] += 1
+                            continue
 
                 match_method = 'album_context' if rescued else 'fuzzy_search'
                 update_recording_release_track_id(

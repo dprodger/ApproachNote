@@ -176,6 +176,54 @@ def is_compilation_artist(artist_name: str) -> bool:
     return normalized in COMPILATION_ARTIST_PATTERNS
 
 
+def track_artist_matches_recording_leader(
+    recording_leader: str,
+    track_artists: list,
+    min_similarity: int = 50,
+) -> tuple[bool, float]:
+    """Decide whether a Spotify track's artists are plausibly the same as
+    a recording's leader performer.
+
+    Used by match_tracks_for_release on compilation albums (Various
+    Artists) where the album-level artist check carries no signal —
+    multiple Spotify compilations can share an album title yet credit
+    completely different artists for the same track title (e.g. two
+    "Watermelon Man"s on two "The Very Best of Latin Jazz" compilations,
+    one by Mongo Santamaría and one by Recife All Stars).
+
+    Match rules — accept if any of:
+      - either name (normalized) is a substring of the other (handles
+        "Mongo Santamaría" vs "Mongo Santamaría & His Orchestra"-style
+        variations)
+      - fuzz similarity to any track artist meets `min_similarity`
+
+    Returns (matches, best_similarity). When no recording_leader or no
+    track_artists are available, returns (True, 100.0) — missing data
+    is not grounds for rejection.
+    """
+    if not recording_leader or not track_artists:
+        return True, 100.0
+
+    leader_norm = normalize_for_comparison(recording_leader)
+    if not leader_norm:
+        return True, 100.0
+
+    best_sim = 0.0
+    for ta in track_artists:
+        if not ta:
+            continue
+        ta_norm = normalize_for_comparison(ta)
+        if not ta_norm:
+            continue
+        if leader_norm in ta_norm or ta_norm in leader_norm:
+            return True, 100.0
+        sim = calculate_similarity(recording_leader, ta)
+        if sim > best_sim:
+            best_sim = sim
+
+    return best_sim >= min_similarity, best_sim
+
+
 def strip_ensemble_suffix(artist_name: str) -> str:
     """
     Strip common ensemble suffixes from artist names.
