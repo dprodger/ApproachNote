@@ -31,7 +31,7 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "B41D0F962EE6337400DB427C"
-               BuildableName = "ApproachNoteMac.app"
+               BuildableName = "ApproachNote.app"
                BlueprintName = "ApproachNoteMac"
                ReferencedContainer = "container:ApproachNote.xcodeproj">
             </BuildableReference>
@@ -63,7 +63,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B41D0F962EE6337400DB427C"
-            BuildableName = "ApproachNoteMac.app"
+            BuildableName = "ApproachNote.app"
             BlueprintName = "ApproachNoteMac"
             ReferencedContainer = "container:ApproachNote.xcodeproj">
          </BuildableReference>
@@ -82,7 +82,7 @@
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "B41D0F962EE6337400DB427C"
-            BuildableName = "ApproachNoteMac.app"
+            BuildableName = "ApproachNote.app"
             BlueprintName = "ApproachNoteMac"
             ReferencedContainer = "container:ApproachNote.xcodeproj">
          </BuildableReference>
