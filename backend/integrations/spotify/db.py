@@ -261,6 +261,10 @@ def get_releases_with_duration_mismatches(song_id: str, threshold_ms: int = 6000
                   AND rec.duration_ms IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
                   AND ABS(rec.duration_ms - rrsl.duration_ms) > %s
+                  -- Skip rows the admin has manually verified — they're
+                  -- intentionally locked to this Spotify track even when the
+                  -- duration would otherwise look mismatched.
+                  AND (rrsl.match_method IS NULL OR rrsl.match_method != 'manual')
             """
 
             params = [song_id, threshold_ms]
@@ -305,6 +309,8 @@ def get_songs_with_duration_mismatches(threshold_ms: int = 60000) -> List[dict]:
                 WHERE rec.duration_ms IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
                   AND ABS(rec.duration_ms - rrsl.duration_ms) > %s
+                  -- Skip admin-verified matches; see get_releases_with_duration_mismatches.
+                  AND (rrsl.match_method IS NULL OR rrsl.match_method != 'manual')
                 ORDER BY s.title
             """, (threshold_ms,))
             return cur.fetchall()
@@ -622,6 +628,44 @@ def is_track_manual_override(conn, recording_release_id: str, service: str = 'sp
         if row and row.get('match_method') == 'manual':
             return True
         return False
+
+
+def set_track_link_manual_override(conn, streaming_link_id: str,
+                                   manual: bool = True,
+                                   log: logging.Logger = None) -> bool:
+    """Flip a streaming-link row's match_method to/from 'manual'.
+
+    'manual' is the magic value that update_recording_release_track_id
+    and clear_recording_release_track honour as a "do not touch" flag —
+    so once an admin marks a (recording, Spotify track) pair as manually
+    verified, the matcher leaves it alone on every subsequent re-run.
+
+    On unverify (manual=False) the method is reset to 'fuzzy_search';
+    the next matcher pass will re-evaluate from scratch and either
+    re-confirm or replace it. We don't try to remember the previous
+    auto-method — there's no schema slot for it and rediscovery is the
+    correct behaviour.
+
+    Returns True if a row was updated, False if no matching row exists.
+    """
+    log = log or logger
+    new_method = 'manual' if manual else 'fuzzy_search'
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE recording_release_streaming_links
+            SET match_method = %s, updated_at = NOW()
+            WHERE id = %s AND service = 'spotify'
+            """,
+            (new_method, streaming_link_id),
+        )
+        if cur.rowcount == 0:
+            return False
+    log.info(
+        "Streaming link %s match_method set to '%s'",
+        streaming_link_id, new_method,
+    )
+    return True
 
 
 def is_album_manual_override(conn, release_id: str, service: str = 'spotify') -> bool:

@@ -250,6 +250,60 @@
             background: #d4f1dc;
         }
 
+        /* Verify / Unverify action buttons on the rightmost column. The
+           "Verified" badge replaces the row's destructive styling so an
+           admin can see at-a-glance which mismatches have been accepted. */
+        .verify-cell {
+            white-space: nowrap;
+        }
+        .verified-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #e0f4e3;
+            color: #1f6f30;
+            border: 1px solid #a8d9b5;
+            margin-right: 6px;
+        }
+        .verify-btn {
+            font-family: inherit;
+            font-size: 11px;
+            padding: 3px 10px;
+            border: 1px solid #1f6f30;
+            background: #1f6f30;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            line-height: 1.3;
+        }
+        .verify-btn:hover {
+            background: #155022;
+            border-color: #155022;
+        }
+        .verify-btn.unverify {
+            background: #fff;
+            color: #885200;
+            border-color: #d4a566;
+        }
+        .verify-btn.unverify:hover {
+            background: #faf2e6;
+        }
+        .verify-btn:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        /* When the row is verified-and-shown (?include_verified=1), tone
+           it down so it visually recedes from the still-actionable rows. */
+        tr.verified-row {
+            background: #f7faf7 !important;
+        }
+        tr.verified-row td {
+            color: #557a5f;
+        }
+
         /* Small action button that sits next to the MB Release link to
            copy a labeled block of the three relevant IDs to the clipboard.
            Match id-link sizing so the row height stays the same. */
@@ -372,6 +426,12 @@
             <input type="number" id="thresholdInput" value="{{ threshold }}" min="1" max="600">
             <label>seconds</label>
             <button onclick="updateThreshold()">Update</button>
+            <label style="margin-left: 16px;">
+                <input type="checkbox" id="includeVerifiedToggle"
+                       {% if include_verified %}checked{% endif %}
+                       onchange="updateIncludeVerified()">
+                Include manually verified mismatches
+            </label>
             <span class="count-label">Showing <strong id="visibleCount">{{ recordings|length }}</strong> recording(s) with mismatched Spotify links</span>
         </div>
 
@@ -428,11 +488,12 @@
                             <th>Difference</th>
                             <th>Confidence</th>
                             <th>Method</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for link in item.links %}
-                        <tr class="mismatch">
+                        <tr class="mismatch{% if link.is_manual %} verified-row{% endif %}">
                             <td>
                                 <input type="checkbox" class="link-checkbox" data-card="{{ card_index }}" data-link-id="{{ link.streaming_link_id }}" onchange="updateBulkActions()">
                             </td>
@@ -491,6 +552,22 @@
                             <td>
                                 <span class="match-method">{{ link.match_method or '-' }}</span>
                             </td>
+                            <td class="verify-cell">
+                                {% if link.is_manual %}
+                                <span class="verified-badge" title="Match has been manually verified — matcher will not change it on rematch.">Verified</span>
+                                <button type="button" class="verify-btn unverify"
+                                        data-link-id="{{ link.streaming_link_id }}"
+                                        data-action="unverify"
+                                        onclick="toggleVerify(this)"
+                                        title="Remove manual verification — matcher will re-evaluate on next run">Unverify</button>
+                                {% else %}
+                                <button type="button" class="verify-btn"
+                                        data-link-id="{{ link.streaming_link_id }}"
+                                        data-action="verify"
+                                        onclick="toggleVerify(this)"
+                                        title="Mark this match as manually verified — matcher will leave it alone on rematch">Verify</button>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -508,9 +585,58 @@
     <div class="toast" id="toast"></div>
 
     <script>
-        function updateThreshold() {
+        function _buildSongUrl(extra) {
+            // Preserve threshold + include_verified across navigation
+            // — both controls live above the table.
             const threshold = document.getElementById('thresholdInput').value;
-            window.location.href = `{{ admin_url("/admin/duration-mismatches/") }}{{ song.id }}?threshold=${threshold}`;
+            const includeVerified = document.getElementById('includeVerifiedToggle').checked;
+            const params = new URLSearchParams();
+            params.set('threshold', threshold);
+            if (includeVerified) params.set('include_verified', '1');
+            if (extra) Object.entries(extra).forEach(([k, v]) => params.set(k, v));
+            return `{{ admin_url("/admin/duration-mismatches/") }}{{ song.id }}?${params.toString()}`;
+        }
+
+        function updateThreshold() {
+            window.location.href = _buildSongUrl();
+        }
+
+        function updateIncludeVerified() {
+            window.location.href = _buildSongUrl();
+        }
+
+        async function toggleVerify(btn) {
+            const linkId = btn.dataset.linkId;
+            const action = btn.dataset.action;          // 'verify' | 'unverify'
+            const setManual = (action === 'verify');
+            btn.disabled = true;
+            try {
+                const resp = await fetch(
+                    `/admin/duration-mismatches/links/${linkId}/verify`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({ manual: setManual }),
+                    }
+                );
+                const data = await resp.json();
+                if (!resp.ok || !data.success) {
+                    throw new Error(data.error || ('HTTP ' + resp.status));
+                }
+                showToast(
+                    setManual ? 'Match marked as verified' : 'Verification removed',
+                    'success',
+                );
+                // Reload so the row's status, the bulk-counts, and the
+                // server-side filter all stay consistent.
+                setTimeout(() => window.location.reload(), 500);
+            } catch (err) {
+                btn.disabled = false;
+                showToast('Failed: ' + err.message, 'error');
+            }
         }
 
         // Enter key in threshold input

@@ -231,8 +231,24 @@
                     <option value="desc" {% if current_order == 'desc' %}selected{% endif %}>Descending</option>
                 </select>
             </div>
+            <div class="filter-group">
+                <label>&nbsp;</label>
+                <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;">
+                    <input type="checkbox" name="include_verified" value="1"
+                           {% if summary.include_verified %}checked{% endif %}>
+                    Include verified matches
+                </label>
+            </div>
             <button type="submit" class="apply-btn">Apply</button>
         </form>
+
+        {% if summary.total_manual_links %}
+        <p style="font-size: 13px; color: #666; margin-top: -8px;">
+            {{ summary.total_manual_links }} Spotify link(s) are manually
+            verified and excluded from this report
+            {% if summary.include_verified %}<em>(currently included)</em>{% else %}— check the box above to include them{% endif %}.
+        </p>
+        {% endif %}
 
         <!-- Results Table -->
         {% if songs %}
@@ -249,7 +265,7 @@
                 {% for song in songs %}
                 <tr>
                     <td>
-                        <a href="{{ admin_url('/admin/duration-mismatches/') }}{{ song.song_id }}?threshold={{ threshold }}" class="song-link">
+                        <a href="{{ admin_url('/admin/duration-mismatches/') }}{{ song.song_id }}?threshold={{ threshold }}{% if summary.include_verified %}&include_verified=1{% endif %}" class="song-link">
                             <div class="song-title">{{ song.title }}</div>
                             {% if song.composer %}
                             <div class="composer">{{ song.composer }}</div>

@@ -24,7 +24,10 @@ from integrations.musicbrainz.release_importer import MBReleaseImporter
 from integrations.musicbrainz.parsing import parse_release_data
 from integrations.musicbrainz.performer_importer import PerformerImporter
 from integrations.musicbrainz.utils import MusicBrainzSearcher
-from integrations.spotify.db import is_track_manual_override
+from integrations.spotify.db import (
+    is_track_manual_override,
+    set_track_link_manual_override,
+)
 from core.spotify_rematch import (
     run_spotify_rematch_for_song,
     save_run,
@@ -2694,6 +2697,10 @@ def duration_mismatches_list():
     threshold = request.args.get('threshold', 60, type=int)
     current_sort = request.args.get('sort', 'mismatch_count')
     current_order = request.args.get('order', 'desc')
+    # ?include_verified=1 to also count rows the admin has manually
+    # verified (match_method='manual'). Default-off so the page is a
+    # signal of work-still-to-do, not a rehash of accepted overrides.
+    include_verified = request.args.get('include_verified') in ('1', 'true', 'yes')
     threshold_ms = threshold * 1000
 
     sort_map = {
@@ -2703,6 +2710,11 @@ def duration_mismatches_list():
     }
     order_col = sort_map.get(current_sort, 'mismatch_count')
     order_dir = 'ASC' if current_order == 'asc' else 'DESC'
+
+    manual_filter = (
+        '' if include_verified
+        else "AND (rrsl.match_method IS NULL OR rrsl.match_method != 'manual')"
+    )
 
     with get_db_connection() as db:
         with db.cursor() as cur:
@@ -2723,6 +2735,7 @@ def duration_mismatches_list():
                 WHERE r.duration_ms IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
                   AND ABS(r.duration_ms - rrsl.duration_ms) > %s
+                  {manual_filter}
                 GROUP BY s.id, s.title, s.composer
                 ORDER BY {order_col} {order_dir}, s.title ASC
             """, (threshold_ms,))
@@ -2739,12 +2752,21 @@ def duration_mismatches_list():
             """)
             total_spotify = cur.fetchone()['cnt']
 
+            cur.execute("""
+                SELECT COUNT(*) AS cnt
+                FROM recording_release_streaming_links
+                WHERE service = 'spotify' AND match_method = 'manual'
+            """)
+            total_manual = cur.fetchone()['cnt']
+
             total_mismatched = sum(s['mismatch_count'] for s in songs)
 
     summary = {
         'total_songs': len(songs),
         'total_mismatched_links': total_mismatched,
         'total_spotify_links': total_spotify,
+        'total_manual_links': total_manual,
+        'include_verified': include_verified,
     }
 
     return render_template('admin/duration_mismatches_list.html',
@@ -2759,7 +2781,13 @@ def duration_mismatches_list():
 def duration_mismatches_review(song_id):
     """Review duration mismatches for a specific song"""
     threshold = request.args.get('threshold', 60, type=int)
+    include_verified = request.args.get('include_verified') in ('1', 'true', 'yes')
     threshold_ms = threshold * 1000
+
+    manual_filter = (
+        '' if include_verified
+        else "AND (rrsl.match_method IS NULL OR rrsl.match_method != 'manual')"
+    )
 
     with get_db_connection() as db:
         with db.cursor() as cur:
@@ -2772,7 +2800,7 @@ def duration_mismatches_review(song_id):
                 return "Song not found", 404
             song = dict(song)
 
-            cur.execute("""
+            cur.execute(f"""
                 SELECT
                     r.id AS recording_id,
                     r.title,
@@ -2805,6 +2833,7 @@ def duration_mismatches_review(song_id):
                   AND r.duration_ms IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
                   AND ABS(r.duration_ms - rrsl.duration_ms) > %s
+                  {manual_filter}
                 ORDER BY r.recording_year NULLS LAST, rel.title
             """, (song_id, threshold_ms))
             rows = [dict(row) for row in cur.fetchall()]
@@ -2838,6 +2867,7 @@ def duration_mismatches_review(song_id):
             'diff_display': _format_diff(diff_ms),
             'match_confidence': float(row['match_confidence']) if row['match_confidence'] is not None else None,
             'match_method': row['match_method'],
+            'is_manual': row['match_method'] == 'manual',
             'release_title': row['release_title'],
             'artist_credit': row['artist_credit'],
             'release_mb_id': row['release_mb_id'],
@@ -2851,7 +2881,8 @@ def duration_mismatches_review(song_id):
     return render_template('admin/duration_mismatches_review.html',
                            song=song,
                            recordings=recordings,
-                           threshold=threshold)
+                           threshold=threshold,
+                           include_verified=include_verified)
 
 
 @admin_bp.route('/duration-mismatches/delete-links', methods=['POST'])
@@ -2885,6 +2916,42 @@ def duration_mismatches_delete():
     except Exception as e:
         logger.error(f"Error deleting streaming links: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/duration-mismatches/links/<link_id>/verify', methods=['POST'])
+def duration_mismatches_verify_link(link_id):
+    """Mark a Spotify streaming link as manually verified (or un-verify it).
+
+    Flips `recording_release_streaming_links.match_method` to 'manual',
+    which is the magic value the matcher already honours as a "do not
+    touch" flag in update_recording_release_track_id and
+    clear_recording_release_track. The duration-mismatch admin queries
+    also exclude rows with match_method='manual' so the UI stops nagging
+    about a match the admin has already accepted.
+
+    Body: optional JSON {"manual": false} to revert. Default is to set
+    manual=true.
+    """
+    data = request.get_json(silent=True) or {}
+    set_manual = bool(data.get('manual', True))
+    try:
+        with get_db_connection() as db:
+            updated = set_track_link_manual_override(
+                db, link_id, manual=set_manual, log=logger,
+            )
+            db.commit()
+    except Exception as e:
+        logger.error(f"Error toggling manual override on link {link_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    if not updated:
+        return jsonify({'error': 'Streaming link not found'}), 404
+
+    return jsonify({
+        'success': True,
+        'link_id': link_id,
+        'match_method': 'manual' if set_manual else 'fuzzy_search',
+    })
 
 
 @admin_bp.route('/users')
