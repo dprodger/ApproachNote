@@ -2691,6 +2691,75 @@ def _format_diff(diff_ms):
     return f"{sign}{minutes}:{seconds:02d}"
 
 
+def _compute_album_fits_for_rows(conn, rows, log=None):
+    """For each unique (release_id, spotify_album_id) pair in `rows`,
+    compute the album-context fit ratio between the MB release tracklist
+    and the Spotify album tracklist.
+
+    Returns: {release_id: {mb_track_count, spotify_track_count,
+                            matched_count, match_ratio, matched_titles}}
+    Releases without a Spotify album link or with fetch failures simply
+    aren't keys in the returned dict — the template will render '—' for
+    those.
+
+    Cached by release_id within the call so multiple links on the same
+    release pay the upstream API cost only once. SpotifyClient.get_album_tracks
+    and MusicBrainzSearcher both keep on-disk caches with multi-day
+    TTLs, so first visit is the only one that pays the network round trip.
+    """
+    # Local imports — keeps the module import graph clean (these pull in
+    # spotify-client + MB-searcher transitively).
+    from integrations.spotify.client import SpotifyClient
+    from integrations.spotify.matching import check_album_context_via_tracklist
+
+    log = log or logger
+    fits = {}
+    spotify_client = None  # Lazy: only construct if we have any candidates.
+
+    seen_releases = set()
+    for row in rows:
+        release_id = str(row['release_id'])
+        if release_id in seen_releases:
+            continue
+        seen_releases.add(release_id)
+
+        spotify_album_id = row.get('spotify_album_id')
+        if not spotify_album_id:
+            # No Spotify album linked at all — no album context to compute.
+            continue
+
+        if spotify_client is None:
+            spotify_client = SpotifyClient(logger=log)
+
+        try:
+            tracks = spotify_client.get_album_tracks(spotify_album_id)
+        except Exception:
+            log.exception(
+                "album-fit: failed to fetch Spotify album tracks for %s",
+                spotify_album_id,
+            )
+            continue
+        if not tracks:
+            continue
+
+        try:
+            fit = check_album_context_via_tracklist(conn, release_id, tracks)
+        except Exception:
+            log.exception(
+                "album-fit: check_album_context_via_tracklist failed for "
+                "release=%s spotify_album=%s",
+                release_id, spotify_album_id,
+            )
+            continue
+
+        # Only surface the result when we actually got both sides — an
+        # MB release with zero tracks back from MB just renders as '—'.
+        if fit.get('mb_track_count'):
+            fits[release_id] = fit
+
+    return fits
+
+
 @admin_bp.route('/duration-mismatches')
 def duration_mismatches_list():
     """List songs that have Spotify links with duration mismatches vs MusicBrainz"""
@@ -2821,6 +2890,7 @@ def duration_mismatches_review(song_id):
                     rel.title AS release_title,
                     rel.artist_credit,
                     rel.musicbrainz_release_id AS release_mb_id,
+                    rel.spotify_album_id,
                     rel.release_year,
                     ABS(r.duration_ms - rrsl.duration_ms) AS diff_ms
                 FROM recordings r
@@ -2837,6 +2907,20 @@ def duration_mismatches_review(song_id):
                 ORDER BY r.recording_year NULLS LAST, rel.title
             """, (song_id, threshold_ms))
             rows = [dict(row) for row in cur.fetchall()]
+
+        # Album-fit calculation — compare each row's MB release tracklist
+        # against the linked Spotify album's tracklist. Strong fit (high
+        # ratio + many matched tracks) is a signal that the duration delta
+        # is just an "edit/version difference" rather than a wrong-album
+        # match. We compute this at display time so the admin reviewing a
+        # mismatch can decide quickly whether to verify or unlink.
+        #
+        # Cached by spotify_album_id within this request so multiple links
+        # on the same album don't trigger duplicate API calls. Underlying
+        # client (SpotifyClient.get_album_tracks) and MusicBrainzSearcher
+        # both have on-disk caches with multi-day TTLs, so first visit per
+        # album is the only one that pays the network cost.
+        album_fit_cache = _compute_album_fits_for_rows(db, rows, log=logger)
 
     # Group by recording
     recordings_map = {}
@@ -2855,6 +2939,7 @@ def duration_mismatches_review(song_id):
                 'links': []
             }
         diff_ms = row['diff_ms']
+        album_fit = album_fit_cache.get(str(row['release_id']))
         recordings_map[rec_id]['links'].append({
             'streaming_link_id': str(row['streaming_link_id']),
             'service_id': row['service_id'],
@@ -2872,8 +2957,10 @@ def duration_mismatches_review(song_id):
             'artist_credit': row['artist_credit'],
             'release_mb_id': row['release_mb_id'],
             'release_id': str(row['release_id']),
+            'spotify_album_id': row['spotify_album_id'],
             'mb_track_title': row['title'],
             'spotify_track_title': row['spotify_track_title'],
+            'album_fit': album_fit,
         })
 
     recordings = list(recordings_map.values())

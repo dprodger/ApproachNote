@@ -250,6 +250,40 @@
             background: #d4f1dc;
         }
 
+        /* Album Fit cell — visualises check_album_context_via_tracklist's
+           result. Three buckets so an admin can scan the column at a glance:
+             green:  >= 90% of MB tracks matched on the Spotify album → strong signal it's the same album
+             amber:  70-90%                                            → probably the same album
+             grey:   <70%                                              → wrong album, or weak data */
+        .album-fit {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .album-fit .album-fit-pct {
+            font-weight: 400;
+            opacity: 0.75;
+            margin-left: 2px;
+        }
+        .album-fit-strong {
+            background: #e0f4e3;
+            color: #1f6f30;
+            border: 1px solid #a8d9b5;
+        }
+        .album-fit-medium {
+            background: #fff5dc;
+            color: #885200;
+            border: 1px solid #d4a566;
+        }
+        .album-fit-weak {
+            background: #f4e0e0;
+            color: #6e1f1f;
+            border: 1px solid #d9a8a8;
+        }
+
         /* Verify / Unverify action buttons on the rightmost column. The
            "Verified" badge replaces the row's destructive styling so an
            admin can see at-a-glance which mismatches have been accepted. */
@@ -487,6 +521,7 @@
                             <th>Spotify Duration</th>
                             <th>Difference</th>
                             <th>Confidence</th>
+                            <th title="MB tracks / Spotify tracks that line up by title — high values mean this is genuinely the same album, even when individual track durations differ.">Album Fit</th>
                             <th>Method</th>
                             <th>Status</th>
                         </tr>
@@ -544,6 +579,19 @@
                                 {% if link.match_confidence is not none %}
                                 <span class="confidence {% if link.match_confidence < 0.5 %}confidence-low{% elif link.match_confidence < 0.8 %}confidence-medium{% else %}confidence-high{% endif %}">
                                     {{ (link.match_confidence * 100)|round|int }}%
+                                </span>
+                                {% else %}
+                                <span style="color: #ccc;">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if link.album_fit %}
+                                {% set fit = link.album_fit %}
+                                {% set ratio = fit.match_ratio %}
+                                <span class="album-fit {% if ratio >= 0.9 %}album-fit-strong{% elif ratio >= 0.7 %}album-fit-medium{% else %}album-fit-weak{% endif %}"
+                                      title="{{ fit.matched_count }} of {{ fit.mb_track_count }} MB tracks matched a track on the {{ fit.spotify_track_count }}-track Spotify album. High = same album, just different edit. Low = wrong album.">
+                                    {{ fit.matched_count }}/{{ fit.mb_track_count }}
+                                    <span class="album-fit-pct">({{ (ratio * 100)|round|int }}%)</span>
                                 </span>
                                 {% else %}
                                 <span style="color: #ccc;">-</span>
