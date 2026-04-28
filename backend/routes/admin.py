@@ -25,6 +25,7 @@ from integrations.musicbrainz.parsing import parse_release_data
 from integrations.musicbrainz.performer_importer import PerformerImporter
 from integrations.musicbrainz.utils import MusicBrainzSearcher
 from integrations.spotify.db import (
+    block_streaming_track,
     is_track_manual_override,
     set_track_link_manual_override,
 )
@@ -3038,6 +3039,86 @@ def duration_mismatches_verify_link(link_id):
         'success': True,
         'link_id': link_id,
         'match_method': 'manual' if set_manual else 'fuzzy_search',
+    })
+
+
+@admin_bp.route('/duration-mismatches/links/<link_id>/reject', methods=['POST'])
+def duration_mismatches_reject_link(link_id):
+    """Block + delete a wrong Spotify streaming link.
+
+    Two-step operation in a single transaction:
+
+      1. Insert into bad_streaming_matches at block_level='track', so the
+         matcher's get_blocked_tracks_for_song lookup will skip this
+         (song_id, spotify_track_id) pair on every future match attempt.
+      2. Delete the streaming link itself. The page reloads to confirm.
+
+    Idempotent against repeated invocations: the bad_streaming_matches
+    unique constraint collapses duplicate blocks, and the DELETE
+    no-ops on a missing link.
+
+    Body: optional JSON {"reason": "..."} captured into bad_streaming_matches.reason
+    for human review. The default is "rejected via admin UI".
+    """
+    data = request.get_json(silent=True) or {}
+    reason = (data.get('reason') or 'rejected via admin UI').strip()
+
+    try:
+        with get_db_connection() as db:
+            with db.cursor() as cur:
+                # Pull (song_id, service_id) from the link we're about to nuke.
+                # Going through recording_releases → recordings → songs.id is
+                # the only reachable path; rrsl itself has no song_id.
+                cur.execute(
+                    """
+                    SELECT rec.song_id AS song_id, rrsl.service_id AS spotify_track_id
+                    FROM recording_release_streaming_links rrsl
+                    JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                    JOIN recordings rec ON rec.id = rr.recording_id
+                    WHERE rrsl.id = %s
+                      AND rrsl.service = 'spotify'
+                    """,
+                    (link_id,),
+                )
+                row = cur.fetchone()
+            if not row:
+                return jsonify({'error': 'Streaming link not found'}), 404
+            song_id = str(row['song_id'])
+            spotify_track_id = row['spotify_track_id']
+
+            # Step 1 — block the (song, track) pair so the matcher skips it.
+            # Skipped silently if there's no service_id to block (defensive;
+            # in practice every spotify link has one).
+            if spotify_track_id:
+                block_streaming_track(
+                    db, song_id, spotify_track_id,
+                    service='spotify', reason=reason, log=logger,
+                )
+
+            # Step 2 — delete the link itself.
+            with db.cursor() as cur:
+                cur.execute(
+                    """
+                    DELETE FROM recording_release_streaming_links
+                    WHERE id = %s AND service = 'spotify'
+                    RETURNING id
+                    """,
+                    (link_id,),
+                )
+                deleted = cur.fetchone()
+
+            db.commit()
+    except Exception as e:
+        logger.error(f"Error rejecting link {link_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    return jsonify({
+        'success': True,
+        'link_id': link_id,
+        'song_id': song_id,
+        'spotify_track_id': spotify_track_id,
+        'deleted': bool(deleted),
+        'blocked': bool(spotify_track_id),
     })
 
 

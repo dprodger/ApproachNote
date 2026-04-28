@@ -24,6 +24,8 @@ import pytest
 
 from db_utils import get_db_connection
 from integrations.spotify.db import (
+    block_streaming_track,
+    get_blocked_tracks_for_song,
     get_releases_with_duration_mismatches,
     get_songs_with_duration_mismatches,
     set_track_link_manual_override,
@@ -45,6 +47,13 @@ LINK_ID = _NS.format(0x070)
 
 def _cleanup(conn):
     with conn.cursor() as cur:
+        # bad_streaming_matches has FK on song_id with ON DELETE CASCADE,
+        # so deleting the song would also clear blocklist rows. We delete
+        # explicitly for clarity and to match the order other tests use.
+        cur.execute(
+            "DELETE FROM bad_streaming_matches WHERE song_id = %s",
+            (SONG_ID,),
+        )
         cur.execute(
             "DELETE FROM recording_release_streaming_links WHERE id = %s",
             (LINK_ID,),
@@ -266,3 +275,154 @@ class TestVerifyEndpoint:
             headers={"Accept": "application/json", "X-CSRF-Token": csrf},
         )
         assert resp.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# block_streaming_track — db helper for the Reject action
+# ---------------------------------------------------------------------------
+
+class TestBlockStreamingTrack:
+    def test_inserts_blocklist_row(self, mismatched_link, db):
+        with get_db_connection() as conn:
+            inserted = block_streaming_track(
+                conn, SONG_ID, 'sp-track-1',
+                service='spotify', reason='wrong artist',
+            )
+            conn.commit()
+        assert inserted is True
+        # Matcher's lookup helper now returns this track for this song.
+        blocked = get_blocked_tracks_for_song(SONG_ID, service='spotify')
+        assert 'sp-track-1' in blocked
+
+    def test_duplicate_block_is_idempotent(self, mismatched_link):
+        with get_db_connection() as conn:
+            block_streaming_track(conn, SONG_ID, 'sp-track-1')
+            conn.commit()
+        with get_db_connection() as conn:
+            inserted = block_streaming_track(conn, SONG_ID, 'sp-track-1')
+            conn.commit()
+        # Second call doesn't insert (unique constraint), but doesn't raise.
+        assert inserted is False
+        # Still only one row present.
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT COUNT(*) AS n FROM bad_streaming_matches "
+                    "WHERE song_id = %s AND service_id = %s",
+                    (SONG_ID, 'sp-track-1'),
+                )
+                row = cur.fetchone()
+                count = row['n'] if isinstance(row, dict) else row[0]
+        assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Reject endpoint
+# ---------------------------------------------------------------------------
+
+class TestRejectEndpoint:
+    def test_unauth_request_is_blocked(self, client, mismatched_link):
+        resp = client.post(
+            f"/admin/duration-mismatches/links/{LINK_ID}/reject",
+            json={},
+            headers={"Accept": "application/json"},
+        )
+        assert resp.status_code in (401, 403)
+        # Link is unchanged, no blocklist row created.
+        with get_db_connection() as conn:
+            assert _link_method(conn, LINK_ID) == 'fuzzy_search'
+        blocked = get_blocked_tracks_for_song(SONG_ID, service='spotify')
+        assert 'sp-track-1' not in blocked
+
+    def test_admin_reject_blocks_and_deletes(
+        self, client, admin_user, mismatched_link,
+    ):
+        _login(client)
+        csrf = client.get_cookie('admin_csrf', path='/admin').value
+        resp = client.post(
+            f"/admin/duration-mismatches/links/{LINK_ID}/reject",
+            json={"reason": "wrong album"},
+            headers={"Accept": "application/json", "X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 200, resp.get_json()
+        body = resp.get_json()
+        assert body['success'] is True
+        assert body['deleted'] is True
+        assert body['blocked'] is True
+        assert body['song_id'] == SONG_ID
+        assert body['spotify_track_id'] == 'sp-track-1'
+
+        # The streaming link is gone.
+        with get_db_connection() as conn:
+            assert _link_method(conn, LINK_ID) is None
+
+        # And the (song, track) is now in the matcher's blocklist.
+        blocked = get_blocked_tracks_for_song(SONG_ID, service='spotify')
+        assert 'sp-track-1' in blocked
+
+    def test_reason_text_is_persisted(
+        self, client, admin_user, mismatched_link, db,
+    ):
+        _login(client)
+        csrf = client.get_cookie('admin_csrf', path='/admin').value
+        client.post(
+            f"/admin/duration-mismatches/links/{LINK_ID}/reject",
+            json={"reason": "different artist on the Spotify side"},
+            headers={"Accept": "application/json", "X-CSRF-Token": csrf},
+        )
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT reason FROM bad_streaming_matches "
+                "WHERE song_id = %s AND service_id = %s",
+                (SONG_ID, 'sp-track-1'),
+            )
+            row = cur.fetchone()
+        reason = row[0] if not isinstance(row, dict) else row['reason']
+        assert reason == "different artist on the Spotify side"
+
+    def test_unknown_link_returns_404(
+        self, client, admin_user,
+    ):
+        _login(client)
+        csrf = client.get_cookie('admin_csrf', path='/admin').value
+        bogus = "00000000-0000-4000-8000-3ffffffffff0"
+        resp = client.post(
+            f"/admin/duration-mismatches/links/{bogus}/reject",
+            json={},
+            headers={"Accept": "application/json", "X-CSRF-Token": csrf},
+        )
+        assert resp.status_code == 404
+
+    def test_reject_is_idempotent_against_repeat_calls(
+        self, client, admin_user, mismatched_link, db,
+    ):
+        # Calling reject twice on the same link: first call deletes +
+        # blocks, second call 404s because the link is gone (the block
+        # itself stays in place, the unique constraint prevents
+        # double-blocking).
+        _login(client)
+        csrf = client.get_cookie('admin_csrf', path='/admin').value
+        first = client.post(
+            f"/admin/duration-mismatches/links/{LINK_ID}/reject",
+            json={},
+            headers={"Accept": "application/json", "X-CSRF-Token": csrf},
+        )
+        assert first.status_code == 200
+
+        second = client.post(
+            f"/admin/duration-mismatches/links/{LINK_ID}/reject",
+            json={},
+            headers={"Accept": "application/json", "X-CSRF-Token": csrf},
+        )
+        assert second.status_code == 404
+
+        # Still exactly one blocklist row.
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM bad_streaming_matches "
+                "WHERE song_id = %s AND service_id = %s",
+                (SONG_ID, 'sp-track-1'),
+            )
+            row = cur.fetchone()
+            count = row[0] if not isinstance(row, dict) else row['count']
+        assert count == 1

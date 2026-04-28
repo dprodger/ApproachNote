@@ -668,6 +668,57 @@ def set_track_link_manual_override(conn, streaming_link_id: str,
     return True
 
 
+def block_streaming_track(conn, song_id: str, track_id: str,
+                          service: str = 'spotify',
+                          reason: str = None,
+                          log: logging.Logger = None) -> bool:
+    """Add an entry to bad_streaming_matches at block_level='track'.
+
+    Tells the matcher to never re-link this Spotify track to recordings
+    of `song_id`. The matcher consults this list via
+    get_blocked_tracks_for_song on every track-match attempt, so the
+    block survives all subsequent rematch / refresh / sweep cycles.
+
+    Used by the admin "Reject" action — call this in the same transaction
+    as the streaming-link delete so a wrong link gets both removed AND
+    blocklisted in one shot.
+
+    Returns True when a new row was inserted, False when an equivalent
+    block already existed (the unique constraint
+    bad_streaming_matches_unique collapses duplicates).
+    """
+    log = log or logger
+    with conn.cursor() as cur:
+        # Column-list ON CONFLICT instead of constraint-name ON CONFLICT —
+        # the constraint is named in the migration file but anonymous in
+        # sql/jazz-db-schema.sql, so test environments bootstrapped from
+        # the schema file don't have the named constraint to reference.
+        # The column list matches both definitions.
+        cur.execute(
+            """
+            INSERT INTO bad_streaming_matches
+                (service, block_level, service_id, song_id, reason)
+            VALUES (%s, 'track', %s, %s, %s)
+            ON CONFLICT (service, block_level, service_id, song_id)
+            DO NOTHING
+            RETURNING id
+            """,
+            (service, track_id, song_id, reason),
+        )
+        new_row = cur.fetchone()
+    if new_row:
+        log.info(
+            "Blocked %s track %s for song %s (reason=%r)",
+            service, track_id, song_id, reason,
+        )
+        return True
+    log.debug(
+        "%s track %s already blocked for song %s — no-op",
+        service, track_id, song_id,
+    )
+    return False
+
+
 def is_album_manual_override(conn, release_id: str, service: str = 'spotify') -> bool:
     """
     Check if an existing album link is a manual override that should be preserved.
