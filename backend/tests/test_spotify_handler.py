@@ -115,6 +115,22 @@ class TestSuccess:
         kwargs = spotify_class.call_args.kwargs
         assert kwargs.get('rematch') is True
 
+    def test_album_context_rescue_is_enabled(self, mocker, patched_matcher):
+        # Issue #100 follow-up: the worker pipeline turns on the album-
+        # context rescue so duration-rejected matches with strong album
+        # fit get accepted instead of dropped. Lock that in.
+        patched_matcher.instance.match_releases.return_value = {
+            'success': True, 'stats': {},
+        }
+        spotify_class = mocker.patch(
+            'research_worker.handlers.spotify.SpotifyMatcher',
+            return_value=patched_matcher.instance,
+        )
+        handler.match_song({}, FakeCtx('song-id-1'))
+
+        kwargs = spotify_class.call_args.kwargs
+        assert kwargs.get('album_context') == 'rescue'
+
     def test_target_id_passed_to_match_releases(self, patched_matcher):
         patched_matcher.instance.match_releases.return_value = {
             'success': True, 'stats': {},

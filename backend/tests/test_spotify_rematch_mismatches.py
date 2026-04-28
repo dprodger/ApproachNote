@@ -103,6 +103,18 @@ class TestHandlerSuccess:
             'song-uuid-xyz',
         )
 
+    def test_album_context_rescue_is_enabled(self, patched_matcher):
+        # Issue #100 follow-up: the rematch sweep specifically opts into
+        # album-context rescue so well-aligned-album matches with bad
+        # durations get accepted (and stored as match_method='album_context')
+        # instead of being silently dropped on rematch.
+        patched_matcher.instance.match_releases.return_value = {
+            'success': True, 'song': {}, 'stats': {},
+        }
+        handler.rematch_duration_mismatches({}, FakeCtx('song-1'))
+        kwargs = patched_matcher.cls.call_args.kwargs
+        assert kwargs.get('album_context') == 'rescue'
+
 
 class TestHandlerErrorPaths:
     def test_song_not_found_raises_permanent(self, patched_matcher):

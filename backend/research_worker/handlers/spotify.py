@@ -31,6 +31,15 @@ budget like YouTube. The SpotifyClient already retries 429s internally
 with exponential backoff. If those retries exhaust, we surface the
 failure as RetryableError so the worker reschedules with its own backoff.
 
+Album-context rescue: both job types run with album_context='rescue'
+enabled. When a candidate Spotify track scores low on duration confidence
+(<= 0.4) but title-matches exactly AND the surrounding album tracklist
+matches MB cleanly (>=70% of MB tracks line up to a Spotify track on the
+album, with at least 3 confirmed pairs), the match is accepted and
+stored with match_method='album_context' instead of being rejected.
+This handles real-world cases like live albums with extended/applause-
+inflated track lengths and "Complete" reissues with bonus banter.
+
 Result mapping (match_song):
     success=True                    -> dict of stats, status=done
     "Song not found"                -> PermanentError (won't fix on retry)
@@ -69,7 +78,11 @@ def match_song(payload: dict[str, Any], ctx) -> dict[str, Any]:
     song_id = ctx.target_id
     rematch = bool(payload.get('rematch', False))
 
-    matcher = SpotifyMatcher(rematch=rematch, logger=ctx.log)
+    matcher = SpotifyMatcher(
+        rematch=rematch,
+        album_context='rescue',
+        logger=ctx.log,
+    )
     result = matcher.match_releases(song_id)
 
     if result.get('success'):
@@ -252,6 +265,7 @@ def rematch_duration_mismatches(payload: dict[str, Any], ctx) -> dict[str, Any]:
 
     matcher = SpotifyMatcher(
         duration_mismatch_threshold=threshold_ms,
+        album_context='rescue',
         logger=ctx.log,
     )
     result = matcher.match_releases(song_id)
