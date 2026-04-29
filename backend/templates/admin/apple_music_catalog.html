@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apple Music Catalog Status - Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1100px; margin: 0 auto; }
+        h1 { color: #1d1d1f; margin-bottom: 6px; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+        @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+        }
+        .card h2 {
+            color: #1d1d1f;
+            font-size: 0.95em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+
+        .kv {
+            display: grid;
+            grid-template-columns: minmax(140px, max-content) 1fr;
+            gap: 6px 12px;
+            font-size: 13px;
+        }
+        .kv dt {
+            color: #666;
+            font-weight: 500;
+        }
+        .kv dd {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            color: #1d1d1f;
+            word-break: break-all;
+        }
+
+        .pill {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .pill-ok      { background: #e0f4e3; color: #1f6f30; border: 1px solid #a8d9b5; }
+        .pill-warn    { background: #fff5dc; color: #885200; border: 1px solid #d4a566; }
+        .pill-error   { background: #f4e0e0; color: #6e1f1f; border: 1px solid #d9a8a8; }
+        .pill-neutral { background: #eaeaea; color: #555;   border: 1px solid #ccc; }
+
+        table.feeds {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        table.feeds th,
+        table.feeds td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        table.feeds th {
+            color: #888;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        table.feeds td.numeric {
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .error-block {
+            background: #fbeaea;
+            border: 1px solid #d9a8a8;
+            color: #6e1f1f;
+            padding: 10px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            word-break: break-all;
+            margin-top: 10px;
+        }
+        .empty {
+            color: #888;
+            font-size: 13px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <h1>Apple Music DuckDB Catalog</h1>
+        <p class="subtitle">Read-only status snapshot. Each section is gathered independently — a failure in one (e.g. MotherDuck offline) does not blank out the others.</p>
+
+        <div class="grid">
+            <!-- Configuration -->
+            <div class="card">
+                <h2>Configuration</h2>
+                {% set cfg = status.configuration %}
+                {% if cfg.error %}
+                    <div class="error-block">{{ cfg.error }}</div>
+                {% else %}
+                    <dl class="kv">
+                        <dt>Mode</dt>
+                        <dd>
+                            {% if cfg.mode == 'motherduck' %}
+                                <span class="pill pill-ok">MotherDuck</span>
+                            {% elif cfg.mode == 'local_file' %}
+                                <span class="pill pill-ok">Local File</span>
+                            {% elif cfg.mode == 'parquet_fallback' %}
+                                <span class="pill pill-warn">Parquet fallback</span>
+                            {% else %}
+                                <span class="pill pill-neutral">{{ cfg.mode }}</span>
+                            {% endif %}
+                        </dd>
+                        <dt>Details</dt>
+                        <dd>{{ cfg.details or '—' }}</dd>
+                        <dt>MOTHERDUCK_TOKEN</dt>
+                        <dd>
+                            {% if cfg.motherduck_token_set %}
+                                <span class="pill pill-ok">Set</span>
+                            {% else %}
+                                <span class="pill pill-neutral">Not set</span>
+                            {% endif %}
+                        </dd>
+                        <dt>APPLE_MUSIC_CATALOG_DB</dt>
+                        <dd>{{ cfg.catalog_db_override or '—' }}</dd>
+                        <dt>Default DB path</dt>
+                        <dd>
+                            {{ cfg.default_db_path }}
+                            {% if cfg.default_db_path_exists %}
+                                <span class="pill pill-ok">exists</span>
+                            {% else %}
+                                <span class="pill pill-neutral">missing</span>
+                            {% endif %}
+                        </dd>
+                    </dl>
+                {% endif %}
+            </div>
+
+            <!-- Connectivity -->
+            <div class="card">
+                <h2>Connectivity</h2>
+                {% set conn = status.connectivity %}
+                <dl class="kv">
+                    <dt>SELECT 1</dt>
+                    <dd>
+                        {% if conn.ok %}
+                            <span class="pill pill-ok">OK</span>
+                        {% else %}
+                            <span class="pill pill-error">Failed</span>
+                        {% endif %}
+                    </dd>
+                    <dt>Round-trip</dt>
+                    <dd>
+                        {% if conn.elapsed_ms is not none %}
+                            {{ conn.elapsed_ms }} ms
+                        {% else %}
+                            —
+                        {% endif %}
+                    </dd>
+                </dl>
+                {% if conn.error %}
+                    <div class="error-block">{{ conn.error }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Freshness -->
+        <div class="card" style="margin-bottom: 16px;">
+            <h2>Catalog Freshness — Latest Export per Feed</h2>
+            {% set fr = status.freshness %}
+            {% if fr.error %}
+                <div class="error-block">{{ fr.error }}</div>
+            {% elif not fr.feeds %}
+                <p class="empty">No feed metadata available.</p>
+            {% else %}
+                <table class="feeds">
+                    <thead>
+                        <tr>
+                            <th>Feed</th>
+                            <th>Export Date</th>
+                            <th>Downloaded At</th>
+                            <th class="numeric">Total Records</th>
+                            <th class="numeric">Part Count</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for feed_name, info in fr.feeds.items() %}
+                            <tr>
+                                <td><strong>{{ feed_name }}</strong></td>
+                                {% if info is none %}
+                                    <td colspan="4" class="empty">No exports found</td>
+                                {% else %}
+                                    <td>{{ info.export_date or '—' }}</td>
+                                    <td>{{ info.downloaded_at or '—' }}</td>
+                                    <td class="numeric">{{ '{:,}'.format(info.total_records) if info.total_records else '—' }}</td>
+                                    <td class="numeric">{{ info.part_count if info.part_count is defined else '—' }}</td>
+                                {% endif %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+
+        <!-- Row counts -->
+        <div class="card">
+            <h2>Indexed Table Row Counts</h2>
+            {% set rc = status.row_counts %}
+            {% if rc.error %}
+                <div class="error-block">{{ rc.error }}</div>
+            {% elif rc.mode == 'parquet_fallback_skipped' %}
+                <p class="empty">{{ rc.note }}</p>
+            {% elif not rc.tables %}
+                <p class="empty">No tables found.</p>
+            {% else %}
+                <table class="feeds">
+                    <thead>
+                        <tr>
+                            <th>Table</th>
+                            <th class="numeric">Rows</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for table, info in rc.tables.items() %}
+                            <tr>
+                                <td><strong>{{ table }}</strong></td>
+                                <td class="numeric">
+                                    {% if info.count is not none %}
+                                        {{ '{:,}'.format(info.count) }}
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if info.error %}
+                                        <span class="pill pill-error">Error</span>
+                                        <span style="font-family: 'SF Mono', monospace; font-size: 11px; color: #888;">{{ info.error }}</span>
+                                    {% else %}
+                                        <span class="pill pill-ok">OK</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

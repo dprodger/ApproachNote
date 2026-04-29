@@ -178,6 +178,13 @@
                     <span class="endpoint">{{ admin_url('/admin/apple-matches') }}</span>
                 </a>
 
+                <a href="{{ admin_url('/admin/apple-music-catalog') }}" class="card">
+                    <div class="card-icon"></div>
+                    <h3>Apple Music Catalog Status</h3>
+                    <p>Read-only health snapshot of the Apple Music DuckDB catalog: backing-store mode, MotherDuck connectivity + latency, per-feed export freshness, and indexed-table row counts.</p>
+                    <span class="endpoint">{{ admin_url('/admin/apple-music-catalog') }}</span>
+                </a>
+
                 <a href="{{ admin_url('/admin/streaming-availability') }}" class="card">
                     <div class="card-icon">🎧</div>
                     <h3>Streaming Availability</h3>

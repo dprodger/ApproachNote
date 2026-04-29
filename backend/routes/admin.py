@@ -1650,6 +1650,25 @@ def run_matcher_all():
 
 
 # ============================================================================
+# Apple Music DuckDB Catalog Status
+# ============================================================================
+
+@admin_bp.route('/apple-music-catalog')
+def apple_music_catalog_status():
+    """Read-only status snapshot of the Apple Music DuckDB catalog
+    (typically hosted on MotherDuck). Reports backing-store mode,
+    SELECT 1 round-trip latency, per-feed export freshness, and
+    per-table row counts. See core/apple_catalog_status.py for the
+    section-by-section gather implementation."""
+    from core.apple_catalog_status import get_catalog_status
+    status = get_catalog_status()
+    return render_template(
+        'admin/apple_music_catalog.html',
+        status=status,
+    )
+
+
+# ============================================================================
 # Apple Music Match Admin
 # ============================================================================
 
