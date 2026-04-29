@@ -21,10 +21,11 @@ backend/scripts/log
 backend/scripts/cache
 
 # Matcher rejection audit logs (written from working directory at runtime,
-# not source — accidentally committed once, see 4f06d18)
-backend/spotify_duration_rejections.csv
-backend/spotify_album_context_audit.csv
-backend/spotify_orphaned_tracks.csv
+# not source — get accidentally committed when matcher runs from any
+# subdirectory of the repo, so we glob on the filename anywhere).
+spotify_duration_rejections.csv
+spotify_album_context_audit.csv
+spotify_orphaned_tracks.csv
 
 # Claude Code local state (agent memory, worktrees, per-user settings)
 .claude/

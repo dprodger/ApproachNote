@@ -250,6 +250,137 @@
             background: #d4f1dc;
         }
 
+        /* Expand-tracklist chevron in the Release column. Click to inject
+           a side-by-side panel showing the MB release tracklist next to
+           the Spotify album tracklist. */
+        .tracklist-toggle {
+            background: transparent;
+            border: none;
+            color: #555;
+            font-size: 11px;
+            padding: 0 4px 0 0;
+            cursor: pointer;
+            font-family: inherit;
+            transition: transform 0.15s ease;
+            display: inline-block;
+        }
+        .tracklist-toggle[aria-expanded="true"] {
+            transform: rotate(90deg);
+            color: #1f6f30;
+        }
+        .tracklist-toggle:disabled {
+            opacity: 0.5;
+            cursor: wait;
+        }
+
+        tr.tracklist-panel-row > td {
+            padding: 0;
+            background: #fafafa;
+            border-top: 1px solid #e0e0e0;
+        }
+        .tracklist-panel {
+            background: #fff;
+            padding: 14px 18px;
+        }
+        /* Two-up release headers above the shared row-aligned table. */
+        .tracklist-panel-headers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 12px;
+        }
+        .tracklist-panel-side-header {
+            min-width: 0;
+        }
+        .tracklist-panel-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .tracklist-panel-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #222;
+            line-height: 1.25;
+        }
+        .tracklist-panel-artist {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+
+        /* Shared row-aligned tracks table — one row per (disc, position).
+           A missing entry on either side shows the em-dash so the
+           position itself stays visible and the rows stay aligned. */
+        .tracklist-panel-tracks {
+            font-size: 12px;
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: auto;
+        }
+        .tracklist-panel-tracks th {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        .tracklist-panel-tracks th.duration,
+        .tracklist-panel-tracks th.position {
+            text-align: right;
+        }
+        .tracklist-panel-tracks th.position {
+            text-align: center;
+        }
+        .tracklist-panel-tracks td {
+            padding: 4px 8px;
+            border-bottom: 1px dashed #eee;
+            vertical-align: top;
+        }
+        /* Visual separator between MB and Spotify halves. */
+        .tracklist-panel-tracks td.col-divider,
+        .tracklist-panel-tracks th.col-divider {
+            border-right: 2px solid #e0e0e0;
+        }
+        .tracklist-panel-tracks td.position {
+            color: #888;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: center;
+            width: 1%;
+        }
+        .tracklist-panel-tracks td.duration {
+            color: #555;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: right;
+            width: 1%;
+        }
+        .tracklist-panel-tracks .track-artists {
+            font-size: 11px;
+            color: #888;
+            font-weight: 400;
+        }
+        .tracklist-panel-tracks .missing {
+            color: #ccc;
+        }
+        .tracklist-panel-tracks tr.target-track {
+            background: #fff8dc;
+        }
+        .tracklist-panel-tracks tr.target-track td {
+            font-weight: 600;
+        }
+        .tracklist-panel-empty {
+            color: #aaa;
+            font-style: italic;
+            padding: 8px 0;
+        }
+
         /* Hint shown under the MB Duration cell when the release ships an
            edited cut of the underlying recording — i.e. recording is 9:26
            but THIS release uses a 5:50 track. Helps the admin tell apart
@@ -572,7 +703,12 @@
                                 <input type="checkbox" class="link-checkbox" data-card="{{ card_index }}" data-link-id="{{ link.streaming_link_id }}" onchange="updateBulkActions()">
                             </td>
                             <td>
-                                <div style="font-weight: 500;">{{ link.release_title or '?' }}</div>
+                                <button type="button" class="tracklist-toggle"
+                                        data-link-id="{{ link.streaming_link_id }}"
+                                        aria-expanded="false"
+                                        onclick="toggleTracklists(this)"
+                                        title="Show MB and Spotify tracklists side by side">▶</button>
+                                <div style="font-weight: 500; display: inline;">{{ link.release_title or '?' }}</div>
                                 <div style="font-size: 11px; color: #888;">{{ link.artist_credit or '' }}</div>
                             </td>
                             <td>{{ link.mb_track_title or '-' }}</td>
@@ -734,6 +870,218 @@
             } catch (err) {
                 btn.disabled = false;
                 showToast('Failed: ' + err.message, 'error');
+            }
+        }
+
+        // Tracklist comparison panel — fetches MB + Spotify tracklists for
+        // a given streaming link on demand and inserts a TR below the
+        // current row showing them side by side. Toggling closes the panel.
+        // Per-link results cached on the page so reopening is instant.
+        const _tracklistCache = new Map();
+
+        function _escape(s) {
+            if (s === null || s === undefined) return '';
+            return String(s)
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#039;');
+        }
+
+        function _trackPositionKey(t) {
+            const disc = t.disc_number != null ? t.disc_number : 1;
+            const pos = t.position != null ? t.position : 0;
+            return `${disc}-${pos}`;
+        }
+
+        function _renderTracklistPanel(data, ctx) {
+            // Single shared table: one row per (disc, position) so both
+            // sides physically line up. Missing-side cells show '—' so
+            // the row still appears and the position column remains
+            // continuous.
+            const mbTracks = (data.mb_release && data.mb_release.tracks) || [];
+            const spotifyTracks = (data.spotify_album && data.spotify_album.tracks) || [];
+
+            const mbByKey = new Map();
+            for (const t of mbTracks) mbByKey.set(_trackPositionKey(t), t);
+            const spByKey = new Map();
+            for (const t of spotifyTracks) spByKey.set(_trackPositionKey(t), t);
+
+            const allKeys = Array.from(new Set([
+                ...mbByKey.keys(), ...spByKey.keys(),
+            ]));
+            allKeys.sort((a, b) => {
+                const [ad, ap] = a.split('-').map(Number);
+                const [bd, bp] = b.split('-').map(Number);
+                return (ad - bd) || (ap - bp);
+            });
+
+            // Album-level artist credit text used for hiding redundant
+            // per-track artist hints on Spotify rows. We only show track
+            // artists when they meaningfully differ from the album credit
+            // (the "Various Artists" / featured-guest case).
+            const spotifyAlbumArtists = (data.spotify_album && data.spotify_album.artists) || [];
+            const spotifyAlbumArtistKey = spotifyAlbumArtists
+                .map(s => (s || '').trim().toLowerCase())
+                .sort()
+                .join('|');
+
+            const missing = '<span class="missing">—</span>';
+
+            let bodyRows = '';
+            if (allKeys.length === 0) {
+                bodyRows = '<tr><td colspan="5" class="tracklist-panel-empty">No tracks available on either side</td></tr>';
+            } else {
+                bodyRows = allKeys.map(key => {
+                    const [disc, pos] = key.split('-').map(Number);
+                    const mb = mbByKey.get(key);
+                    const sp = spByKey.get(key);
+
+                    const mbTitleHtml = mb
+                        ? _escape(mb.title || '')
+                        : missing;
+                    const mbDurationHtml = mb
+                        ? _escape(mb.duration_display || '–')
+                        : missing;
+
+                    let spTitleHtml = missing;
+                    let spDurationHtml = missing;
+                    if (sp) {
+                        spTitleHtml = _escape(sp.name || '');
+                        // Per-track artist hint on Spotify side — only
+                        // shown when it adds info over the album-level
+                        // credit, e.g. on Various Artists compilations.
+                        const trackArtists = sp.artists || [];
+                        const trackArtistKey = trackArtists
+                            .map(s => (s || '').trim().toLowerCase())
+                            .sort()
+                            .join('|');
+                        if (trackArtists.length
+                            && trackArtistKey !== spotifyAlbumArtistKey) {
+                            spTitleHtml += ` <span class="track-artists">— ${_escape(trackArtists.join(', '))}</span>`;
+                        }
+                        spDurationHtml = _escape(sp.duration_display || '–');
+                    }
+
+                    const isTarget = sp
+                        && ctx.targetSpotifyId
+                        && sp.spotify_track_id === ctx.targetSpotifyId;
+
+                    return `
+                        <tr${isTarget ? ' class="target-track"' : ''}>
+                            <td class="position">${disc}-${pos}</td>
+                            <td>${mbTitleHtml}</td>
+                            <td class="duration col-divider">${mbDurationHtml}</td>
+                            <td>${spTitleHtml}</td>
+                            <td class="duration">${spDurationHtml}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+
+            const mbTitle = (data.mb_release && data.mb_release.title) || '?';
+            const mbArtist = (data.mb_release && data.mb_release.artist_credit) || '';
+            const spTitle = (data.spotify_album && data.spotify_album.title) || '?';
+            const spArtist = spotifyAlbumArtists.join(', ');
+
+            return `
+                <div class="tracklist-panel">
+                    <div class="tracklist-panel-headers">
+                        <div class="tracklist-panel-side-header">
+                            <div class="tracklist-panel-label">MusicBrainz release</div>
+                            <div class="tracklist-panel-title">${_escape(mbTitle)}</div>
+                            <div class="tracklist-panel-artist">${_escape(mbArtist)}</div>
+                        </div>
+                        <div class="tracklist-panel-side-header">
+                            <div class="tracklist-panel-label">Spotify album</div>
+                            <div class="tracklist-panel-title">${_escape(spTitle)}</div>
+                            <div class="tracklist-panel-artist">${_escape(spArtist)}</div>
+                        </div>
+                    </div>
+                    <table class="tracklist-panel-tracks">
+                        <thead>
+                            <tr>
+                                <th class="position">Pos</th>
+                                <th>MusicBrainz title</th>
+                                <th class="duration col-divider">Dur</th>
+                                <th>Spotify title</th>
+                                <th class="duration">Dur</th>
+                            </tr>
+                        </thead>
+                        <tbody>${bodyRows}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
+        async function toggleTracklists(btn) {
+            const linkId = btn.dataset.linkId;
+            const triggerRow = btn.closest('tr');
+            const expanded = btn.getAttribute('aria-expanded') === 'true';
+
+            // Collapse: drop the panel row that immediately follows.
+            if (expanded) {
+                btn.setAttribute('aria-expanded', 'false');
+                const next = triggerRow.nextElementSibling;
+                if (next && next.classList.contains('tracklist-panel-row')
+                    && next.dataset.forLinkId === linkId) {
+                    next.remove();
+                }
+                return;
+            }
+
+            // Find the MB target track position and Spotify target track id
+            // on this row so we can highlight matching rows in the panel.
+            // The Spotify track id is on the row's checkbox via data-link-id
+            // pattern — but we only know the *streaming-link* id, not the
+            // Spotify track id. Pull the latter from the existing
+            // <a class="id-link spotify"> in the row whose href has the id.
+            let targetSpotifyId = null;
+            const spotifyLink = triggerRow.querySelector('a.id-link.spotify[href*="/track/"]');
+            if (spotifyLink) {
+                const m = spotifyLink.getAttribute('href').match(/\/track\/([^?\/]+)/);
+                if (m) targetSpotifyId = m[1];
+            }
+            // MB target position: pull from the row's data via the
+            // existing track_number/disc_number cells. Easier path: server
+            // already knows it via the link, but we keep highlight-by-id
+            // for Spotify and skip MB highlight if we can't infer from row
+            // alone. Most useful highlight is the Spotify one anyway.
+            const ctx = {targetSpotifyId, targetPos: null};
+
+            btn.disabled = true;
+            try {
+                let data = _tracklistCache.get(linkId);
+                if (!data) {
+                    const resp = await fetch(
+                        `/admin/duration-mismatches/links/${linkId}/tracklists`,
+                        {method: 'GET', headers: {'Accept': 'application/json'}},
+                    );
+                    data = await resp.json();
+                    if (!resp.ok || !data.success) {
+                        throw new Error(data.error || ('HTTP ' + resp.status));
+                    }
+                    _tracklistCache.set(linkId, data);
+                }
+
+                // Insert a panel row just below the trigger.
+                const panelRow = document.createElement('tr');
+                panelRow.className = 'tracklist-panel-row';
+                panelRow.dataset.forLinkId = linkId;
+                const panelCell = document.createElement('td');
+                // Span every column in the table so the panel reads as a
+                // single full-width section, not a single-cell sliver.
+                panelCell.colSpan = triggerRow.children.length;
+                panelCell.innerHTML = _renderTracklistPanel(data, ctx);
+                panelRow.appendChild(panelCell);
+                triggerRow.parentNode.insertBefore(panelRow, triggerRow.nextSibling);
+
+                btn.setAttribute('aria-expanded', 'true');
+            } catch (err) {
+                showToast('Failed to load tracklists: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
             }
         }
 

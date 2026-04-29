@@ -426,3 +426,186 @@ class TestRejectEndpoint:
             row = cur.fetchone()
             count = row[0] if not isinstance(row, dict) else row['count']
         assert count == 1
+
+
+# ---------------------------------------------------------------------------
+# Tracklists endpoint — side-by-side MB + Spotify comparison
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def mismatched_link_with_release_metadata(db):
+    """Same shape as `mismatched_link` but with both Spotify album ID
+    and MB release ID populated on the releases row — required for the
+    tracklists endpoint to have anything to fetch."""
+    _cleanup(db)
+    with db.cursor() as cur:
+        cur.execute(
+            "INSERT INTO songs (id, title) VALUES (%s, %s)",
+            (SONG_ID, "Tracklist Test Song"),
+        )
+        cur.execute(
+            "INSERT INTO releases "
+            "(id, title, artist_credit, musicbrainz_release_id, spotify_album_id) "
+            "VALUES (%s, %s, %s, %s, %s)",
+            (RELEASE_ID, "Tracklist Test Album", "Tracklist Test Artist",
+             'mb-release-uuid', 'sp-album-uuid'),
+        )
+        cur.execute(
+            "INSERT INTO recordings (id, song_id, title, duration_ms) "
+            "VALUES (%s, %s, %s, %s)",
+            (RECORDING_ID, SONG_ID, "Tracklist Test Recording", 240_000),
+        )
+        cur.execute(
+            "INSERT INTO recording_releases (id, recording_id, release_id) "
+            "VALUES (%s, %s, %s)",
+            (RR_ID, RECORDING_ID, RELEASE_ID),
+        )
+        cur.execute(
+            "INSERT INTO recording_release_streaming_links "
+            "(id, recording_release_id, service, service_id, service_url, "
+            " duration_ms, match_method) "
+            "VALUES (%s, %s, 'spotify', %s, %s, %s, 'fuzzy_search')",
+            (LINK_ID, RR_ID, 'sp-track-1',
+             'http://example.test/sp/track1', 600_000),
+        )
+    db.commit()
+    yield
+    _cleanup(db)
+
+
+class TestTracklistsEndpoint:
+    def test_returns_paired_tracklists(
+        self, client, admin_user, mismatched_link_with_release_metadata, mocker,
+    ):
+        # Mock the upstream fetches so the test doesn't hit MB or Spotify.
+        # MB shape: media[].tracks[] with title and length (ms).
+        mb_release = {
+            'media': [
+                {'position': 1, 'tracks': [
+                    {'position': 1, 'title': 'Track A', 'length': 200_000},
+                    {'position': 2, 'title': 'Track B', 'length': 350_000},
+                ]},
+            ],
+        }
+        mocker.patch(
+            'integrations.musicbrainz.utils.MusicBrainzSearcher.get_release_details',
+            return_value=mb_release,
+        )
+        mocker.patch(
+            'integrations.spotify.client.SpotifyClient.get_album_details',
+            return_value={
+                'name': 'Spotify Album Name',
+                'artists': [{'name': 'Spotify Artist 1'}, {'name': 'Spotify Artist 2'}],
+            },
+        )
+        mocker.patch(
+            'integrations.spotify.client.SpotifyClient.get_album_tracks',
+            return_value=[
+                {'id': 'sp-track-1', 'name': 'Track A',
+                 'track_number': 1, 'disc_number': 1,
+                 'duration_ms': 199_000,
+                 'artists': ['Spotify Artist 1'],
+                 'url': 'http://...'},
+                {'id': 'sp-track-2', 'name': 'Track B',
+                 'track_number': 2, 'disc_number': 1,
+                 'duration_ms': 351_000,
+                 'artists': ['Spotify Artist 1'],
+                 'url': 'http://...'},
+            ],
+        )
+
+        _login(client)
+        resp = client.get(
+            f"/admin/duration-mismatches/links/{LINK_ID}/tracklists",
+            headers={'Accept': 'application/json'},
+        )
+        assert resp.status_code == 200, resp.get_json()
+        body = resp.get_json()
+        assert body['success'] is True
+
+        # MB side
+        assert body['mb_release']['title'] == 'Tracklist Test Album'
+        assert body['mb_release']['artist_credit'] == 'Tracklist Test Artist'
+        assert body['mb_release']['mb_release_id'] == 'mb-release-uuid'
+        assert len(body['mb_release']['tracks']) == 2
+        assert body['mb_release']['tracks'][0]['title'] == 'Track A'
+        assert body['mb_release']['tracks'][0]['duration_ms'] == 200_000
+        assert body['mb_release']['tracks'][0]['duration_display'] == '3:20'
+
+        # Spotify side
+        assert body['spotify_album']['title'] == 'Spotify Album Name'
+        assert body['spotify_album']['artists'] == [
+            'Spotify Artist 1', 'Spotify Artist 2',
+        ]
+        assert body['spotify_album']['spotify_album_id'] == 'sp-album-uuid'
+        assert len(body['spotify_album']['tracks']) == 2
+        assert body['spotify_album']['tracks'][0]['name'] == 'Track A'
+        assert body['spotify_album']['tracks'][0]['duration_display'] == '3:19'
+        assert body['spotify_album']['tracks'][0]['spotify_track_id'] == 'sp-track-1'
+
+    def test_returns_empty_lists_when_release_lacks_external_ids(
+        self, client, admin_user, db,
+    ):
+        # Tracklists endpoint must still 200 when the release row has no
+        # MB ID and no Spotify album ID — admin sees empty panes rather
+        # than a hard error.
+        _cleanup(db)
+        with db.cursor() as cur:
+            cur.execute(
+                "INSERT INTO songs (id, title) VALUES (%s, %s)",
+                (SONG_ID, "Bare Song"),
+            )
+            cur.execute(
+                "INSERT INTO releases (id, title) VALUES (%s, %s)",
+                (RELEASE_ID, "Bare Release"),
+            )
+            cur.execute(
+                "INSERT INTO recordings (id, song_id, title, duration_ms) "
+                "VALUES (%s, %s, %s, %s)",
+                (RECORDING_ID, SONG_ID, "Rec", 240_000),
+            )
+            cur.execute(
+                "INSERT INTO recording_releases (id, recording_id, release_id) "
+                "VALUES (%s, %s, %s)",
+                (RR_ID, RECORDING_ID, RELEASE_ID),
+            )
+            cur.execute(
+                "INSERT INTO recording_release_streaming_links "
+                "(id, recording_release_id, service, service_id, service_url, "
+                " duration_ms) VALUES (%s, %s, 'spotify', %s, %s, %s)",
+                (LINK_ID, RR_ID, 'sp', 'http://x', 240_000),
+            )
+        db.commit()
+
+        _login(client)
+        try:
+            resp = client.get(
+                f"/admin/duration-mismatches/links/{LINK_ID}/tracklists",
+                headers={'Accept': 'application/json'},
+            )
+            assert resp.status_code == 200
+            body = resp.get_json()
+            assert body['mb_release']['mb_release_id'] is None
+            assert body['mb_release']['tracks'] == []
+            assert body['spotify_album']['spotify_album_id'] is None
+            assert body['spotify_album']['tracks'] == []
+        finally:
+            _cleanup(db)
+
+    def test_unknown_link_returns_404(self, client, admin_user):
+        _login(client)
+        bogus = "00000000-0000-4000-8000-3ffffffffff0"
+        resp = client.get(
+            f"/admin/duration-mismatches/links/{bogus}/tracklists",
+            headers={'Accept': 'application/json'},
+        )
+        assert resp.status_code == 404
+
+    def test_unauth_request_is_blocked(
+        self, client, mismatched_link_with_release_metadata,
+    ):
+        resp = client.get(
+            f"/admin/duration-mismatches/links/{LINK_ID}/tracklists",
+            headers={'Accept': 'application/json'},
+        )
+        assert resp.status_code in (401, 403)

@@ -3151,6 +3151,141 @@ def duration_mismatches_reject_link(link_id):
     })
 
 
+@admin_bp.route('/duration-mismatches/links/<link_id>/tracklists', methods=['GET'])
+def duration_mismatches_link_tracklists(link_id):
+    """Return the MB release tracklist + Spotify album tracklist paired
+    up for side-by-side comparison in the admin UI.
+
+    Click-to-expand panel on /admin/duration-mismatches/<song> calls this
+    so the admin can see exactly which MB track lines up to which
+    Spotify track without leaving the page. The data underneath powers
+    the existing Album Fit column too — same MB and Spotify API hits,
+    same on-disk caches.
+
+    Both upstream calls are cached on disk (multi-day TTL on the
+    SpotifyClient cache, MB cache via MusicBrainzSearcher), so first
+    expand per release pays the network round-trip and subsequent
+    expands are instant.
+    """
+    from integrations.spotify.client import SpotifyClient
+    from integrations.musicbrainz.utils import MusicBrainzSearcher
+
+    try:
+        with get_db_connection() as db:
+            with db.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT
+                        rel.id           AS release_id,
+                        rel.title        AS release_title,
+                        rel.artist_credit,
+                        rel.musicbrainz_release_id,
+                        rel.spotify_album_id
+                    FROM recording_release_streaming_links rrsl
+                    JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                    JOIN releases rel ON rel.id = rr.release_id
+                    WHERE rrsl.id = %s
+                      AND rrsl.service = 'spotify'
+                    """,
+                    (link_id,),
+                )
+                row = cur.fetchone()
+    except Exception as e:
+        logger.error(f"Error loading tracklists for link {link_id}: {e}")
+        return jsonify({'error': str(e)}), 500
+
+    if not row:
+        return jsonify({'error': 'Streaming link not found'}), 404
+
+    mb_release_id = row['musicbrainz_release_id']
+    spotify_album_id = row['spotify_album_id']
+    release_title = row['release_title']
+    release_artist_credit = row['artist_credit']
+
+    # MB side. Build a flat list of {disc, position, title, duration_ms}
+    # ordered by (disc, position). MB's `length` field is already in ms.
+    mb_tracks = []
+    if mb_release_id:
+        try:
+            mb_searcher = MusicBrainzSearcher()
+            mb_release = mb_searcher.get_release_details(mb_release_id)
+        except Exception:
+            logger.exception(
+                "tracklists: MB get_release_details failed for %s", mb_release_id,
+            )
+            mb_release = None
+
+        if mb_release:
+            for medium in mb_release.get('media', []):
+                disc_number = medium.get('position', 1)
+                for track in medium.get('tracks', []):
+                    raw_length = track.get('length')
+                    try:
+                        duration_ms = int(raw_length) if raw_length is not None else None
+                    except (TypeError, ValueError):
+                        duration_ms = None
+                    mb_tracks.append({
+                        'disc_number': disc_number,
+                        'position': track.get('position'),
+                        'title': track.get('title'),
+                        'duration_ms': duration_ms,
+                        'duration_display': _format_duration(duration_ms),
+                    })
+
+    # Spotify side. Album header (name + artists) + the full paginated
+    # tracklist (which already includes per-track artists, durations, and
+    # disc/track numbers thanks to the artists field we started capturing
+    # in 4f06d18).
+    spotify_album_title = None
+    spotify_album_artists = []
+    spotify_tracks = []
+    if spotify_album_id:
+        try:
+            spotify_client = SpotifyClient(logger=logger)
+            details = spotify_client.get_album_details(spotify_album_id)
+            tracks = spotify_client.get_album_tracks(spotify_album_id)
+        except Exception:
+            logger.exception(
+                "tracklists: Spotify fetch failed for album %s", spotify_album_id,
+            )
+            details = None
+            tracks = None
+
+        if details:
+            spotify_album_title = details.get('name')
+            spotify_album_artists = [
+                a.get('name') for a in (details.get('artists') or []) if a
+            ]
+        for track in tracks or []:
+            duration_ms = track.get('duration_ms')
+            spotify_tracks.append({
+                'disc_number': track.get('disc_number', 1),
+                'position': track.get('track_number'),
+                'name': track.get('name'),
+                'artists': track.get('artists') or [],
+                'duration_ms': duration_ms,
+                'duration_display': _format_duration(duration_ms),
+                'spotify_track_id': track.get('id'),
+            })
+
+    return jsonify({
+        'success': True,
+        'link_id': link_id,
+        'mb_release': {
+            'title': release_title,
+            'artist_credit': release_artist_credit,
+            'mb_release_id': mb_release_id,
+            'tracks': mb_tracks,
+        },
+        'spotify_album': {
+            'title': spotify_album_title,
+            'artists': spotify_album_artists,
+            'spotify_album_id': spotify_album_id,
+            'tracks': spotify_tracks,
+        },
+    })
+
+
 @admin_bp.route('/users')
 def users_list():
     """List user accounts with email search and pagination."""
