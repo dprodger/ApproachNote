@@ -22,6 +22,7 @@ from integrations.spotify.matching import (
     duration_adjusted_score,
     duration_confidence,
     extract_primary_artist,
+    has_version_keyword,
     is_compilation_artist,
     is_structural_title_match,
     is_substring_title_match,
@@ -168,6 +169,48 @@ class TestIsCompilationArtist:
     ])
     def test_detects_compilations(self, artist, expected):
         assert is_compilation_artist(artist) is expected
+
+
+class TestHasVersionKeyword:
+    """Production case: an MB recording titled "Peace (live at Newport
+    Jazz Festival)" was getting linked to a Spotify track titled just
+    "Peace" because the title-strip rescue lifted the score to 100%.
+    has_version_keyword() flags the asymmetric pair so
+    match_tracks_for_release can reject the link."""
+
+    @pytest.mark.parametrize("title,expected", [
+        # Clear version-distinguishing annotations
+        ("Peace (live at the Newport Jazz Festival)", True),
+        ("Take Five (Live)", True),
+        ("Body and Soul - Live", True),
+        ("Stella by Starlight (Demo)", True),
+        ("All The Things You Are (Alternate Take)", True),
+        ("Misty (Acoustic)", True),
+        ("So What (Instrumental)", True),
+        ("Stardust (Rehearsal)", True),
+        ("Round Midnight (Unplugged)", True),
+
+        # Cosmetic / edition annotations that DON'T indicate a different
+        # recording — these must NOT be flagged.
+        ("Take Five", False),
+        ("Take Five (Remastered)", False),
+        ("Take Five (Stereo Mix)", False),
+        ("Take Five (From \"A Connecticut Yankee\")", False),
+        ("Take Five [Ampico Piano Roll Recording]", False),
+        ("Take Five (2008 Remaster)", False),
+        ("Take Five (Mono Version)", False),
+
+        # Word-boundary discipline — substrings shouldn't false-positive
+        ("Olive Tree", False),
+        ("Alive Again", False),  # 'live' is inside 'alive'
+        ("Conversation", False),  # 'session' is inside (almost — let's confirm)
+
+        # Empty / null
+        ("", False),
+        (None, False),
+    ])
+    def test_classifies_titles(self, title, expected):
+        assert has_version_keyword(title) is expected
 
 
 class TestTrackArtistMatchesRecordingLeader:

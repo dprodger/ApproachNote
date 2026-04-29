@@ -176,6 +176,53 @@ def is_compilation_artist(artist_name: str) -> bool:
     return normalized in COMPILATION_ARTIST_PATTERNS
 
 
+# Annotations on a track title that signal a recording-level *version*
+# difference — not just remaster / stereo-mix / "from [show]" cosmetic
+# noise. If one side of a candidate match has any of these and the
+# other side has none, the two sides are recordings of the same SONG
+# but different PERFORMANCES, and the matcher should not link them
+# even when title-strip-rescue lifts the score to 100%.
+#
+# Each entry is a substring matched case-insensitively after
+# normalize_for_comparison, with word boundaries enforced where it
+# matters (e.g. avoid matching "live" inside "olive" — see
+# has_version_keyword for the regex).
+_VERSION_KEYWORDS = (
+    'live',
+    'demo',
+    'alternate',
+    'alt take',
+    'rehearsal',
+    'instrumental',
+    'acoustic',
+    'unplugged',
+    'session',
+)
+
+_VERSION_KEYWORD_RE = re.compile(
+    r'\b(?:' + '|'.join(re.escape(kw) for kw in _VERSION_KEYWORDS) + r')\b',
+    re.IGNORECASE,
+)
+
+
+def has_version_keyword(title: str) -> bool:
+    """True when `title` contains a recording-level version annotation
+    (live, demo, alternate take, instrumental, acoustic, etc.).
+
+    Used by match_tracks_for_release to reject asymmetric matches —
+    e.g. an MB recording titled "Peace (live at Newport)" matched to a
+    Spotify track titled just "Peace" — because the title-strip rescue
+    in calculate_similarity will happily lift such pairs to 100% even
+    though they're different recordings.
+
+    Word-boundary matching avoids false positives on substrings like
+    "olive" / "alive" containing "live".
+    """
+    if not title:
+        return False
+    return bool(_VERSION_KEYWORD_RE.search(title))
+
+
 def track_artist_matches_recording_leader(
     recording_leader: str,
     track_artists: list,

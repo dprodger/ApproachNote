@@ -32,6 +32,7 @@ from integrations.spotify.matching import (
     extract_primary_artist,
     duration_confidence,
     check_album_context_via_tracklist,
+    has_version_keyword,
     is_compilation_artist,
     match_track_to_recording,
     track_artist_matches_recording_leader,
@@ -719,6 +720,32 @@ class SpotifyMatcher:
                                     dry_run=self.dry_run, log=self.logger)
                             self.stats['tracks_no_match'] += 1
                             continue
+
+                # Version-keyword asymmetry rejection. The strip-rescue in
+                # calculate_similarity will lift a pair like "Peace (live at
+                # Newport)" vs "Peace" to 100%, but those are recordings of
+                # the same SONG, not the same recording. When one side
+                # contains a version-distinguishing keyword (live, demo,
+                # alternate, instrumental, etc.) and the other doesn't,
+                # they're different recordings and we should not link
+                # them — even if title score and album fit are otherwise
+                # decent. Cosmetic annotations like "Remastered" /
+                # "(From '...')" are NOT in _VERSION_KEYWORDS so they
+                # remain accepted.
+                query_has_version = has_version_keyword(track_title)
+                candidate_has_version = has_version_keyword(matched_track['name'])
+                if query_has_version != candidate_has_version:
+                    self.logger.info(
+                        f"      Rejecting version-asymmetric match: "
+                        f"'{track_title}' (version-keyword={query_has_version}) → "
+                        f"'{matched_track['name']}' (version-keyword={candidate_has_version})"
+                    )
+                    if recording.get('spotify_track_id'):
+                        clear_recording_release_track(
+                            conn, recording['recording_id'], release_id,
+                            dry_run=self.dry_run, log=self.logger)
+                    self.stats['tracks_no_match'] += 1
+                    continue
 
                 match_method = 'album_context' if rescued else 'fuzzy_search'
                 update_recording_release_track_id(
