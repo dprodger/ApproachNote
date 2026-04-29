@@ -1,0 +1,124 @@
+# Render Blueprint for Approach Note
+# https://render.com/docs/blueprint-spec
+#
+# This file describes the production deployment: a web service (Flask API)
+# and a worker service (research_worker) that processes background jobs.
+# The worker service is the one that holds the Apple Music catalog on a
+# persistent disk; the catalog is downloaded by the chained
+# `apple/refresh_catalog` job (see backend/integrations/apple_music/refresh.py).
+#
+# ---------------------------------------------------------------------------
+# How to apply this for the first time
+# ---------------------------------------------------------------------------
+# If services already exist in your Render dashboard:
+#   1. Service names below MUST match what's in the dashboard, OR
+#   2. Use the "New > Blueprint" flow to convert (Render will offer to link
+#      the existing services).
+#
+# After linking the Blueprint, set every `sync: false` env var via the
+# Render dashboard (these are secrets, not committed here). The values
+# you should already have in your local backend/.env are the ones to copy.
+#
+# The persistent disk on the worker (100 GB) is the new piece for issue 162.
+# Render plans: persistent disks require Standard or higher. The Apple
+# catalog (parquet + DuckDB index) needs ~80 GB; 100 GB leaves headroom.
+#
+# ---------------------------------------------------------------------------
+# Bootstrap the catalog after deploy
+# ---------------------------------------------------------------------------
+# 1. Confirm worker shows the disk at /data:
+#       render shell -s approachnote-research-worker  (or web shell)
+#       df -h /data
+# 2. Confirm Apple credentials are set on the worker:
+#       env | grep APPLE_
+# 3. Open https://api.approachnote.com/admin/apple-music-catalog and click
+#    "Refresh catalog now". The chain runs:
+#       albums (~30 GB)  →  songs (~40 GB)  →  artists (~6 GB)  →  rebuild_index
+#    Watch the "Recent Refresh Activity" panel for status.
+
+services:
+  # ===========================================================================
+  # Flask API
+  # ===========================================================================
+  - type: web
+    name: approachnote-api
+    runtime: python
+    plan: standard               # adjust to match your current plan
+    region: ohio
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -c gunicorn.conf.py app:app
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DB_USE_POOLING
+        value: "true"
+      # --- secrets (set in dashboard) ---
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false
+      - key: SENDGRID_API_KEY
+        sync: false
+      # Apple Music Feed (also needed on the web side if any admin route
+      # needs to read credentials; if not, these can be worker-only).
+      - key: APPLE_MEDIA_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+
+  # ===========================================================================
+  # Research worker — processes background jobs from research_jobs.
+  # Owns the Apple Music catalog disk.
+  # ===========================================================================
+  - type: worker
+    name: approachnote-research-worker
+    runtime: python
+    plan: standard               # required for persistent disk
+    region: ohio                 # MUST match the web service's region
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m research_worker.run
+    disk:
+      name: apple-catalog
+      mountPath: /data
+      sizeGB: 100
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.0
+      - key: DB_USE_POOLING
+        value: "true"
+      - key: RESEARCH_WORKER_LOG_LEVEL
+        value: INFO
+      # Catalog lives on the persistent disk; both the parquet tree and the
+      # DuckDB index sit under /data so they survive restarts.
+      - key: APPLE_MUSIC_CATALOG_DIR
+        value: /data/apple_music_catalog
+      - key: APPLE_MUSIC_CATALOG_DB
+        value: /data/apple_music_catalog.duckdb
+      # --- secrets (set in dashboard) ---
+      - key: DATABASE_URL
+        sync: false
+      # Apple Developer credentials for the Feed API (the .p8 private key
+      # is delivered as a Render Secret File; see APPLE_PRIVATE_KEY_PATH).
+      - key: APPLE_MEDIA_ID
+        sync: false
+      - key: APPLE_KEY_ID
+        sync: false
+      - key: APPLE_TEAM_ID
+        sync: false
+      - key: APPLE_PRIVATE_KEY_PATH
+        # Set this to the path Render mounts your secret file at, e.g.
+        # /etc/secrets/AuthKey_XXXXXXXXXX.p8
+        sync: false
+      - key: SPOTIFY_CLIENT_ID
+        sync: false
+      - key: SPOTIFY_CLIENT_SECRET
+        sync: false

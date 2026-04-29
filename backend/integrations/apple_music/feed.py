@@ -55,8 +55,20 @@ FEEDS = {
     'songs': 'song',
 }
 
-# Default storage location for downloaded catalog data
-DEFAULT_CATALOG_DIR = Path(__file__).parent / "data" / "apple_music_catalog"
+# Default storage location for downloaded catalog data. Override with
+# APPLE_MUSIC_CATALOG_DIR — points the worker at the persistent disk on
+# Render (e.g. /data/apple_music_catalog).
+_FALLBACK_CATALOG_DIR = Path(__file__).parent / "data" / "apple_music_catalog"
+
+
+def _resolve_catalog_dir() -> Path:
+    env_override = os.environ.get('APPLE_MUSIC_CATALOG_DIR')
+    return Path(env_override) if env_override else _FALLBACK_CATALOG_DIR
+
+
+# Resolved at import time. Tests patch the env var before import; runtime
+# code that needs the live value should call _resolve_catalog_dir() instead.
+DEFAULT_CATALOG_DIR = _resolve_catalog_dir()
 
 
 class AppleMusicFeedError(Exception):
@@ -106,7 +118,7 @@ class AppleMusicFeedClient:
         self.private_key_path = private_key_path or os.environ.get('APPLE_PRIVATE_KEY_PATH')
         self.key_id = key_id or os.environ.get('APPLE_KEY_ID')
         self.team_id = team_id or os.environ.get('APPLE_TEAM_ID')
-        self.catalog_dir = catalog_dir or DEFAULT_CATALOG_DIR
+        self.catalog_dir = catalog_dir or _resolve_catalog_dir()
         self.log = logger or logging.getLogger(__name__)
 
         self._private_key = None
@@ -557,8 +569,9 @@ class AppleMusicCatalog:
         export APPLE_MUSIC_CATALOG_DB="md:apple_music_feed"
     """
 
-    # Default indexed database path
-    DEFAULT_DB_PATH = DEFAULT_CATALOG_DIR.parent / "apple_music_catalog.duckdb"
+    # Default indexed database path. Sits next to the catalog dir so a
+    # persistent-disk mount holds parquet + duckdb together.
+    DEFAULT_DB_PATH = _resolve_catalog_dir().parent / "apple_music_catalog.duckdb"
 
     def __init__(
         self,
@@ -577,7 +590,7 @@ class AppleMusicCatalog:
         if not DUCKDB_AVAILABLE:
             raise ImportError("duckdb is required. Install with: pip install duckdb")
 
-        self.catalog_dir = Path(catalog_dir or DEFAULT_CATALOG_DIR)
+        self.catalog_dir = Path(catalog_dir or _resolve_catalog_dir())
         self.log = logger or logging.getLogger(__name__)
 
         # Check for MotherDuck or custom DB path via env var or parameter

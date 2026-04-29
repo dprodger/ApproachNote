@@ -33,15 +33,17 @@ _EXPECTED_TABLES = ('songs', 'albums', 'artists')
 def get_catalog_status() -> dict[str, Any]:
     """Top-level entry point used by the admin route.
 
-    Returns a dict with four sections — `configuration`, `connectivity`,
-    `freshness`, `row_counts`. Each section's failure is contained
-    within that section's `error` field rather than bubbling up.
+    Returns a dict with five sections — `configuration`, `connectivity`,
+    `freshness`, `row_counts`, `recent_refresh_jobs`. Each section's
+    failure is contained within that section's `error` field rather
+    than bubbling up.
     """
     return {
-        'configuration': _gather_configuration(),
-        'connectivity':  _gather_connectivity(),
-        'freshness':     _gather_freshness(),
-        'row_counts':    _gather_row_counts(),
+        'configuration':       _gather_configuration(),
+        'connectivity':        _gather_connectivity(),
+        'freshness':           _gather_freshness(),
+        'row_counts':          _gather_row_counts(),
+        'recent_refresh_jobs': _gather_recent_refresh_jobs(),
     }
 
 
@@ -56,6 +58,7 @@ def _gather_configuration() -> dict[str, Any]:
     """
     motherduck_token_set = bool(os.environ.get('MOTHERDUCK_TOKEN'))
     catalog_db_override = os.environ.get('APPLE_MUSIC_CATALOG_DB')
+    catalog_dir_override = os.environ.get('APPLE_MUSIC_CATALOG_DIR')
 
     # Resolve the "would-be" db path the same way AppleMusicCatalog does.
     try:
@@ -90,6 +93,7 @@ def _gather_configuration() -> dict[str, Any]:
         'details': details,
         'motherduck_token_set': motherduck_token_set,
         'catalog_db_override': catalog_db_override,
+        'catalog_dir_override': catalog_dir_override,
         'default_db_path': str(default_db_path),
         'default_db_path_exists': Path(default_db_path).exists(),
     }
@@ -214,3 +218,62 @@ def _gather_row_counts() -> dict[str, Any]:
         pass
 
     return {'error': None, 'tables': counts, 'mode': 'indexed'}
+
+
+# ---------------------------------------------------------------------------
+# 5. Recent refresh-chain activity
+# ---------------------------------------------------------------------------
+
+# job_types that make up the refresh chain. Same set the apple_catalog
+# handler uses; duplicated here to avoid importing the worker module from
+# the web app.
+_REFRESH_JOB_TYPES = ('refresh_catalog', 'rebuild_index')
+
+
+def _gather_recent_refresh_jobs(limit: int = 12) -> dict[str, Any]:
+    """Return the last few apple/refresh_catalog + apple/rebuild_index rows.
+
+    Powers the dashboard's "Recent refresh activity" panel and lets the
+    operator see whether a chain is in flight, where it stalled, or when
+    the last successful run finished.
+    """
+    try:
+        from db_utils import get_db_connection
+    except Exception as e:
+        return {'error': f'db import failed: {e}', 'jobs': None}
+
+    sql = """
+        SELECT id, source, job_type, status, priority, attempts, max_attempts,
+               payload, result, last_error,
+               created_at, claimed_at, finished_at, run_after
+        FROM research_jobs
+        WHERE source = 'apple'
+          AND job_type = ANY(%s)
+        ORDER BY created_at DESC
+        LIMIT %s
+    """
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (list(_REFRESH_JOB_TYPES), limit))
+                rows = cur.fetchall()
+    except Exception as e:
+        return {'error': str(e), 'jobs': None}
+
+    jobs = []
+    for row in rows:
+        jobs.append({
+            'id': row['id'],
+            'job_type': row['job_type'],
+            'feed': (row.get('payload') or {}).get('feed'),
+            'status': row['status'],
+            'attempts': row['attempts'],
+            'max_attempts': row['max_attempts'],
+            'created_at': row['created_at'].isoformat() if row['created_at'] else None,
+            'claimed_at': row['claimed_at'].isoformat() if row['claimed_at'] else None,
+            'finished_at': row['finished_at'].isoformat() if row['finished_at'] else None,
+            'last_error': row.get('last_error'),
+            'result': row.get('result'),
+        })
+
+    return {'error': None, 'jobs': jobs}

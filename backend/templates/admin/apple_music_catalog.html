@@ -115,7 +115,52 @@
     {% include 'admin/_nav.html' %}
     <div class="container">
         <h1>Apple Music DuckDB Catalog</h1>
-        <p class="subtitle">Read-only status snapshot. Each section is gathered independently — a failure in one (e.g. MotherDuck offline) does not blank out the others.</p>
+        <p class="subtitle">Status snapshot + manual refresh trigger. Each section below is gathered independently — a failure in one (e.g. MotherDuck offline) does not blank out the others.</p>
+
+        <!-- Refresh trigger -->
+        <div class="card" style="margin-bottom: 16px;">
+            <h2>Catalog Refresh</h2>
+            <p style="font-size: 13px; color: #555; margin-bottom: 12px;">
+                Kicks off the chained job: <strong>albums → songs → artists → rebuild_index</strong>.
+                Runs on the research worker. Only one chain can be in flight at a time;
+                clicking again while one is running returns the existing job id.
+            </p>
+            <button id="refresh-btn" type="button"
+                    style="background: #0070c9; color: #fff; border: 0; padding: 10px 18px;
+                           border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;">
+                Refresh catalog now
+            </button>
+            <div id="refresh-result" style="margin-top: 12px; font-size: 13px;"></div>
+        </div>
+
+        <script>
+            document.getElementById('refresh-btn').addEventListener('click', async function () {
+                const btn = this;
+                const out = document.getElementById('refresh-result');
+                btn.disabled = true;
+                btn.textContent = 'Enqueuing…';
+                out.textContent = '';
+                try {
+                    const resp = await fetch('/admin/apple-music-catalog/refresh', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                    });
+                    const data = await resp.json();
+                    if (resp.ok) {
+                        out.innerHTML = '<span class="pill pill-ok">Enqueued</span> '
+                            + 'Job id <strong>' + data.job_id + '</strong> — first step: '
+                            + data.started + '. Reload to see progress.';
+                    } else {
+                        out.innerHTML = '<span class="pill pill-error">Failed</span> ' + (data.error || resp.statusText);
+                    }
+                } catch (e) {
+                    out.innerHTML = '<span class="pill pill-error">Error</span> ' + e.message;
+                } finally {
+                    btn.disabled = false;
+                    btn.textContent = 'Refresh catalog now';
+                }
+            });
+        </script>
 
         <div class="grid">
             <!-- Configuration -->
@@ -150,6 +195,8 @@
                         </dd>
                         <dt>APPLE_MUSIC_CATALOG_DB</dt>
                         <dd>{{ cfg.catalog_db_override or '—' }}</dd>
+                        <dt>APPLE_MUSIC_CATALOG_DIR</dt>
+                        <dd>{{ cfg.catalog_dir_override or '—' }}</dd>
                         <dt>Default DB path</dt>
                         <dd>
                             {{ cfg.default_db_path }}
@@ -266,6 +313,66 @@
                                     {% else %}
                                         <span class="pill pill-ok">OK</span>
                                     {% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
+
+        <!-- Recent refresh activity -->
+        <div class="card" style="margin-top: 16px;">
+            <h2>Recent Refresh Activity</h2>
+            {% set rj = status.recent_refresh_jobs %}
+            {% if rj.error %}
+                <div class="error-block">{{ rj.error }}</div>
+            {% elif not rj.jobs %}
+                <p class="empty">No refresh jobs have ever been enqueued.</p>
+            {% else %}
+                <table class="feeds">
+                    <thead>
+                        <tr>
+                            <th>Job ID</th>
+                            <th>Step</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Finished</th>
+                            <th class="numeric">Attempts</th>
+                            <th>Last Error</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for j in rj.jobs %}
+                            <tr>
+                                <td><strong>{{ j.id }}</strong></td>
+                                <td>
+                                    {% if j.job_type == 'rebuild_index' %}
+                                        rebuild_index
+                                    {% else %}
+                                        refresh_catalog/{{ j.feed or '?' }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if j.status == 'done' %}
+                                        <span class="pill pill-ok">done</span>
+                                    {% elif j.status == 'running' %}
+                                        <span class="pill pill-warn">running</span>
+                                    {% elif j.status == 'queued' %}
+                                        <span class="pill pill-neutral">queued</span>
+                                    {% elif j.status == 'failed' %}
+                                        <span class="pill pill-warn">failed</span>
+                                    {% elif j.status == 'dead' %}
+                                        <span class="pill pill-error">dead</span>
+                                    {% else %}
+                                        <span class="pill pill-neutral">{{ j.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ j.created_at or '—' }}</td>
+                                <td>{{ j.finished_at or '—' }}</td>
+                                <td class="numeric">{{ j.attempts }}/{{ j.max_attempts }}</td>
+                                <td style="font-family: 'SF Mono', monospace; font-size: 11px; color: #6e1f1f; max-width: 360px; word-break: break-word;">
+                                    {{ j.last_error or '' }}
                                 </td>
                             </tr>
                         {% endfor %}

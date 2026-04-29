@@ -44,6 +44,7 @@ from research_worker.registry import HANDLERS  # noqa: E402
 from research_worker.handlers import youtube as _youtube_handler  # noqa: E402, F401
 from research_worker.handlers import spotify as _spotify_handler  # noqa: E402, F401
 from research_worker.handlers import apple as _apple_handler      # noqa: E402, F401
+from research_worker.handlers import apple_catalog as _apple_catalog_handler  # noqa: E402, F401
 
 
 logger = logging.getLogger(__name__)

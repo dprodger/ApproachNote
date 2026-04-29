@@ -1657,15 +1657,36 @@ def run_matcher_all():
 def apple_music_catalog_status():
     """Read-only status snapshot of the Apple Music DuckDB catalog
     (typically hosted on MotherDuck). Reports backing-store mode,
-    SELECT 1 round-trip latency, per-feed export freshness, and
-    per-table row counts. See core/apple_catalog_status.py for the
-    section-by-section gather implementation."""
+    SELECT 1 round-trip latency, per-feed export freshness, per-table
+    row counts, and recent refresh-chain activity. See
+    core/apple_catalog_status.py for the section-by-section gather
+    implementation."""
     from core.apple_catalog_status import get_catalog_status
     status = get_catalog_status()
     return render_template(
         'admin/apple_music_catalog.html',
         status=status,
     )
+
+
+@admin_bp.route('/apple-music-catalog/refresh', methods=['POST'])
+def apple_music_catalog_refresh():
+    """Enqueue the chained refresh job (albums → songs → artists →
+    rebuild_index). The dedup index on research_jobs ensures only one
+    chain can be in flight at a time; a duplicate POST returns the
+    existing job's id."""
+    from integrations.apple_music.refresh import enqueue_refresh_chain
+    try:
+        job_id = enqueue_refresh_chain()
+    except Exception as e:
+        logger.exception("Failed to enqueue Apple catalog refresh")
+        return jsonify({'error': str(e)}), 500
+
+    if job_id is None:
+        return jsonify({'error': 'enqueue collapsed without an id'}), 500
+
+    logger.info(f"Enqueued Apple catalog refresh chain; first job id={job_id}")
+    return jsonify({'job_id': job_id, 'started': 'albums'}), 202
 
 
 # ============================================================================
