@@ -1111,6 +1111,15 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
     # preference, only the duration tiebreaker decides — and small
     # duration ambiguities pick the wrong track.
     best_was_exact = False
+    # Position match — same (disc, track) on MB and Spotify — is a
+    # stronger signal than duration when title scores tie. Real case: a
+    # release with TWO recordings of the same song titled "My Heart
+    # Stood Still" at positions 1-7 and 1-20 (different durations) had
+    # its assignments crossed because duration is a ±5-point soft
+    # tiebreaker that flips on small differences. Position info is
+    # authoritative when both sides agree on it, so we use it as the
+    # next tier after exact-title and before duration.
+    best_was_position_match = False
 
     # Build set of blocked track IDs for this song (more efficient than per-track DB calls)
     blocked_track_ids = set()
@@ -1122,8 +1131,17 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
 
     def _consider(track, query_title: str) -> bool:
         """Score `track` against `query_title`; update best_match in place
-        if it wins. Returns True when this candidate became the new best."""
-        nonlocal best_match, best_score, best_was_exact
+        if it wins. Returns True when this candidate became the new best.
+
+        Tiebreaker tiers, in priority order:
+          1. structural-exact-title match (a candidate exactly matches
+             the query in normalised structural terms — see
+             is_structural_title_match)
+          2. position match — disc and track both equal the MB row's
+             expected position
+          3. duration-adjusted title score
+        """
+        nonlocal best_match, best_score, best_was_exact, best_was_position_match
 
         is_exact = is_structural_title_match(query_title, track['name'])
 
@@ -1146,16 +1164,35 @@ def match_track_to_recording(log: logging.Logger, stats: dict,
         adjusted_score = duration_adjusted_score(
             title_score, expected_duration_ms, track.get('duration_ms'))
 
-        # Exact-normalized-match always preferred over non-exact, regardless
-        # of score/duration. Among exacts, the higher adjusted score wins
-        # (so a closer-duration exact match beats a farther one). Among
-        # non-exacts, same rule — score+duration decides as before.
-        if is_exact and not best_was_exact:
-            best_match = track
-            best_score = adjusted_score
-            best_was_exact = True
-            return True
-        if is_exact == best_was_exact and adjusted_score > best_score:
+        is_position_match = (
+            expected_disc is not None
+            and expected_track is not None
+            and track.get('disc_number') == expected_disc
+            and track.get('track_number') == expected_track
+        )
+
+        # Tier 1 — structural exact beats inexact unconditionally.
+        if is_exact != best_was_exact:
+            if is_exact:
+                best_match = track
+                best_score = adjusted_score
+                best_was_exact = True
+                best_was_position_match = is_position_match
+                return True
+            return False
+
+        # Tier 2 — within an exactness group, position match wins.
+        if is_position_match != best_was_position_match:
+            if is_position_match:
+                best_match = track
+                best_score = adjusted_score
+                best_was_position_match = True
+                return True
+            return False
+
+        # Tier 3 — same exactness AND same position-match status:
+        # higher duration-adjusted score wins.
+        if adjusted_score > best_score:
             best_match = track
             best_score = adjusted_score
             return True

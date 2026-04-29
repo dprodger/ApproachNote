@@ -595,6 +595,65 @@ class TestMatchTrackToRecording:
         )
         assert match is not None and match['id'] == 'opening'
 
+    def test_position_match_breaks_tie_for_same_title_at_different_positions(self):
+        """Issue: a release with TWO recordings of the same song at
+        different positions (e.g. "My Heart Stood Still" at 1-7 and
+        1-20, both also on Spotify) was getting the assignments crossed.
+        With identical titles both candidates score 100%, and duration
+        is a ±5 soft signal — a stale or coincidentally-close duration
+        could flip the assignment.
+
+        After the fix, an MB recording at position 1-7 picks the Spotify
+        track also at 1-7 even when duration alone would prefer 1-20."""
+        tracks = [
+            _track('sp17', 'My Heart Stood Still',
+                   disc=1, track=7, duration_ms=165_000),
+            _track('sp120', 'My Heart Stood Still',
+                   disc=1, track=20, duration_ms=79_000),
+        ]
+
+        # MB recording at 1-7. Even with a misleading duration that's
+        # CLOSER to sp120 than to sp17, the position match should still
+        # pull sp17 in.
+        match = match_track_to_recording(
+            log, {}, 85, "My Heart Stood Still", tracks,
+            expected_disc=1, expected_track=7,
+            expected_duration_ms=80_000,  # clearly favours sp120 by duration
+        )
+        assert match is not None and match['id'] == 'sp17', (
+            "Position 1-7 on MB should pick the Spotify track at 1-7, "
+            "even when duration alone would favour the 1-20 candidate"
+        )
+
+        # Symmetric case for the other recording.
+        match = match_track_to_recording(
+            log, {}, 85, "My Heart Stood Still", tracks,
+            expected_disc=1, expected_track=20,
+            expected_duration_ms=164_000,  # favours sp17 by duration
+        )
+        assert match is not None and match['id'] == 'sp120'
+
+    def test_position_tiebreaker_does_not_override_inexact_vs_exact(self):
+        # Defensive: if one candidate is structural-exact and the other
+        # is at the matching position but only fuzzy-matches, the exact
+        # title still wins. Position is a tiebreaker WITHIN an
+        # exactness tier, not above it.
+        tracks = [
+            _track('exact_off_position', 'Take Five',
+                   disc=1, track=99, duration_ms=300_000),
+            _track('inexact_at_position', 'Take Five (Live at Carnegie Hall)',
+                   disc=1, track=1, duration_ms=300_000),
+        ]
+        match = match_track_to_recording(
+            log, {}, 85, "Take Five", tracks,
+            expected_disc=1, expected_track=1,
+            expected_duration_ms=300_000,
+        )
+        # 'inexact_at_position' is at the right position but its title
+        # carries an extra qualifier — it's NOT structural-exact. The
+        # off-position exact-title candidate should win on tier 1.
+        assert match is not None and match['id'] == 'exact_off_position'
+
     def test_exact_match_preference_does_not_override_score_threshold(self):
         # An exact-match candidate must still clear the title-similarity
         # threshold to be considered. (Defensive: we don't want the exact-
