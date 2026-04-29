@@ -258,9 +258,14 @@ def get_releases_with_duration_mismatches(song_id: str, threshold_ms: int = 6000
                 JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
                 WHERE rec.song_id = %s
-                  AND rec.duration_ms IS NOT NULL
+                  -- Prefer the per-release track_length_ms (set by the MB
+                  -- importer when MB has it), fall back to the recording's
+                  -- canonical length. Lets us catch wrong-track matches
+                  -- without falsely flagging "recording shipped as an
+                  -- edited cut on this compilation" cases.
+                  AND COALESCE(rr.track_length_ms, rec.duration_ms) IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
-                  AND ABS(rec.duration_ms - rrsl.duration_ms) > %s
+                  AND ABS(COALESCE(rr.track_length_ms, rec.duration_ms) - rrsl.duration_ms) > %s
                   -- Skip rows the admin has manually verified — they're
                   -- intentionally locked to this Spotify track even when the
                   -- duration would otherwise look mismatched.
@@ -306,9 +311,9 @@ def get_songs_with_duration_mismatches(threshold_ms: int = 60000) -> List[dict]:
                 JOIN recording_releases rr ON rr.recording_id = rec.id
                 JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
-                WHERE rec.duration_ms IS NOT NULL
+                WHERE COALESCE(rr.track_length_ms, rec.duration_ms) IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
-                  AND ABS(rec.duration_ms - rrsl.duration_ms) > %s
+                  AND ABS(COALESCE(rr.track_length_ms, rec.duration_ms) - rrsl.duration_ms) > %s
                   -- Skip admin-verified matches; see get_releases_with_duration_mismatches.
                   AND (rrsl.match_method IS NULL OR rrsl.match_method != 'manual')
                 ORDER BY s.title
@@ -365,6 +370,14 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
         name to keep this query stable). The matcher uses it to validate
         track-level artists on compilation-album matches, where the
         album-level artist check (Various Artists) carries no signal.
+
+        `recording_duration_ms` is the release-specific track length when
+        MB provided one (recording_releases.track_length_ms), otherwise
+        the recording's canonical duration. The matcher uses it as the
+        "expected" duration when scoring Spotify candidates — preferring
+        the release-specific value avoids treating a 9:26 live recording
+        shipped as a 5:50 single edit on a compilation as a duration
+        mismatch when matching against Spotify's 5:49 cut.
     """
     def _execute(c):
         with c.cursor() as cur:
@@ -377,7 +390,7 @@ def get_recordings_for_release(song_id: str, release_id: str, conn=None) -> List
                     rr.disc_number,
                     rr.track_number,
                     rrsl.service_id as spotify_track_id,
-                    rec.duration_ms as recording_duration_ms,
+                    COALESCE(rr.track_length_ms, rec.duration_ms) as recording_duration_ms,
                     (
                         SELECT p.name
                         FROM recording_performers rp

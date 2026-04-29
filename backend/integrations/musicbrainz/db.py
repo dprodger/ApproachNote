@@ -413,11 +413,19 @@ def link_recording_to_release(
     Insert a recording_releases row, finding track/disc position by matching
     the MB recording ID inside the MB release's media/tracks tree. Also sets
     default_release_id on the recording if it was unset.
+
+    track_length_ms is captured from the MB track's `length` field, which can
+    differ from the recording's canonical length when the release uses an
+    edited cut — e.g. a 9:26 live recording shipped as a 5:50 single edit on
+    a compilation. Storing it per-junction-row lets duration comparisons in
+    the matcher and admin UI use the release-specific value when present
+    and fall back to recordings.duration_ms when MB doesn't provide one.
     """
     log = log or _logger
 
     track_number = None
     disc_number = None
+    track_length_ms = None
 
     media = mb_release.get('media') or mb_release.get('medium-list') or []
     for medium in media:
@@ -434,7 +442,18 @@ def link_recording_to_release(
                 # vinyl-style label like "A6" so we don't use it.
                 track_number = track.get('position')
                 disc_number = medium_position
-                log.debug(f"      Found track position: disc {disc_number}, track {track_number}")
+                # MB returns length as a string of milliseconds in some
+                # client wrappers and as an int in others — accept both.
+                raw_length = track.get('length')
+                if raw_length is not None:
+                    try:
+                        track_length_ms = int(raw_length)
+                    except (TypeError, ValueError):
+                        track_length_ms = None
+                log.debug(
+                    f"      Found track position: disc {disc_number}, "
+                    f"track {track_number}, length {track_length_ms}ms"
+                )
                 break
 
         if track_number is not None:
@@ -444,10 +463,21 @@ def link_recording_to_release(
         log.debug(f"      Could not find track position for recording {mb_recording_id[:8]}")
 
     with conn.cursor() as cur:
+        # Refresh track_number / disc_number / track_length_ms on re-import
+        # when MB has new data — the unique key is (recording_id, release_id),
+        # the rest is metadata we want to keep current. Skipping the update
+        # if MB didn't return a value for a field (track_length_ms COALESCE)
+        # avoids clobbering a previously-good value with NULL when a partial
+        # response comes back.
         cur.execute("""
-            INSERT INTO recording_releases (recording_id, release_id, track_number, disc_number)
-            VALUES (%s, %s, %s, %s)
-            ON CONFLICT (recording_id, release_id) DO NOTHING
-        """, (recording_id, release_id, track_number, disc_number))
+            INSERT INTO recording_releases
+                (recording_id, release_id, track_number, disc_number,
+                 track_length_ms)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (recording_id, release_id) DO UPDATE SET
+                track_number    = COALESCE(EXCLUDED.track_number,    recording_releases.track_number),
+                disc_number     = COALESCE(EXCLUDED.disc_number,     recording_releases.disc_number),
+                track_length_ms = COALESCE(EXCLUDED.track_length_ms, recording_releases.track_length_ms)
+        """, (recording_id, release_id, track_number, disc_number, track_length_ms))
 
         maybe_set_default_release(cur, recording_id, release_id)

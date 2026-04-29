@@ -2788,6 +2788,13 @@ def duration_mismatches_list():
 
     with get_db_connection() as db:
         with db.cursor() as cur:
+            # Prefer rr.track_length_ms (the per-release track duration)
+            # when MB provided it, falling back to r.duration_ms (the
+            # canonical recording length). MB allows the same recording_id
+            # to ship on multiple releases with different track lengths —
+            # e.g. a 9:26 live recording on a compilation as a 5:50 edit.
+            # Comparing Spotify's edit-length to the canonical length
+            # would falsely flag every such case as a mismatch.
             cur.execute(f"""
                 SELECT
                     s.id AS song_id,
@@ -2795,16 +2802,16 @@ def duration_mismatches_list():
                     s.composer,
                     COUNT(DISTINCT r.id) AS total_recordings,
                     COUNT(rrsl.id) AS mismatch_count,
-                    MAX(ABS(r.duration_ms - rrsl.duration_ms)) AS max_diff_ms
+                    MAX(ABS(COALESCE(rr.track_length_ms, r.duration_ms) - rrsl.duration_ms)) AS max_diff_ms
                 FROM songs s
                 JOIN recordings r ON r.song_id = s.id
                 JOIN recording_releases rr ON rr.recording_id = r.id
                 JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id
                     AND rrsl.service = 'spotify'
-                WHERE r.duration_ms IS NOT NULL
+                WHERE COALESCE(rr.track_length_ms, r.duration_ms) IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
-                  AND ABS(r.duration_ms - rrsl.duration_ms) > %s
+                  AND ABS(COALESCE(rr.track_length_ms, r.duration_ms) - rrsl.duration_ms) > %s
                   {manual_filter}
                 GROUP BY s.id, s.title, s.composer
                 ORDER BY {order_col} {order_dir}, s.title ASC
@@ -2870,6 +2877,12 @@ def duration_mismatches_review(song_id):
                 return "Song not found", 404
             song = dict(song)
 
+            # COALESCE strategy mirrors the list page above: prefer the
+            # release-specific track_length_ms when MB has it, fall back
+            # to the recording's canonical duration. We also surface the
+            # raw track_length_ms separately so the template can hint to
+            # the admin when these two diverge (i.e. MB knows the release
+            # uses an edited cut).
             cur.execute(f"""
                 SELECT
                     r.id AS recording_id,
@@ -2886,6 +2899,8 @@ def duration_mismatches_review(song_id):
                     rr.id AS recording_release_id,
                     rr.track_number,
                     rr.disc_number,
+                    rr.track_length_ms,
+                    COALESCE(rr.track_length_ms, r.duration_ms) AS effective_mb_duration_ms,
                     rrsl.service_title AS spotify_track_title,
                     rel.id AS release_id,
                     rel.title AS release_title,
@@ -2893,7 +2908,7 @@ def duration_mismatches_review(song_id):
                     rel.musicbrainz_release_id AS release_mb_id,
                     rel.spotify_album_id,
                     rel.release_year,
-                    ABS(r.duration_ms - rrsl.duration_ms) AS diff_ms
+                    ABS(COALESCE(rr.track_length_ms, r.duration_ms) - rrsl.duration_ms) AS diff_ms
                 FROM recordings r
                 JOIN recording_releases rr ON rr.recording_id = r.id
                 JOIN recording_release_streaming_links rrsl
@@ -2901,9 +2916,9 @@ def duration_mismatches_review(song_id):
                     AND rrsl.service = 'spotify'
                 JOIN releases rel ON rel.id = rr.release_id
                 WHERE r.song_id = %s
-                  AND r.duration_ms IS NOT NULL
+                  AND COALESCE(rr.track_length_ms, r.duration_ms) IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
-                  AND ABS(r.duration_ms - rrsl.duration_ms) > %s
+                  AND ABS(COALESCE(rr.track_length_ms, r.duration_ms) - rrsl.duration_ms) > %s
                   {manual_filter}
                 ORDER BY r.recording_year NULLS LAST, rel.title
             """, (song_id, threshold_ms))
@@ -2941,13 +2956,27 @@ def duration_mismatches_review(song_id):
             }
         diff_ms = row['diff_ms']
         album_fit = album_fit_cache.get(str(row['release_id']))
+        # MB Duration shown in the admin table is now the *effective*
+        # duration for this release — track_length_ms when MB provided
+        # one, recording.duration_ms otherwise. Both raw values are kept
+        # so the template can flag when they diverge ("recording is
+        # 9:26 but this release uses a 5:50 edit").
+        recording_duration_ms = row['duration_ms']
+        track_length_ms = row.get('track_length_ms')
+        effective_mb_duration_ms = row['effective_mb_duration_ms']
         recordings_map[rec_id]['links'].append({
             'streaming_link_id': str(row['streaming_link_id']),
             'service_id': row['service_id'],
             'service_url': row['service_url'],
             'spotify_duration_ms': row['spotify_duration_ms'],
             'spotify_duration_display': _format_duration(row['spotify_duration_ms']),
-            'mb_duration_display': _format_duration(row['duration_ms']),
+            'mb_duration_display': _format_duration(effective_mb_duration_ms),
+            'recording_duration_display': _format_duration(recording_duration_ms),
+            'track_length_ms': track_length_ms,
+            'has_release_specific_length': (
+                track_length_ms is not None
+                and track_length_ms != recording_duration_ms
+            ),
             'diff_ms': diff_ms,
             'diff_seconds': int(diff_ms / 1000),
             'diff_display': _format_diff(diff_ms),

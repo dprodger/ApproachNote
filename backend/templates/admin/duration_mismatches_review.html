@@ -250,6 +250,22 @@
             background: #d4f1dc;
         }
 
+        /* Hint shown under the MB Duration cell when the release ships an
+           edited cut of the underlying recording — i.e. recording is 9:26
+           but THIS release uses a 5:50 track. Helps the admin tell apart
+           "comparison is using the right length" from "wrong length, real
+           mismatch". */
+        .release-specific-length-hint {
+            font-size: 10px;
+            color: #888;
+            margin-top: 2px;
+            font-weight: 400;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            cursor: help;
+            border-bottom: 1px dotted #ccc;
+            display: inline-block;
+        }
+
         /* Album Fit cell — visualises check_album_context_via_tracklist's
            result. Three buckets so an admin can scan the column at a glance:
              green:  >= 90% of MB tracks matched on the Spotify album → strong signal it's the same album
@@ -591,7 +607,14 @@
                                 <span style="color: #ccc;">-</span>
                                 {% endif %}
                             </td>
-                            <td class="duration">{{ link.mb_duration_display }}</td>
+                            <td class="duration">
+                                {{ link.mb_duration_display }}
+                                {% if link.has_release_specific_length %}
+                                <div class="release-specific-length-hint" title="MB ships this recording as an edited cut on this release. Comparison uses the per-track length, not the canonical recording length.">
+                                    rec: {{ link.recording_duration_display }}
+                                </div>
+                                {% endif %}
+                            </td>
                             <td class="duration">{{ link.spotify_duration_display }}</td>
                             <td>
                                 <span class="duration-diff {% if link.diff_seconds >= 300 %}diff-severe{% else %}diff-warning{% endif %}">
