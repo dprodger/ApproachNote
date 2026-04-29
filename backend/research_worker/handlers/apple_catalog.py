@@ -35,9 +35,15 @@ def refresh_catalog(payload: dict[str, Any], ctx) -> dict[str, Any]:
 
     client = AppleMusicFeedClient(logger=ctx.log)
     if not client.is_configured():
+        missing = []
+        if not client.media_id:        missing.append('APPLE_MEDIA_ID')
+        if not client.private_key_path: missing.append('APPLE_PRIVATE_KEY_PATH')
+        if not client.key_id:           missing.append('APPLE_KEY_ID')
+        if not client.team_id:          missing.append('APPLE_TEAM_ID')
+        if client.private_key_path and not os.path.exists(client.private_key_path):
+            missing.append(f'(file at {client.private_key_path} does not exist)')
         raise PermanentError(
-            "Apple Music Feed not configured "
-            "(APPLE_MEDIA_ID / APPLE_PRIVATE_KEY_PATH / APPLE_KEY_ID / APPLE_TEAM_ID)"
+            f"Apple Music Feed not configured. Missing: {', '.join(missing) or 'unknown'}"
         )
 
     ctx.log.info(f"apple/refresh_catalog: feed='{feed}' catalog_dir={client.catalog_dir}")
