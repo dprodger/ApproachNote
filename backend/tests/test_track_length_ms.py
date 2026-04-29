@@ -343,3 +343,129 @@ class TestGetRecordingsForReleaseUsesTrackLength:
         db.commit()
         rows = get_recordings_for_release(SONG_ID, RELEASE_ID)
         assert rows[0]['recording_duration_ms'] == 566_000
+
+
+# ---------------------------------------------------------------------------
+# Importer force_refresh re-runs link_recording_to_release for
+# already-linked releases — the path that lets a backfill on EXISTING
+# data populate the new track_length_ms column.
+# ---------------------------------------------------------------------------
+
+class TestImporterForceRefreshReprocessesLinkedReleases:
+    """The importer's "skip fully-linked release" optimization is great
+    for normal imports but blocks a backfill: 99% of releases are already
+    linked, so any new column we introduce on recording_releases never
+    gets populated for them.
+
+    On force_refresh runs we now defer to link_recording_to_release for
+    these too, so an admin running `research_song.py --force-refresh`
+    actually backfills the data.
+    """
+
+    def test_force_refresh_refreshes_existing_junction(
+        self, base_song, mocker,
+    ):
+        # Pre-create the junction with track_length_ms NULL, simulating
+        # the state of every row that pre-dates the schema change.
+        rr_id = "00000000-0000-4000-8000-4000000000aa"
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO recording_releases "
+                    "(id, recording_id, release_id, track_number, disc_number) "
+                    "VALUES (%s, %s, %s, 1, 1)",
+                    (rr_id, RECORDING_ID, RELEASE_ID),
+                )
+            conn.commit()
+
+        # Stub the MB API call. The full-detail call returns a release
+        # whose track length is 350_000 — this is the new data we want
+        # to capture into the existing junction row.
+        mock_searcher = mocker.MagicMock()
+        mock_searcher.get_release_details.return_value = (
+            _mb_release_with_track_length(350_000)
+        )
+
+        from integrations.musicbrainz.release_importer import MBReleaseImporter
+        importer = MBReleaseImporter(force_refresh=True)
+        importer.mb_searcher = mock_searcher
+
+        # Pretend the release is already known + already linked — i.e. the
+        # 99% case for a long-lived song.
+        with get_db_connection() as conn:
+            importer._process_release_in_transaction(
+                conn,
+                recording_id=RECORDING_ID,
+                mb_recording_id=MB_RECORDING_ID,
+                mb_recording={'id': MB_RECORDING_ID},
+                mb_release={'id': 'mb-release-1', 'title': 'Test'},
+                existing_releases={'mb-release-1': RELEASE_ID},
+                existing_links={RELEASE_ID},
+            )
+            conn.commit()
+
+        # The junction row should now carry track_length_ms.
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT track_length_ms FROM recording_releases "
+                    "WHERE id = %s",
+                    (rr_id,),
+                )
+                row = cur.fetchone()
+        track_length_ms = row['track_length_ms'] if isinstance(row, dict) else row[0]
+        assert track_length_ms == 350_000
+        # And it must register in stats so the importer's summary
+        # logging reflects what happened.
+        assert importer.stats.get('links_refreshed', 0) == 1
+
+    def test_force_refresh_off_keeps_skip_optimization(
+        self, base_song, mocker,
+    ):
+        # Without force_refresh, the importer must NOT re-run the link.
+        # That preserves the perf optimization for normal imports.
+        rr_id = "00000000-0000-4000-8000-4000000000ab"
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO recording_releases "
+                    "(id, recording_id, release_id, track_number, disc_number) "
+                    "VALUES (%s, %s, %s, 1, 1)",
+                    (rr_id, RECORDING_ID, RELEASE_ID),
+                )
+            conn.commit()
+
+        mock_searcher = mocker.MagicMock()
+        mock_searcher.get_release_details.return_value = (
+            _mb_release_with_track_length(350_000)
+        )
+
+        from integrations.musicbrainz.release_importer import MBReleaseImporter
+        importer = MBReleaseImporter(force_refresh=False)
+        importer.mb_searcher = mock_searcher
+
+        with get_db_connection() as conn:
+            importer._process_release_in_transaction(
+                conn,
+                recording_id=RECORDING_ID,
+                mb_recording_id=MB_RECORDING_ID,
+                mb_recording={'id': MB_RECORDING_ID},
+                mb_release={'id': 'mb-release-1', 'title': 'Test'},
+                existing_releases={'mb-release-1': RELEASE_ID},
+                existing_links={RELEASE_ID},
+            )
+            conn.commit()
+
+        # track_length_ms stays NULL — fast path was taken.
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT track_length_ms FROM recording_releases "
+                    "WHERE id = %s",
+                    (rr_id,),
+                )
+                row = cur.fetchone()
+        track_length_ms = row['track_length_ms'] if isinstance(row, dict) else row[0]
+        assert track_length_ms is None
+        # And the API call wasn't made — the whole point of the fast path.
+        mock_searcher.get_release_details.assert_not_called()

@@ -514,6 +514,34 @@ class MBReleaseImporter:
 
             # Check if already linked using pre-fetched data (no DB query!)
             if release_id in existing_links:
+                # Default fast path: skip the API + DB round-trip entirely
+                # for releases we've already linked. The downside: any
+                # metadata we capture on the recording_releases junction
+                # row (track_number, disc_number, track_length_ms) never
+                # refreshes for these releases — even when MB has new data.
+                #
+                # On force_refresh runs we re-run link_recording_to_release
+                # for these too, with COALESCE-on-update semantics so we
+                # only OVERWRITE existing values, never wipe them with NULL
+                # from a partial response. Pays one cached API call per
+                # already-linked release in exchange for catching column
+                # additions / MB corrections / track-length backfills.
+                if self.force_refresh and recording_id:
+                    self.logger.debug(
+                        f"    Refreshing junction metadata for already-linked "
+                        f"release: {release_title[:40]}"
+                    )
+                    release_details = self.mb_searcher.get_release_details(mb_release_id)
+                    link_recording_to_release(
+                        conn, recording_id, release_id, mb_recording_id,
+                        release_details or mb_release,
+                        log=self.logger,
+                    )
+                    self.stats['links_refreshed'] = (
+                        self.stats.get('links_refreshed', 0) + 1
+                    )
+                    return
+
                 self.logger.debug(f"    Skipping fully-linked release: {release_title[:40]}")
                 self.stats['releases_skipped_api'] += 1
                 return
