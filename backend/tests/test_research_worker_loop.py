@@ -141,7 +141,7 @@ def _get_job_row(db, job_id):
 class TestProcessOneSuccess:
     def test_handler_dict_result_marks_done(self, db, make_job):
         job_id = make_job()
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
         assert job['id'] == job_id  # sanity
 
         def handler(payload, ctx):
@@ -159,7 +159,7 @@ class TestProcessOneSuccess:
         # Handlers are supposed to return dicts; a None or bare string is
         # a bug, but the loop coerces rather than crashing the worker.
         make_job()
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         def handler(payload, ctx):
             return None
@@ -178,7 +178,7 @@ class TestProcessOneQuotaExhausted:
         # kill the job prematurely. release_for_quota bumps attempts back
         # down by 1.
         make_job(attempts=0)  # post-claim attempts = 1
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
         assert job['attempts'] == 1
 
         resets_at = utcnow() + timedelta(hours=1)
@@ -199,7 +199,7 @@ class TestProcessOneQuotaExhausted:
 class TestProcessOnePermanentError:
     def test_marks_dead_with_error_message(self, db, make_job):
         make_job()
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         def handler(payload, ctx):
             raise PermanentError('target missing')
@@ -217,7 +217,7 @@ class TestProcessOneRetryable:
         # Fresh job (attempts=0) → claim bumps to 1 → retryable failure
         # should leave status='queued' with a future run_after.
         make_job(attempts=0, max_attempts=5)
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
         assert job['attempts'] == 1
 
         def handler(payload, ctx):
@@ -235,7 +235,7 @@ class TestProcessOneRetryable:
         # Pre-claim attempts=4 → post-claim attempts=5 → retryable failure
         # triggers the "out of attempts" branch in schedule_retry.
         make_job(attempts=4, max_attempts=5)
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
         assert job['attempts'] == 5
 
         def handler(payload, ctx):
@@ -253,7 +253,7 @@ class TestProcessOneUnknownException:
         # Handler bugs (ValueError, TypeError, etc.) must not kill the
         # worker thread. The loop catches them and reschedules.
         make_job(attempts=0, max_attempts=5)
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         def handler(payload, ctx):
             raise ValueError('unexpected')
@@ -274,7 +274,7 @@ class TestProcessOneUnknownException:
             pass
 
         make_job(attempts=0, max_attempts=5)
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         def handler(payload, ctx):
             raise UnknownHandlerError('custom')
@@ -291,7 +291,7 @@ class TestProcessOnePayload:
         # Pin the handler-call contract: (payload, ctx) with payload
         # being the dict stored on the job row and ctx a JobContext.
         make_job(payload={'rematch': True, 'extra': 'ok'})
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         seen = {}
 
@@ -310,7 +310,7 @@ class TestProcessOnePayload:
     def test_empty_payload_coerced_to_dict(self, db, make_job):
         # The loop passes `job['payload'] or {}` so handlers never see None.
         make_job(payload={})
-        job = claim.claim_next('youtube', 'test-worker')
+        job = claim.claim_next('youtube', 'match_recording', 'test-worker')
 
         seen = {}
 

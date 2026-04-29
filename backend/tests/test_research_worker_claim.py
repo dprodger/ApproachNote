@@ -29,7 +29,7 @@ class TestClaimNext:
         first = make_job()
         make_job()
 
-        row = claim.claim_next('youtube', worker_id='test-worker')
+        row = claim.claim_next('youtube', 'match_recording', worker_id='test-worker')
         assert row is not None
         assert row['id'] == first
         assert row['status'] == 'running'
@@ -37,26 +37,40 @@ class TestClaimNext:
         assert row['attempts'] == 1  # incremented from 0 by claim
 
     def test_returns_none_when_nothing_eligible(self):
-        assert claim.claim_next('youtube', 'test-worker') is None
+        assert claim.claim_next('youtube', 'match_recording', 'test-worker') is None
 
     def test_skips_jobs_with_run_after_in_future(self, db, make_job):
         future = utcnow() + timedelta(hours=1)
         make_job(run_after=future)
-        assert claim.claim_next('youtube', 'test-worker') is None
+        assert claim.claim_next('youtube', 'match_recording', 'test-worker') is None
 
     def test_respects_source_filter(self, db, make_job):
         make_job(source='spotify')
         # Worker for youtube finds nothing.
-        assert claim.claim_next('youtube', 'test-worker') is None
+        assert claim.claim_next('youtube', 'match_recording', 'test-worker') is None
         # Worker for spotify finds it.
-        assert claim.claim_next('spotify', 'test-worker') is not None
+        assert claim.claim_next('spotify', 'match_recording', 'test-worker') is not None
+
+    def test_respects_job_type_filter(self, db, make_job):
+        # Regression: when a source has multiple registered handlers (e.g.
+        # apple/match_song + apple/refresh_catalog), each thread must only
+        # claim jobs for its own job_type. Filtering on source alone caused
+        # the match_song thread to grab refresh_catalog jobs and feed them
+        # to the wrong handler.
+        make_job(source='apple', job_type='refresh_catalog')
+        # match_song thread sees nothing.
+        assert claim.claim_next('apple', 'match_song', 'test-worker') is None
+        # refresh_catalog thread claims it.
+        row = claim.claim_next('apple', 'refresh_catalog', 'test-worker')
+        assert row is not None
+        assert row['job_type'] == 'refresh_catalog'
 
     def test_priority_orders_before_age(self, db, make_job):
         # Older but lower priority (higher number) job; newer but
         # higher priority. Higher priority (lower number) wins.
         old_low_prio = make_job(priority=200)
         new_high_prio = make_job(priority=10)
-        row = claim.claim_next('youtube', 'test-worker')
+        row = claim.claim_next('youtube', 'match_recording', 'test-worker')
         assert row['id'] == new_high_prio
 
     def test_skip_locked_does_not_block_concurrent_workers(self, db, make_job):
@@ -104,7 +118,7 @@ class TestClaimNext:
                 claimed_a = cur.fetchone()[0]
 
                 # Without committing, second worker claims via the helper.
-                row = claim.claim_next('youtube', 'worker-2')
+                row = claim.claim_next('youtube', 'match_recording', 'worker-2')
                 assert row is not None
                 assert row['id'] != claimed_a, (
                     "Second worker should have skipped the locked row"

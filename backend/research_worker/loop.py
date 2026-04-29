@@ -65,14 +65,14 @@ def run_source(
     poll_interval: float = 2.0,
     worker_id: Optional[str] = None,
 ) -> None:
-    """Drive one source until shutdown is set.
+    """Drive one (source, job_type) pair until shutdown is set.
 
-    `job_type` is currently a single value per source — we only support one
-    handler per source for now. Multi-job-type sources can dispatch internally
-    or this signature can be extended later.
+    Each thread is bound to a specific (source, job_type); claim_next filters
+    on both so a thread for ('apple','match_song') never picks up an
+    ('apple','refresh_catalog') job.
     """
-    worker_id = worker_id or _make_worker_id(source)
-    log = logger.getChild(source)
+    worker_id = worker_id or _make_worker_id(source, job_type)
+    log = logger.getChild(f"{source}.{job_type}")
     handler_fn = get_handler(source, job_type)
     log.info(
         "worker thread starting source=%s job_type=%s worker_id=%s "
@@ -82,7 +82,7 @@ def run_source(
 
     while not shutdown.is_set():
         try:
-            job = claim.claim_next(source, worker_id)
+            job = claim.claim_next(source, job_type, worker_id)
         except Exception:
             log.exception("claim_next failed; backing off")
             shutdown.wait(poll_interval * 2)
@@ -158,7 +158,7 @@ def _process_one(handler_fn, job: dict[str, Any], log: logging.Logger) -> None:
     )
 
 
-def _make_worker_id(source: str) -> str:
+def _make_worker_id(source: str, job_type: str) -> str:
     import os
     import socket
-    return f"{socket.gethostname()}:{os.getpid()}:{source}"
+    return f"{socket.gethostname()}:{os.getpid()}:{source}.{job_type}"

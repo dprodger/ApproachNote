@@ -39,8 +39,14 @@ def _backoff_delay(attempts: int) -> timedelta:
     return timedelta(seconds=base * jitter)
 
 
-def claim_next(source: str, worker_id: str) -> Optional[dict[str, Any]]:
-    """Atomically claim the oldest eligible queued job for `source`.
+def claim_next(source: str, job_type: str, worker_id: str) -> Optional[dict[str, Any]]:
+    """Atomically claim the oldest eligible queued job for `(source, job_type)`.
+
+    Each worker thread is bound to a specific (source, job_type) pair (see
+    research_worker/run.py — one thread per registered handler), so claims
+    must filter on both. Filtering on source alone meant a `match_song`
+    thread could grab a `refresh_catalog` job and feed it to the wrong
+    handler.
 
     Returns the job row (with status now 'running' and attempts incremented),
     or None if nothing is eligible.
@@ -56,6 +62,7 @@ def claim_next(source: str, worker_id: str) -> Optional[dict[str, Any]]:
         WHERE id = (
             SELECT id FROM research_jobs
             WHERE source = %s
+              AND job_type = %s
               AND status = 'queued'
               AND run_after <= now()
             ORDER BY priority, run_after, id
@@ -66,7 +73,7 @@ def claim_next(source: str, worker_id: str) -> Optional[dict[str, Any]]:
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (worker_id, source))
+            cur.execute(sql, (worker_id, source, job_type))
             return cur.fetchone()
 
 
