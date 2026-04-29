@@ -793,9 +793,122 @@ class SpotifyMatcher:
                         recording_id=recording['recording_id'],
                         spotify_track_url=previous_url
                     )
-        
+
+        # Cleanup pass: when MB has multiple recordings of the same song
+        # on a release but Spotify has only one (typical "Spotify reissued
+        # the disc-2 single" / dedup case), the per-recording matcher
+        # links every MB recording to that one Spotify track. Resolve by
+        # keeping only the link whose recording-duration most closely
+        # matches the Spotify track; clear the stale losers.
+        self._resolve_release_track_collisions(conn, release_id)
+
         return any_matched
-    
+
+    def _resolve_release_track_collisions(self, conn, release_id: str) -> int:
+        """Find Spotify track IDs linked to multiple recording_releases on
+        the same release; keep the best match per Spotify track,
+        delete the rest. "Best" = highest duration_confidence between the
+        recording's effective duration (track_length_ms when MB provided
+        it, recording.duration_ms otherwise) and the Spotify track's
+        duration. Manual-override links (match_method='manual') always
+        win and never get cleared.
+
+        Returns the number of links cleared. Counter persists in
+        self.stats['tracks_collisions_cleared'].
+        """
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    rrsl.id          AS link_id,
+                    rr.recording_id,
+                    rr.disc_number,
+                    rr.track_number,
+                    COALESCE(rr.track_length_ms, rec.duration_ms) AS effective_duration_ms,
+                    rrsl.duration_ms AS spotify_duration_ms,
+                    rrsl.service_id  AS spotify_track_id,
+                    rrsl.match_method
+                FROM recording_release_streaming_links rrsl
+                JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                JOIN recordings rec ON rec.id = rr.recording_id
+                WHERE rr.release_id = %s
+                  AND rrsl.service = 'spotify'
+                """,
+                (release_id,),
+            )
+            rows = [dict(r) for r in cur.fetchall()]
+
+        # Group by Spotify track ID. Single-link groups are fine; only
+        # multi-link groups are collisions to resolve.
+        from collections import defaultdict
+        by_track = defaultdict(list)
+        for row in rows:
+            by_track[row['spotify_track_id']].append(row)
+
+        def _confidence(row):
+            # Manual override wins unconditionally — admin assertion.
+            if row['match_method'] == 'manual':
+                return float('inf')
+            rec_dur = row['effective_duration_ms']
+            sp_dur = row['spotify_duration_ms']
+            if rec_dur is None or sp_dur is None:
+                return 0.5
+            return duration_confidence(rec_dur, sp_dur)
+
+        cleared = 0
+        for track_id, group in by_track.items():
+            if len(group) <= 1:
+                continue
+
+            scored = sorted(group, key=_confidence, reverse=True)
+            winner = scored[0]
+            for loser in scored[1:]:
+                if loser['match_method'] == 'manual':
+                    # Two manual overrides on the same Spotify track on
+                    # the same release — admin asserted both. Don't
+                    # auto-resolve; surface a warning and move on.
+                    self.logger.warning(
+                        "      Two manual overrides on release %s for "
+                        "Spotify track %s; not auto-resolving",
+                        release_id, track_id,
+                    )
+                    continue
+                if self.dry_run:
+                    self.logger.info(
+                        "      [DRY RUN] Would clear collision: "
+                        "%s-%s (conf=%.2f) vs winner %s-%s (conf=%.2f) "
+                        "for Spotify track %s",
+                        loser['disc_number'], loser['track_number'],
+                        _confidence(loser),
+                        winner['disc_number'], winner['track_number'],
+                        _confidence(winner),
+                        track_id,
+                    )
+                    continue
+
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "DELETE FROM recording_release_streaming_links "
+                        "WHERE id = %s",
+                        (loser['link_id'],),
+                    )
+                self.logger.info(
+                    "      Cleared track-collision: %s-%s (conf=%.2f) "
+                    "lost to %s-%s (conf=%.2f) for Spotify track %s",
+                    loser['disc_number'], loser['track_number'],
+                    _confidence(loser),
+                    winner['disc_number'], winner['track_number'],
+                    _confidence(winner),
+                    track_id,
+                )
+                cleared += 1
+
+        if cleared:
+            self.stats['tracks_collisions_cleared'] = (
+                self.stats.get('tracks_collisions_cleared', 0) + cleared
+            )
+        return cleared
+
     def backfill_images(self):
         """
         UPDATED: Backfill cover artwork for releases (not recordings).
