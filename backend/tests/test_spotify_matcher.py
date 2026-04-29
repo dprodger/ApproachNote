@@ -86,6 +86,22 @@ class TestCalculateSimilarity:
         )
         assert score >= 90
 
+    def test_bracketed_annotation_strip_rescues_score(self):
+        # Production case: a Spotify track titled with paren+bracket
+        # annotations ("My Heart Stood Still (From 'A Connecticut
+        # Yankee') [Ampico Piano Roll Recording]") was scoring ~38% via
+        # token_sort_ratio against the bare song title, then ~55% after
+        # the parenthetical-only strip rescue — still below the 85%
+        # match threshold, so the candidate was filtered out and the
+        # position tiebreaker never saw it. Stripping brackets too
+        # rescues it to 100%.
+        q = "My Heart Stood Still"
+        candidate = (
+            "My Heart Stood Still (From \"A Connecticut Yankee\") "
+            "[Ampico Piano Roll Recording]"
+        )
+        assert calculate_similarity(q, candidate) == 100
+
     def test_remaster_suffix_doesnt_hurt_score(self):
         # normalize_for_comparison strips "- Remastered ..." so the score
         # should be near-perfect even with the suffix present.
@@ -630,6 +646,40 @@ class TestMatchTrackToRecording:
             log, {}, 85, "My Heart Stood Still", tracks,
             expected_disc=1, expected_track=20,
             expected_duration_ms=164_000,  # favours sp17 by duration
+        )
+        assert match is not None and match['id'] == 'sp120'
+
+    def test_my_heart_stood_still_real_case_resolves_correctly(self):
+        """The production scenario from the My Heart Stood Still bug:
+        Spotify has TWO instances of the song on one album — one with a
+        paren+bracket annotation suffix at position 1-7, one with just
+        a paren annotation at position 1-20. Before the bracket-strip
+        fix, only the paren-only candidate cleared the 85% threshold,
+        so both MB recordings matched it. After the fix, both candidates
+        score 100% via title and the position tiebreaker assigns each
+        MB recording to its correctly-positioned Spotify counterpart."""
+        tracks = [
+            _track('sp17',
+                   'My Heart Stood Still (From "A Connecticut Yankee") '
+                   '[Ampico Piano Roll Recording]',
+                   disc=1, track=7, duration_ms=165_000),
+            _track('sp120',
+                   'My Heart Stood Still (From "A Connecticut Yankee")',
+                   disc=1, track=20, duration_ms=79_000),
+        ]
+        # MB recording at 1-7 (2:45). Both candidates structural-score at
+        # 100% (post-bracket-strip rescue), so position breaks the tie.
+        match = match_track_to_recording(
+            log, {}, 85, "My Heart Stood Still", tracks,
+            expected_disc=1, expected_track=7,
+            expected_duration_ms=165_000,
+        )
+        assert match is not None and match['id'] == 'sp17'
+
+        match = match_track_to_recording(
+            log, {}, 85, "My Heart Stood Still", tracks,
+            expected_disc=1, expected_track=20,
+            expected_duration_ms=79_000,
         )
         assert match is not None and match['id'] == 'sp120'
 

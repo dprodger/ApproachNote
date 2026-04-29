@@ -466,13 +466,22 @@ def calculate_similarity(text1: str, text2: str) -> float:
     # Primary comparison using token_sort_ratio
     score = fuzz.token_sort_ratio(norm1, norm2)
     
-    # If score is below threshold, try comparing without parenthetical content
-    # This handles cases like "Who Cares?" vs "Who Cares (As Long As You Care For Me)"
+    # If score is below threshold, try comparing without parenthetical
+    # AND bracketed content. Brackets carry the same kind of annotation
+    # as parens — "[Live]", "[Remastered]", "[Ampico Piano Roll Recording]" —
+    # and need to be stripped for the rescue to fire on titles that mix
+    # both styles ("My Heart Stood Still (From 'A Connecticut Yankee')
+    # [Ampico Piano Roll Recording]" was getting filtered out of the
+    # candidate pool because only the parens were stripped).
     if score < 80:
-        # Strip parenthetical content from both
-        stripped1 = re.sub(r'\s*\([^)]*\)\s*', ' ', norm1).strip()
-        stripped2 = re.sub(r'\s*\([^)]*\)\s*', ' ', norm2).strip()
-        
+        def _strip_annotations(s):
+            s = re.sub(r'\s*\([^)]*\)\s*', ' ', s)
+            s = re.sub(r'\s*\[[^\]]*\]\s*', ' ', s)
+            return ' '.join(s.split()).strip()
+
+        stripped1 = _strip_annotations(norm1)
+        stripped2 = _strip_annotations(norm2)
+
         # Only use stripped comparison if something was actually removed
         if stripped1 != norm1 or stripped2 != norm2:
             stripped_score = fuzz.token_sort_ratio(stripped1, stripped2)
