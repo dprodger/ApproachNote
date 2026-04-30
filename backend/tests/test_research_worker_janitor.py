@@ -44,12 +44,12 @@ class TestReapStuckJobs:
             assert cur.fetchone()[0] == 'running'
 
     def test_reaps_jobs_claimed_longer_than_threshold(self, db, make_job):
-        # Claimed 30 minutes ago — stuck_after defaults to 15 min, so this
+        # Claimed 120 minutes ago — stuck_after defaults to 90 min, so this
         # one should be reaped.
         job_id = make_job(status='running', attempts=1, max_attempts=5)
         with db.cursor() as cur:
             cur.execute(
-                "UPDATE research_jobs SET claimed_at = now() - interval '30 minutes', "
+                "UPDATE research_jobs SET claimed_at = now() - interval '120 minutes', "
                 "claimed_by = 'dead-worker' WHERE id = %s",
                 (job_id,),
             )
@@ -78,7 +78,7 @@ class TestReapStuckJobs:
         job_id = make_job(status='running', attempts=2, max_attempts=1)
         with db.cursor() as cur:
             cur.execute(
-                "UPDATE research_jobs SET claimed_at = now() - interval '30 minutes', "
+                "UPDATE research_jobs SET claimed_at = now() - interval '120 minutes', "
                 "claimed_by = 'dead-worker' WHERE id = %s",
                 (job_id,),
             )

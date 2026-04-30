@@ -22,7 +22,12 @@ logger = logging.getLogger(__name__)
 
 
 # Tuning knobs. Conservative defaults; revisit once we have real load.
-STUCK_RUNNING_AFTER = timedelta(minutes=15)
+# 90 min covers the longest legitimate handler we have today: the Apple
+# catalog rebuild_index job, which streams 60M+ albums and 150M+ songs
+# through DuckDB and can take 45-60 min on a 4GB worker. Raising this
+# means a genuinely-crashed job sits in 'running' longer before reap,
+# but the previous 15-min default false-reaped live rebuilds.
+STUCK_RUNNING_AFTER = timedelta(minutes=90)
 PRUNE_DONE_AFTER = timedelta(days=30)
 PRUNE_DEAD_AFTER = timedelta(days=90)
 JANITOR_INTERVAL_SECONDS = 300  # 5 minutes
