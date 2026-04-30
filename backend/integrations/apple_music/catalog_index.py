@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 import os
+import threading
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -23,6 +24,67 @@ try:
 except ImportError:
     DUCKDB_AVAILABLE = False
     duckdb = None  # type: ignore
+
+
+def _read_rss_mb() -> Optional[float]:
+    """Resident set size of this process in MB via /proc/self/status (Linux)."""
+    try:
+        with open('/proc/self/status') as f:
+            for line in f:
+                if line.startswith('VmRSS:'):
+                    # 'VmRSS:\t  123456 kB'
+                    return int(line.split()[1]) / 1024.0
+    except Exception:
+        pass
+    return None
+
+
+def _read_disk_used_gb(path: Path) -> Optional[float]:
+    """Used GB on the filesystem containing `path`."""
+    try:
+        st = os.statvfs(path)
+        used_bytes = (st.f_blocks - st.f_bavail) * st.f_frsize
+        return used_bytes / (1024 ** 3)
+    except Exception:
+        return None
+
+
+def _start_progress_sampler(
+    log: logging.Logger,
+    db_path: Path,
+    interval_s: float = 15.0,
+) -> threading.Event:
+    """Spawn a daemon thread that logs RSS + disk usage every `interval_s`
+    until the returned Event is set. Useful for tracing where a long-running
+    DuckDB build silently goes off the rails (e.g. OS OOM kill — process
+    dies with no error message). Returns the stop event."""
+    stop = threading.Event()
+
+    def run():
+        while not stop.wait(interval_s):
+            rss_mb = _read_rss_mb()
+            disk_used_gb = _read_disk_used_gb(db_path.parent)
+            try:
+                duckdb_mb = db_path.stat().st_size / (1024 ** 2)
+            except FileNotFoundError:
+                duckdb_mb = 0.0
+            try:
+                tmp_dir = db_path.parent / 'duckdb_tmp'
+                tmp_mb = sum(
+                    f.stat().st_size for f in tmp_dir.glob('**/*') if f.is_file()
+                ) / (1024 ** 2) if tmp_dir.exists() else 0.0
+            except Exception:
+                tmp_mb = 0.0
+            log.info(
+                "[sample] rss=%sMB duckdb=%.0fMB tmp=%.0fMB disk_used=%sGB",
+                f"{rss_mb:.0f}" if rss_mb is not None else "?",
+                duckdb_mb, tmp_mb,
+                f"{disk_used_gb:.1f}" if disk_used_gb is not None else "?",
+            )
+
+    t = threading.Thread(target=run, daemon=True, name='catalog-build-sampler')
+    t.start()
+    return stop
 
 
 def latest_export_dir(catalog_dir: Path, feed_name: str) -> Optional[Path]:
@@ -123,6 +185,12 @@ def build_index(
     started = time.time()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(db_path))
+
+    # Spawn a sampler thread that logs RSS + disk usage every 15s. The
+    # thread is a daemon and gets reaped on process exit; the stop event
+    # is set in the function's finally block so the thread also exits
+    # cleanly on normal completion.
+    sampler_stop = _start_progress_sampler(log, db_path)
 
     # Cap DuckDB's RAM use; spill to /data (which has 100GB) instead of
     # OOMing the worker. Render's worker plan determines the right ceiling
@@ -302,6 +370,7 @@ def build_index(
         conn.execute("DROP TABLE artists")
 
     conn.close()
+    sampler_stop.set()
 
     duration = time.time() - started
     db_size = db_path.stat().st_size
