@@ -184,12 +184,11 @@ def build_index(
 
     started = time.time()
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = duckdb.connect(str(db_path))
 
     # Spawn a sampler thread that logs RSS + disk usage every 15s. The
     # thread is a daemon and gets reaped on process exit; the stop event
-    # is set in the function's finally block so the thread also exits
-    # cleanly on normal completion.
+    # is set near the end of the function so the thread also exits cleanly
+    # on normal completion.
     sampler_stop = _start_progress_sampler(log, db_path)
 
     # Cap DuckDB's RAM use; spill to /data (which has 100GB) instead of
@@ -200,14 +199,28 @@ def build_index(
     threads = os.environ.get('DUCKDB_THREADS', '1')
     temp_dir = db_path.parent / 'duckdb_tmp'
     temp_dir.mkdir(parents=True, exist_ok=True)
-    conn.execute(f"SET memory_limit='{memory_limit}'")
-    conn.execute(f"SET temp_directory='{temp_dir}'")
-    conn.execute(f"SET threads={threads}")
-    conn.execute("SET preserve_insertion_order=false")
     log.info(
         f"DuckDB memory_limit={memory_limit} threads={threads} "
         f"temp_directory={temp_dir}"
     )
+
+    def _open_conn():
+        """Open (or reopen) the DuckDB connection and re-apply settings.
+
+        Closing and reopening between major phases (albums → songs → song
+        indexes) is the only reliable way to free DuckDB's buffer pool —
+        CHECKPOINT flushes data to disk but keeps pages warm in RAM.
+        Without this reset, a phase that loads new data on top of warm
+        pages from a previous phase OOM-kills the worker.
+        """
+        c = duckdb.connect(str(db_path))
+        c.execute(f"SET memory_limit='{memory_limit}'")
+        c.execute(f"SET temp_directory='{temp_dir}'")
+        c.execute(f"SET threads={threads}")
+        c.execute("SET preserve_insertion_order=false")
+        return c
+
+    conn = _open_conn()
 
     artist_count = 0
     has_artists = False
@@ -286,8 +299,11 @@ def build_index(
     # those pages to the .duckdb file and frees buffer memory so the index
     # build has room to work.
     if build_indexes:
-        log.info("Checkpointing before album index build...")
+        # Flush + reopen — see comment on the same pattern below for songs.
+        log.info("Checkpointing + reopening connection before album index build...")
         conn.execute("CHECKPOINT")
+        conn.close()
+        conn = _open_conn()
         log.info("Creating album indexes...")
         t0 = time.time()
         conn.execute("CREATE INDEX idx_album_id ON albums(id)")
@@ -297,12 +313,15 @@ def build_index(
 
     song_count: Optional[int] = None
     if songs_glob and not albums_only:
-        # CHECKPOINT first: the albums table just got loaded + indexed,
-        # those pages are warm in DuckDB's buffer pool (~1-2GB). Without
-        # flushing them out the songs load has to compete for memory and
-        # the OS will OOM-kill the worker before DuckDB can spill cleanly.
-        log.info("Checkpointing before songs load...")
+        # CHECKPOINT writes pending data durably, then close+reopen the
+        # connection to actually free the buffer pool. CHECKPOINT alone
+        # does not evict warm pages — the albums table would still be
+        # in RAM, and the songs load on top of it would OOM-kill the
+        # worker (observed in pre-fix runs at RSS ~3975MB / 4GB).
+        log.info("Checkpointing + reopening connection before songs load...")
         conn.execute("CHECKPOINT")
+        conn.close()
+        conn = _open_conn()
         log.info("Loading songs...")
         t0 = time.time()
         if has_artists:
@@ -357,8 +376,13 @@ def build_index(
             # queries and were the OOM culprit on big tables. Keeping the
             # plain id and album_id b-tree indexes which the matcher uses
             # for direct joins.
-            log.info("Checkpointing before song index build...")
+            # Same trick as before songs-load: flush + reopen the
+            # connection so the song-table buffer pool is empty and the
+            # index sort has the full memory_limit budget.
+            log.info("Checkpointing + reopening connection before song index build...")
             conn.execute("CHECKPOINT")
+            conn.close()
+            conn = _open_conn()
             log.info("Creating song indexes...")
             t0 = time.time()
             conn.execute("CREATE INDEX idx_song_album ON songs(album_id)")
