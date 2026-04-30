@@ -194,10 +194,15 @@ def build_index(
     album_count = conn.execute("SELECT COUNT(*) FROM albums").fetchone()[0]
     log.info(f"  Loaded {album_count:,} albums in {time.time()-t0:.1f}s")
 
+    # Note: dropped the LOWER(name) and LOWER(artist_name) function indexes.
+    # The matcher's queries use `LOWER(col) LIKE '%term%'` with a leading
+    # wildcard, which B-trees can't accelerate — DuckDB always falls back
+    # to a full table scan for those. Building those indexes was eating
+    # >1GB of working memory (sort buffer over 60M rows) for zero query
+    # benefit. The id index stays — it's small and gets used for streaming
+    # joins from the matcher's release lookups.
     log.info("Creating album indexes...")
     t0 = time.time()
-    conn.execute("CREATE INDEX idx_album_name ON albums(LOWER(name))")
-    conn.execute("CREATE INDEX idx_album_artist ON albums(LOWER(artist_name))")
     conn.execute("CREATE INDEX idx_album_id ON albums(id)")
     log.info(f"  Created album indexes in {time.time()-t0:.1f}s")
 
@@ -248,10 +253,13 @@ def build_index(
         if skip_song_indexes:
             log.info("Skipping song indexes (skip_song_indexes=True)")
         else:
+            # Same reasoning as the album indexes — the LOWER(name) /
+            # LOWER(artist_name) function indexes can't help LIKE '%term%'
+            # queries and were the OOM culprit on big tables. Keeping the
+            # plain id and album_id b-tree indexes which the matcher uses
+            # for direct joins.
             log.info("Creating song indexes...")
             t0 = time.time()
-            conn.execute("CREATE INDEX idx_song_name ON songs(LOWER(name))")
-            conn.execute("CREATE INDEX idx_song_artist ON songs(LOWER(artist_name))")
             conn.execute("CREATE INDEX idx_song_album ON songs(album_id)")
             conn.execute("CREATE INDEX idx_song_id ON songs(id)")
             log.info(f"  Created song indexes in {time.time()-t0:.1f}s")
