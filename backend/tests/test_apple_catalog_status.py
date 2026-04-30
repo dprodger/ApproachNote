@@ -264,8 +264,8 @@ class TestRowCounts:
 # ---------------------------------------------------------------------------
 
 class TestGetCatalogStatus:
-    def test_assembles_all_four_sections(self, mocker):
-        # Mock all four section gatherers so we just verify the shape.
+    def test_assembles_all_sections(self, mocker):
+        # Mock every section gatherer so we just verify the shape.
         mocker.patch.object(
             apple_catalog_status, '_gather_configuration',
             return_value={'mode': 'local_file'},
@@ -282,8 +282,13 @@ class TestGetCatalogStatus:
             apple_catalog_status, '_gather_row_counts',
             return_value={'error': None, 'mode': 'indexed', 'tables': {}},
         )
+        mocker.patch.object(
+            apple_catalog_status, '_gather_recent_refresh_jobs',
+            return_value={'error': None, 'jobs': []},
+        )
 
         result = apple_catalog_status.get_catalog_status()
         assert set(result.keys()) == {
             'configuration', 'connectivity', 'freshness', 'row_counts',
+            'recent_refresh_jobs',
         }
