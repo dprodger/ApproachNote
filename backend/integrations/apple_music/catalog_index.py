@@ -201,6 +201,13 @@ def build_index(
     # >1GB of working memory (sort buffer over 60M rows) for zero query
     # benefit. The id index stays — it's small and gets used for streaming
     # joins from the matcher's release lookups.
+    #
+    # CHECKPOINT first: after loading 60M+ rows the table sits in DuckDB's
+    # buffer pool, eating most of memory_limit. Forcing a checkpoint flushes
+    # those pages to the .duckdb file and frees buffer memory so the index
+    # build has room to work.
+    log.info("Checkpointing before album index build...")
+    conn.execute("CHECKPOINT")
     log.info("Creating album indexes...")
     t0 = time.time()
     conn.execute("CREATE INDEX idx_album_id ON albums(id)")
@@ -258,6 +265,8 @@ def build_index(
             # queries and were the OOM culprit on big tables. Keeping the
             # plain id and album_id b-tree indexes which the matcher uses
             # for direct joins.
+            log.info("Checkpointing before song index build...")
+            conn.execute("CHECKPOINT")
             log.info("Creating song indexes...")
             t0 = time.time()
             conn.execute("CREATE INDEX idx_song_album ON songs(album_id)")
