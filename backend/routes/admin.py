@@ -1674,8 +1674,10 @@ def apple_music_catalog_refresh():
     """Enqueue the chained refresh job (albums → songs → artists →
     rebuild_index). The dedup index on research_jobs ensures only one
     chain can be in flight at a time; a duplicate POST returns the
-    existing job's id."""
+    existing job's id and reports its current status so the caller
+    can tell a new chain from a dedup hit."""
     from integrations.apple_music.refresh import enqueue_refresh_chain
+    from core import research_jobs
     try:
         job_id = enqueue_refresh_chain()
     except Exception as e:
@@ -1685,8 +1687,21 @@ def apple_music_catalog_refresh():
     if job_id is None:
         return jsonify({'error': 'enqueue collapsed without an id'}), 500
 
-    logger.info(f"Enqueued Apple catalog refresh chain; first job id={job_id}")
-    return jsonify({'job_id': job_id, 'started': 'albums'}), 202
+    job = research_jobs.get_job(job_id) or {}
+    job_status = job.get('status') or 'unknown'
+    # If the job is already running/queued (dedup hit), the user just
+    # observed an existing chain; otherwise this call kicked one off.
+    already_in_flight = job_status in ('queued', 'running')
+    logger.info(
+        "Apple catalog refresh request; job id=%s status=%s already_in_flight=%s",
+        job_id, job_status, already_in_flight,
+    )
+    return jsonify({
+        'job_id': job_id,
+        'started': 'albums',
+        'status': job_status,
+        'already_in_flight': already_in_flight,
+    }), 202
 
 
 # ============================================================================

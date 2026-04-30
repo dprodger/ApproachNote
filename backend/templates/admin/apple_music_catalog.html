@@ -147,9 +147,15 @@
                     });
                     const data = await resp.json();
                     if (resp.ok) {
-                        out.innerHTML = '<span class="pill pill-ok">Enqueued</span> '
-                            + 'Job id <strong>' + data.job_id + '</strong> — first step: '
-                            + data.started + '. Reload to see progress.';
+                        if (data.already_in_flight) {
+                            out.innerHTML = '<span class="pill pill-warn">Already running</span> '
+                                + 'Chain is already in flight (job <strong>' + data.job_id + '</strong>, status '
+                                + data.status + '). Wait for it to finish or mark it dead before starting a new one.';
+                        } else {
+                            out.innerHTML = '<span class="pill pill-ok">Enqueued</span> '
+                                + 'New chain started — job <strong>' + data.job_id + '</strong>, first step: '
+                                + data.started + '. Reload to see progress.';
+                        }
                     } else {
                         out.innerHTML = '<span class="pill pill-error">Failed</span> ' + (data.error || resp.statusText);
                     }
