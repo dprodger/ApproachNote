@@ -81,6 +81,13 @@ def build_index(
         # instance to opt back in.
         skip_artists = os.environ.get('APPLE_CATALOG_SKIP_ARTISTS', 'true').lower() != 'false'
 
+    # Index build is the most memory-intensive step. Set
+    # APPLE_CATALOG_BUILD_INDEXES=false to ship a catalog without lookup
+    # indexes — the matcher's queries still work via full-table scans
+    # (slower per-query, but unblocks the rebuild on memory-constrained
+    # workers).
+    build_indexes = os.environ.get('APPLE_CATALOG_BUILD_INDEXES', 'true').lower() != 'false'
+
     catalog_dir = Path(catalog_dir)
     db_path = Path(db_path)
 
@@ -122,13 +129,17 @@ def build_index(
     # — set DUCKDB_MEMORY_LIMIT in the environment to override (default
     # leaves headroom for Python on a 2GB worker).
     memory_limit = os.environ.get('DUCKDB_MEMORY_LIMIT', '1GB')
+    threads = os.environ.get('DUCKDB_THREADS', '1')
     temp_dir = db_path.parent / 'duckdb_tmp'
     temp_dir.mkdir(parents=True, exist_ok=True)
     conn.execute(f"SET memory_limit='{memory_limit}'")
     conn.execute(f"SET temp_directory='{temp_dir}'")
-    conn.execute("SET threads=2")
+    conn.execute(f"SET threads={threads}")
     conn.execute("SET preserve_insertion_order=false")
-    log.info(f"DuckDB memory_limit={memory_limit} temp_directory={temp_dir}")
+    log.info(
+        f"DuckDB memory_limit={memory_limit} threads={threads} "
+        f"temp_directory={temp_dir}"
+    )
 
     artist_count = 0
     has_artists = False
@@ -206,12 +217,15 @@ def build_index(
     # buffer pool, eating most of memory_limit. Forcing a checkpoint flushes
     # those pages to the .duckdb file and frees buffer memory so the index
     # build has room to work.
-    log.info("Checkpointing before album index build...")
-    conn.execute("CHECKPOINT")
-    log.info("Creating album indexes...")
-    t0 = time.time()
-    conn.execute("CREATE INDEX idx_album_id ON albums(id)")
-    log.info(f"  Created album indexes in {time.time()-t0:.1f}s")
+    if build_indexes:
+        log.info("Checkpointing before album index build...")
+        conn.execute("CHECKPOINT")
+        log.info("Creating album indexes...")
+        t0 = time.time()
+        conn.execute("CREATE INDEX idx_album_id ON albums(id)")
+        log.info(f"  Created album indexes in {time.time()-t0:.1f}s")
+    else:
+        log.info("Skipping album indexes (APPLE_CATALOG_BUILD_INDEXES=false)")
 
     song_count: Optional[int] = None
     if songs_glob and not albums_only:
@@ -257,8 +271,12 @@ def build_index(
         song_count = conn.execute("SELECT COUNT(*) FROM songs").fetchone()[0]
         log.info(f"  Loaded {song_count:,} songs in {time.time()-t0:.1f}s")
 
-        if skip_song_indexes:
-            log.info("Skipping song indexes (skip_song_indexes=True)")
+        if skip_song_indexes or not build_indexes:
+            log.info(
+                "Skipping song indexes (skip_song_indexes=True)"
+                if skip_song_indexes
+                else "Skipping song indexes (APPLE_CATALOG_BUILD_INDEXES=false)"
+            )
         else:
             # Same reasoning as the album indexes — the LOWER(name) /
             # LOWER(artist_name) function indexes can't help LIKE '%term%'
