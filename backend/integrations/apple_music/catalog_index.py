@@ -229,6 +229,12 @@ def build_index(
 
     song_count: Optional[int] = None
     if songs_glob and not albums_only:
+        # CHECKPOINT first: the albums table just got loaded + indexed,
+        # those pages are warm in DuckDB's buffer pool (~1-2GB). Without
+        # flushing them out the songs load has to compete for memory and
+        # the OS will OOM-kill the worker before DuckDB can spill cleanly.
+        log.info("Checkpointing before songs load...")
+        conn.execute("CHECKPOINT")
         log.info("Loading songs...")
         t0 = time.time()
         if has_artists:
