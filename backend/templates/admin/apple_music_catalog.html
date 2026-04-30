@@ -162,8 +162,9 @@
             });
 
             // Replace ISO timestamps with local time + relative ("5m ago"). Hover
-            // shows the original ISO string for precision.
-            (function () {
+            // shows the original ISO string for precision. Wait for DOMContentLoaded
+            // because this script tag sits above the <time> elements in the table.
+            document.addEventListener('DOMContentLoaded', function () {
                 function rel(ms) {
                     var s = Math.round(ms / 1000);
                     if (s < 60) return s + 's ago';
@@ -180,7 +181,7 @@
                     el.textContent = d.toLocaleString(undefined, fmt) + ' (' + rel(new Date() - d) + ')';
                     el.title = iso;
                 });
-            })();
+            });
         </script>
 
         <div class="grid">
