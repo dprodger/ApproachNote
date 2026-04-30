@@ -44,6 +44,7 @@ def build_index(
     rebuild: bool = True,
     albums_only: bool = False,
     skip_song_indexes: bool = False,
+    skip_artists: Optional[bool] = None,
     logger: Optional[logging.Logger] = None,
 ) -> dict[str, Any]:
     """Build the indexed DuckDB database from parquet files.
@@ -54,6 +55,12 @@ def build_index(
         rebuild: if True and db_path exists, delete and rebuild
         albums_only: skip songs (saves disk space)
         skip_song_indexes: load songs but don't create lookup indexes
+        skip_artists: if True, skip the artists table + English-name join.
+            Falls back to primaryArtists[1].name on each row, which is the
+            localized name. Saves ~25M rows of working set memory at the
+            cost of getting localized names for non-Western artists.
+            Default behavior reads APPLE_CATALOG_SKIP_ARTISTS env var
+            (defaults to True — the join can OOM small workers).
         logger: where to log progress
 
     Returns:
@@ -67,6 +74,12 @@ def build_index(
 
     if not DUCKDB_AVAILABLE:
         raise ImportError("duckdb is required. Install with: pip install duckdb")
+
+    if skip_artists is None:
+        # Default to skipping the join — it builds a 25M-row hash table that
+        # OOMs the worker. Set APPLE_CATALOG_SKIP_ARTISTS=false on a beefy
+        # instance to opt back in.
+        skip_artists = os.environ.get('APPLE_CATALOG_SKIP_ARTISTS', 'true').lower() != 'false'
 
     catalog_dir = Path(catalog_dir)
     db_path = Path(db_path)
@@ -119,7 +132,13 @@ def build_index(
 
     artist_count = 0
     has_artists = False
-    if artists_glob:
+    if skip_artists:
+        log.info(
+            "Skipping artists English-name lookup "
+            "(APPLE_CATALOG_SKIP_ARTISTS, set =false to opt back in). "
+            "Albums and songs will use the localized primaryArtists[1].name."
+        )
+    elif artists_glob:
         log.info("Loading artists (for English name lookup)...")
         t0 = time.time()
         conn.execute(f"""
