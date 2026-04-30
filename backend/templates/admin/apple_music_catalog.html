@@ -187,6 +187,41 @@
                     el.textContent = d.toLocaleString(undefined, fmt) + ' (' + rel(new Date() - d) + ')';
                     el.title = iso;
                 });
+
+                // Wire up "Mark dead" buttons. Hits the existing
+                // /admin/research/jobs/<id>/cancel endpoint which sets
+                // status='dead' so the chain dedup unblocks.
+                document.querySelectorAll('button.cancel-btn').forEach(function (btn) {
+                    btn.addEventListener('click', async function () {
+                        var jobId = btn.getAttribute('data-job-id');
+                        if (!jobId) return;
+                        if (!confirm('Mark job ' + jobId + ' as dead? '
+                                   + 'This only updates the DB row — if a worker is mid-handler, '
+                                   + 'it keeps running until it finishes or crashes.')) {
+                            return;
+                        }
+                        btn.disabled = true;
+                        var orig = btn.textContent;
+                        btn.textContent = '...';
+                        try {
+                            var resp = await fetch('/admin/research/jobs/' + jobId + '/cancel', {
+                                method: 'POST',
+                                headers: {'Content-Type': 'application/json'},
+                            });
+                            if (resp.ok || resp.status === 409) {
+                                window.location.reload();
+                                return;
+                            }
+                            var data = await resp.json().catch(function () { return {}; });
+                            alert('Failed: ' + (data.error || resp.statusText));
+                        } catch (e) {
+                            alert('Error: ' + e.message);
+                        } finally {
+                            btn.disabled = false;
+                            btn.textContent = orig;
+                        }
+                    });
+                });
             });
         </script>
 
@@ -368,6 +403,7 @@
                             <th>Finished</th>
                             <th class="numeric">Attempts</th>
                             <th>Last Error</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -409,6 +445,20 @@
                                 <td class="numeric">{{ j.attempts }}/{{ j.max_attempts }}</td>
                                 <td style="font-family: 'SF Mono', monospace; font-size: 11px; color: #6e1f1f; max-width: 360px; word-break: break-word;">
                                     {{ j.last_error or '' }}
+                                </td>
+                                <td>
+                                    {% if j.status in ('queued', 'running', 'failed') %}
+                                        <button type="button"
+                                                class="cancel-btn"
+                                                data-job-id="{{ j.id }}"
+                                                style="background: #d04444; color: #fff; border: 0;
+                                                       padding: 4px 10px; border-radius: 4px;
+                                                       font-size: 11px; font-weight: 600; cursor: pointer;">
+                                            Mark dead
+                                        </button>
+                                    {% else %}
+                                        —
+                                    {% endif %}
                                 </td>
                             </tr>
                         {% endfor %}
