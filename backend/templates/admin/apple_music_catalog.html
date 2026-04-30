@@ -160,6 +160,27 @@
                     btn.textContent = 'Refresh catalog now';
                 }
             });
+
+            // Replace ISO timestamps with local time + relative ("5m ago"). Hover
+            // shows the original ISO string for precision.
+            (function () {
+                function rel(ms) {
+                    var s = Math.round(ms / 1000);
+                    if (s < 60) return s + 's ago';
+                    if (s < 3600) return Math.round(s / 60) + 'm ago';
+                    if (s < 86400) return Math.round(s / 3600) + 'h ago';
+                    return Math.round(s / 86400) + 'd ago';
+                }
+                var fmt = {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'};
+                document.querySelectorAll('time.reltime').forEach(function (el) {
+                    var iso = el.getAttribute('datetime');
+                    if (!iso) return;
+                    var d = new Date(iso);
+                    if (isNaN(d.getTime())) return;
+                    el.textContent = d.toLocaleString(undefined, fmt) + ' (' + rel(new Date() - d) + ')';
+                    el.title = iso;
+                });
+            })();
         </script>
 
         <div class="grid">
@@ -368,8 +389,16 @@
                                         <span class="pill pill-neutral">{{ j.status }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ j.created_at or '—' }}</td>
-                                <td>{{ j.finished_at or '—' }}</td>
+                                <td>
+                                    {% if j.created_at %}
+                                        <time class="reltime" datetime="{{ j.created_at }}">{{ j.created_at }}</time>
+                                    {% else %}—{% endif %}
+                                </td>
+                                <td>
+                                    {% if j.finished_at %}
+                                        <time class="reltime" datetime="{{ j.finished_at }}">{{ j.finished_at }}</time>
+                                    {% else %}—{% endif %}
+                                </td>
                                 <td class="numeric">{{ j.attempts }}/{{ j.max_attempts }}</td>
                                 <td style="font-family: 'SF Mono', monospace; font-size: 11px; color: #6e1f1f; max-width: 360px; word-break: break-word;">
                                     {{ j.last_error or '' }}
