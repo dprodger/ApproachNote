@@ -46,7 +46,7 @@ class TestReapStuckJobs:
     def test_reaps_jobs_claimed_longer_than_threshold(self, db, make_job):
         # Claimed 30 minutes ago — stuck_after defaults to 15 min, so this
         # one should be reaped.
-        job_id = make_job(status='running')
+        job_id = make_job(status='running', attempts=1, max_attempts=5)
         with db.cursor() as cur:
             cur.execute(
                 "UPDATE research_jobs SET claimed_at = now() - interval '30 minutes', "
@@ -69,6 +69,34 @@ class TestReapStuckJobs:
         assert row[1] is None
         assert row[2] is None
         assert row[3] is not None and 'reaped' in row[3]
+
+    def test_marks_dead_when_attempts_already_exhausted(self, db, make_job):
+        # Worker OOM/crash loop: handler dies before schedule_retry can
+        # finalize the row, so attempts ratchets past max_attempts. The
+        # janitor must finalize these as dead rather than re-queueing
+        # forever.
+        job_id = make_job(status='running', attempts=2, max_attempts=1)
+        with db.cursor() as cur:
+            cur.execute(
+                "UPDATE research_jobs SET claimed_at = now() - interval '30 minutes', "
+                "claimed_by = 'dead-worker' WHERE id = %s",
+                (job_id,),
+            )
+        db.commit()
+
+        reaped = janitor.reap_stuck_jobs()
+        assert reaped == 1
+
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT status, finished_at, last_error "
+                "FROM research_jobs WHERE id = %s",
+                (job_id,),
+            )
+            row = cur.fetchone()
+        assert row[0] == 'dead'
+        assert row[1] is not None
+        assert row[2] is not None and 'max_attempts exhausted' in row[2]
 
 
 # ---------------------------------------------------------------------------

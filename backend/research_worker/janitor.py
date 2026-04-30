@@ -32,11 +32,15 @@ _REAP_MESSAGE = 'reaped: stuck in running'
 
 
 def reap_stuck_jobs() -> int:
-    """Move 'running' jobs that have been claimed too long back to 'queued'.
+    """Move stuck 'running' jobs back to 'queued', or to 'dead' if they've
+    already exhausted their max_attempts. The latter case is what an OOM
+    loop looks like: the worker process dies before it can call
+    schedule_retry, so attempts can ratchet past max_attempts unchecked
+    until the janitor finalizes the row.
 
     Returns count of jobs reaped.
     """
-    sql = """
+    sql_requeue = """
         UPDATE research_jobs
         SET status     = 'queued',
             claimed_at = NULL,
@@ -47,19 +51,43 @@ def reap_stuck_jobs() -> int:
             END
         WHERE status = 'running'
           AND claimed_at < now() - %s
+          AND attempts < max_attempts
         RETURNING id, source, claimed_by
     """
+    sql_dead = """
+        UPDATE research_jobs
+        SET status      = 'dead',
+            finished_at = now(),
+            claimed_at  = NULL,
+            claimed_by  = NULL,
+            last_error  = CASE
+                WHEN last_error IS NULL OR last_error = '' THEN %s
+                ELSE last_error || '; ' || %s
+            END
+        WHERE status = 'running'
+          AND claimed_at < now() - %s
+          AND attempts >= max_attempts
+        RETURNING id, source, claimed_by, attempts, max_attempts
+    """
+    dead_msg = 'reaped: max_attempts exhausted (likely worker OOM/crash loop)'
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql, (_REAP_MESSAGE, _REAP_MESSAGE, STUCK_RUNNING_AFTER))
+            cur.execute(sql_dead, (dead_msg, dead_msg, STUCK_RUNNING_AFTER))
+            dead_rows = cur.fetchall()
+            cur.execute(sql_requeue, (_REAP_MESSAGE, _REAP_MESSAGE, STUCK_RUNNING_AFTER))
             reaped = cur.fetchall()
-    if reaped:
-        for row in reaped:
-            logger.warning(
-                "janitor: reaped stuck job id=%s source=%s claimed_by=%s",
-                row['id'], row['source'], row['claimed_by'],
-            )
-    return len(reaped)
+    for row in dead_rows:
+        logger.error(
+            "janitor: marked dead (attempts %s/%s) id=%s source=%s claimed_by=%s",
+            row['attempts'], row['max_attempts'],
+            row['id'], row['source'], row['claimed_by'],
+        )
+    for row in reaped:
+        logger.warning(
+            "janitor: reaped stuck job id=%s source=%s claimed_by=%s",
+            row['id'], row['source'], row['claimed_by'],
+        )
+    return len(dead_rows) + len(reaped)
 
 
 def prune_terminal_jobs() -> int:

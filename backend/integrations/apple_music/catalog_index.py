@@ -12,6 +12,7 @@ across CLI and queue paths.
 from __future__ import annotations
 
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any, Optional
@@ -102,6 +103,19 @@ def build_index(
     started = time.time()
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = duckdb.connect(str(db_path))
+
+    # Cap DuckDB's RAM use; spill to /data (which has 100GB) instead of
+    # OOMing the worker. Render's worker plan determines the right ceiling
+    # — set DUCKDB_MEMORY_LIMIT in the environment to override (default
+    # leaves headroom for Python on a 2GB worker).
+    memory_limit = os.environ.get('DUCKDB_MEMORY_LIMIT', '1GB')
+    temp_dir = db_path.parent / 'duckdb_tmp'
+    temp_dir.mkdir(parents=True, exist_ok=True)
+    conn.execute(f"SET memory_limit='{memory_limit}'")
+    conn.execute(f"SET temp_directory='{temp_dir}'")
+    conn.execute("SET threads=2")
+    conn.execute("SET preserve_insertion_order=false")
+    log.info(f"DuckDB memory_limit={memory_limit} temp_directory={temp_dir}")
 
     artist_count = 0
     has_artists = False
