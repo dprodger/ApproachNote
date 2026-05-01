@@ -4006,6 +4006,153 @@ def releases_browse_detail(release_id):
     )
 
 
+@admin_bp.route('/releases/<release_id>/rematch-spotify', methods=['POST'])
+def rematch_release_spotify(release_id):
+    """Run the live Spotify matcher against this single release and persist
+    the result (writes to the DB).
+
+    Calls the same SpotifyMatcher.match_releases() the worker calls, with
+    rematch_all=True so the album is re-searched even when there's already
+    a stale match, force_refresh=True so the search cache doesn't dominate,
+    and the new release_ids filter so only THIS release is processed. A
+    release can hold tracks for multiple songs (e.g. a Various Artists
+    compilation), so we loop over each unique song on the release and
+    call the matcher once per song — that's how match_releases is
+    structured (a song-scoped helper).
+
+    Snapshots release_streaming_links and recording_release_streaming_links
+    rows for this release before and after, and returns a diff so the UI
+    can show what actually changed.
+    """
+    import logging
+    import uuid as _uuid_mod
+    from io import StringIO
+    from integrations.spotify.matcher import SpotifyMatcher
+
+    def _snapshot(cur):
+        cur.execute(
+            """
+            SELECT 'album' AS scope, NULL::uuid AS recording_release_id,
+                   service, service_id, service_url, match_method, match_confidence
+            FROM release_streaming_links WHERE release_id = %s
+            UNION ALL
+            SELECT 'track' AS scope, rrsl.recording_release_id,
+                   rrsl.service, rrsl.service_id, rrsl.service_url,
+                   rrsl.match_method, rrsl.match_confidence
+            FROM recording_release_streaming_links rrsl
+            JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+            WHERE rr.release_id = %s
+            ORDER BY scope, service, recording_release_id
+            """,
+            (release_id, release_id),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM releases WHERE id = %s", (release_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'Release not found'}), 404
+
+            # Distinct songs that have a track on this release.
+            cur.execute(
+                """
+                SELECT DISTINCT rec.song_id, s.title AS song_title
+                FROM recording_releases rr
+                JOIN recordings rec ON rec.id = rr.recording_id
+                JOIN songs s ON s.id = rec.song_id
+                WHERE rr.release_id = %s
+                ORDER BY s.title
+                """,
+                (release_id,),
+            )
+            songs = [dict(r) for r in cur.fetchall()]
+            before = _snapshot(cur)
+
+    if not songs:
+        return jsonify({'error': 'No songs linked to this release'}), 400
+
+    # Per-request isolated logger → buffer (same pattern as diagnose).
+    log_buffer = StringIO()
+    diag_logger = logging.getLogger(f'admin.spotify_rematch.{_uuid_mod.uuid4().hex}')
+    diag_logger.setLevel(logging.DEBUG)
+    diag_logger.propagate = False
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    diag_logger.addHandler(handler)
+
+    error = None
+    per_song_results = []
+    matcher = None
+    try:
+        # ONE matcher instance across all songs so stats accumulate. The
+        # cache and HTTP client are shared too, which avoids re-auth.
+        matcher = SpotifyMatcher(
+            dry_run=False,
+            strict_mode=True,
+            force_refresh=True,
+            rematch_all=True,        # full re-match — re-search album AND tracks
+            logger=diag_logger,
+        )
+        for song in songs:
+            song_id_str = str(song['song_id'])
+            diag_logger.info(f"=== Processing song {song['song_title']!r} ({song_id_str}) ===")
+            res = matcher.match_releases(song_id_str, release_ids=[release_id])
+            per_song_results.append({
+                'song_id': song_id_str,
+                'song_title': song['song_title'],
+                'success': res.get('success', False),
+                'error': res.get('error'),
+            })
+    except Exception as e:
+        logger.exception("Spotify rematch failed for release %s", release_id)
+        error = str(e)
+    finally:
+        diag_logger.removeHandler(handler)
+        handler.close()
+
+    # Snapshot AFTER and compute diff.
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            after = _snapshot(cur)
+
+    def _key(row):
+        # rows with same scope+service+recording_release_id are "the same row";
+        # anything else is a different identity.
+        return (row['scope'], row['service'], str(row.get('recording_release_id') or ''))
+    before_by = {_key(r): r for r in before}
+    after_by = {_key(r): r for r in after}
+    added = [after_by[k] for k in after_by.keys() - before_by.keys()]
+    removed = [before_by[k] for k in before_by.keys() - after_by.keys()]
+    changed = []
+    for k in before_by.keys() & after_by.keys():
+        b, a = before_by[k], after_by[k]
+        if b.get('service_id') != a.get('service_id') or b.get('match_method') != a.get('match_method'):
+            changed.append({'before': b, 'after': a})
+
+    stats = matcher.stats if matcher else {}
+    return jsonify({
+        'songs_processed': per_song_results,
+        'stats': {
+            'releases_processed': stats.get('releases_processed', 0),
+            'releases_with_spotify': stats.get('releases_with_spotify', 0),
+            'releases_no_match': stats.get('releases_no_match', 0),
+            'releases_cleared': stats.get('releases_cleared', 0),
+            'tracks_matched': stats.get('tracks_matched', 0),
+            'tracks_no_match': stats.get('tracks_no_match', 0),
+            'api_calls': stats.get('api_calls', 0),
+        },
+        'changes': {
+            'added': added,
+            'removed': removed,
+            'changed': changed,
+        },
+        'log': log_buffer.getvalue(),
+        'error': error,
+    }), (500 if error else 200)
+
+
 @admin_bp.route('/releases/<release_id>/diagnose-spotify', methods=['POST'])
 def diagnose_release_spotify(release_id):
     """Simulate the Spotify matcher's album-search ladder against this release.

@@ -362,7 +362,8 @@
         </div>
         <div class="diag-panel">
             <div class="controls">
-                <button id="diag-run">Run diagnosis</button>
+                <button id="diag-run">Run diagnosis (read-only)</button>
+                <button id="diag-apply" style="background: #c0392b;">Run matcher &amp; update DB</button>
                 <label><input type="checkbox" id="diag-force" /> force refresh (bypass Spotify search cache)</label>
                 <span class="dim" style="font-size: 11px; color: #888;">
                     Searching for: <strong>{{ release.title }}</strong> by <strong>{{ release.artist_credit or '(no artist)' }}</strong>
@@ -526,6 +527,7 @@
     (function() {
         const RELEASE_ID = "{{ release.id }}";
         const btn = document.getElementById('diag-run');
+        const applyBtn = document.getElementById('diag-apply');
         const force = document.getElementById('diag-force');
         const out = document.getElementById('diag-result');
         if (!btn) return;
@@ -551,6 +553,8 @@
 
         btn.addEventListener('click', async () => {
             btn.disabled = true;
+            applyBtn.disabled = true;
+            const oldLabel = btn.textContent;
             btn.textContent = 'Running…';
             out.innerHTML = '';
             try {
@@ -568,7 +572,41 @@
                 out.innerHTML = `<div class="diag-status error">Request failed</div><div>${escapeHtml(String(e))}</div>`;
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Run diagnosis';
+                applyBtn.disabled = false;
+                btn.textContent = oldLabel;
+            }
+        });
+
+        applyBtn.addEventListener('click', async () => {
+            const ok = window.confirm(
+                'Re-run the Spotify matcher against this release and persist any matches it finds?\n\n' +
+                'This calls the same code path the worker uses (rematch_all=True, force_refresh=True). ' +
+                'It will WRITE to the DB: add/clear release_streaming_links and recording_release_streaming_links rows ' +
+                'as the matcher decides. Stale matches for this release will be cleared if the matcher rejects them.'
+            );
+            if (!ok) return;
+            applyBtn.disabled = true;
+            btn.disabled = true;
+            const oldLabel = applyBtn.textContent;
+            applyBtn.textContent = 'Running matcher…';
+            out.innerHTML = '';
+            try {
+                const resp = await fetch(
+                    `{{ admin_url('/admin/releases/') }}${RELEASE_ID}/rematch-spotify`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({}),
+                    }
+                );
+                const data = await resp.json();
+                renderApplyResult(data);
+            } catch (e) {
+                out.innerHTML = `<div class="diag-status error">Request failed</div><div>${escapeHtml(String(e))}</div>`;
+            } finally {
+                applyBtn.disabled = false;
+                btn.disabled = false;
+                applyBtn.textContent = oldLabel;
             }
         });
 
@@ -620,6 +658,77 @@
                 ${data.error ? `<div style="color: #c00; font-size: 12px; margin-bottom: 8px;">${escapeHtml(data.error)}</div>` : ''}
                 ${resultBlock}
                 ${inputBlock}
+                <div style="font-size: 11px; color: #888; margin-top: 10px; margin-bottom: 4px;">Matcher log:</div>
+                ${logBlock}
+            `;
+        }
+
+        function renderApplyResult(data) {
+            const changes = data.changes || { added: [], removed: [], changed: [] };
+            const stats = data.stats || {};
+            const wrote = changes.added.length + changes.removed.length + changes.changed.length;
+
+            const status = data.error
+                ? `<span class="diag-status error">Error</span>`
+                : wrote > 0
+                    ? `<span class="diag-status matched">DB updated — ${wrote} change${wrote === 1 ? '' : 's'}</span>`
+                    : `<span class="diag-status no-match">No DB changes (matcher made no decision that differed from current state)</span>`;
+
+            function rowLine(r) {
+                const scope = r.scope === 'album' ? 'album' : 'track';
+                const trackTag = r.recording_release_id
+                    ? ` <span class="dim">(rr ${escapeHtml(String(r.recording_release_id).slice(0, 8))}…)</span>`
+                    : '';
+                const url = r.service_url
+                    ? ` · <a href="${escapeHtml(r.service_url)}" target="_blank" rel="noopener">open</a>`
+                    : '';
+                const meta = [r.match_method, r.match_confidence != null ? Number(r.match_confidence).toFixed(2) : null]
+                    .filter(Boolean).join(' · ');
+                return `<li><span class="svc-badge svc-${escapeHtml(r.service)}">${escapeHtml(r.service)}</span> ${scope}${trackTag} <span class="mono">${escapeHtml(r.service_id || '')}</span>${url}${meta ? ` <span class="dim">[${escapeHtml(meta)}]</span>` : ''}</li>`;
+            }
+
+            const addedBlock = changes.added.length
+                ? `<div><strong style="color: #155724;">Added (${changes.added.length}):</strong><ul style="margin: 4px 0 8px 20px;">${changes.added.map(rowLine).join('')}</ul></div>` : '';
+            const removedBlock = changes.removed.length
+                ? `<div><strong style="color: #721c24;">Removed (${changes.removed.length}):</strong><ul style="margin: 4px 0 8px 20px;">${changes.removed.map(rowLine).join('')}</ul></div>` : '';
+            const changedBlock = changes.changed.length
+                ? `<div><strong style="color: #856404;">Changed (${changes.changed.length}):</strong><ul style="margin: 4px 0 8px 20px;">${changes.changed.map(c => `<li>${rowLine(c.before)} → ${rowLine(c.after)}</li>`).join('')}</ul></div>` : '';
+
+            const songsBlock = (data.songs_processed || []).length
+                ? `<details><summary style="cursor: pointer; font-size: 12px; color: #666;">Songs processed (${data.songs_processed.length})</summary><ul style="margin: 4px 0 0 20px; font-size: 12px;">${
+                      data.songs_processed.map(s => `<li>${escapeHtml(s.song_title)} <span class="mono">${escapeHtml(s.song_id.slice(0, 8))}…</span> ${s.success ? '<span class="ok">OK</span>' : `<span class="bad">${escapeHtml(s.error || 'failed')}</span>`}</li>`).join('')
+                  }</ul></details>` : '';
+
+            const statsBlock = `
+                <details>
+                    <summary style="cursor: pointer; font-size: 12px; color: #666;">Matcher stats</summary>
+                    <dl>
+                        <dt>Releases processed</dt><dd>${stats.releases_processed || 0}</dd>
+                        <dt>Releases matched</dt><dd>${stats.releases_with_spotify || 0}</dd>
+                        <dt>Releases no match</dt><dd>${stats.releases_no_match || 0}</dd>
+                        <dt>Releases cleared (stale)</dt><dd>${stats.releases_cleared || 0}</dd>
+                        <dt>Tracks matched</dt><dd>${stats.tracks_matched || 0}</dd>
+                        <dt>Tracks no match</dt><dd>${stats.tracks_no_match || 0}</dd>
+                        <dt>Spotify API calls</dt><dd>${stats.api_calls || 0}</dd>
+                    </dl>
+                </details>
+            `;
+
+            const logBlock = data.log
+                ? `<div class="diag-log">${highlight(data.log)}</div>`
+                : '<div class="empty" style="font-size: 12px;">No log output captured.</div>';
+
+            const reloadHint = wrote > 0
+                ? `<div style="margin-top: 8px; font-size: 12px; color: #155724;">Reload the page to see the updated Imagery / Streaming Links sections above.</div>`
+                : '';
+
+            out.innerHTML = `
+                ${status}
+                ${data.error ? `<div style="color: #c00; font-size: 12px; margin-bottom: 8px;">${escapeHtml(data.error)}</div>` : ''}
+                ${addedBlock}${removedBlock}${changedBlock}
+                ${reloadHint}
+                ${songsBlock}
+                ${statsBlock}
                 <div style="font-size: 11px; color: #888; margin-top: 10px; margin-bottom: 4px;">Matcher log:</div>
                 ${logBlock}
             `;

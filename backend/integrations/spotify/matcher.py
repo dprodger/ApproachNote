@@ -246,7 +246,8 @@ class SpotifyMatcher:
     # MAIN ORCHESTRATION METHODS
     # ========================================================================
     
-    def match_releases(self, song_identifier: str, start_from: int = 1) -> Dict[str, Any]:
+    def match_releases(self, song_identifier: str, start_from: int = 1,
+                       release_ids=None) -> Dict[str, Any]:
         """
         Main method to match Spotify albums for a song's releases
 
@@ -255,6 +256,12 @@ class SpotifyMatcher:
             start_from: Release number to start from (1-indexed). Use this to resume
                        after a previous run was interrupted. Releases before this
                        number will be skipped.
+            release_ids: Optional iterable of release UUIDs (str). When set,
+                       only releases whose id is in the set are processed —
+                       all other branches of the per-release loop are
+                       unchanged. Used by the admin "rematch one release"
+                       diagnostic so the UI exercises the same code path
+                       the worker uses, just narrowed to one row.
 
         Returns:
             dict: {
@@ -270,13 +277,13 @@ class SpotifyMatcher:
                 song = find_song_by_id(song_identifier)
             else:
                 song = find_song_by_name(song_identifier)
-            
+
             if not song:
                 return {
                     'success': False,
                     'error': 'Song not found'
                 }
-            
+
             self.logger.info(f"Song: {song['title']}")
             self.logger.info(f"Composer: {song['composer']}")
             self.logger.info(f"Database ID: {song['id']}")
@@ -285,14 +292,19 @@ class SpotifyMatcher:
             if self.artist_filter:
                 self.logger.info(f"Filtering to releases by: {self.artist_filter}")
             self.logger.info("")
-            
+
             # Get releases
             if self.duration_mismatch_threshold is not None:
                 releases = get_releases_with_duration_mismatches(
                     song['id'], self.duration_mismatch_threshold, self.artist_filter)
             else:
                 releases = get_releases_for_song(song['id'], self.artist_filter)
-            
+
+            # Optional release_ids filter (admin per-release rematch).
+            if release_ids:
+                wanted = {str(rid) for rid in release_ids}
+                releases = [r for r in releases if str(r['id']) in wanted]
+
             if not releases:
                 return {
                     'success': False,
