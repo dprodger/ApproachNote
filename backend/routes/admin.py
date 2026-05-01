@@ -3793,7 +3793,28 @@ def releases_browse_detail(release_id):
     release row, all imagery rows from every source, all release-level
     streaming links, and the per-track table with each recording_release's
     streaming-link rows attached.
+
+    Optional ?via=<recording_id> query param threads the breadcrumb chain
+    back through the recording (and its song) the user came from. The
+    recording must actually be linked to this release; if it isn't, the
+    param is silently ignored and the breadcrumb falls back to the
+    no-context shape.
     """
+    import uuid as _uuid
+    via_recording_id_raw = (request.args.get('via') or '').strip() or None
+    via_recording_id = None
+    if via_recording_id_raw:
+        # Reject non-UUID input early — passing a non-UUID string into a
+        # uuid-typed WHERE clause raises an error that aborts the rest of
+        # the transaction, breaking the whole page. Silent-drop is fine
+        # here; the param is decorative.
+        try:
+            _uuid.UUID(via_recording_id_raw)
+            via_recording_id = via_recording_id_raw
+        except (ValueError, AttributeError):
+            pass
+    via_context = None  # {'recording_id', 'recording_title', 'song_id', 'song_title'}
+
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # 1) Release row + lookup-table joins for human-readable
@@ -3815,6 +3836,40 @@ def releases_browse_detail(release_id):
             release = cur.fetchone()
             if not release:
                 return ('Release not found', 404)
+
+            # 1a) If ?via=<recording_id>, pull the song chain for the
+            #     breadcrumb. The JOIN on recording_releases ensures the
+            #     recording is *actually* on this release — drops the
+            #     param silently if a stale URL is followed to an unrelated
+            #     release.
+            if via_recording_id:
+                try:
+                    cur.execute(
+                        """
+                        SELECT rec.id AS recording_id,
+                               rec.title AS recording_title,
+                               s.id AS song_id,
+                               s.title AS song_title
+                        FROM recording_releases rr
+                        JOIN recordings rec ON rec.id = rr.recording_id
+                        JOIN songs s ON s.id = rec.song_id
+                        WHERE rr.recording_id = %s AND rr.release_id = %s
+                        LIMIT 1
+                        """,
+                        (via_recording_id, release_id),
+                    )
+                    row = cur.fetchone()
+                    if row:
+                        via_context = {
+                            'recording_id': str(row['recording_id']),
+                            'recording_title': row['recording_title'],
+                            'song_id': str(row['song_id']),
+                            'song_title': row['song_title'],
+                        }
+                except Exception:
+                    # Silently fall back to no-context breadcrumb on any
+                    # malformed UUID, etc. — the page is still useful.
+                    via_context = None
 
             # 2) Release events (per-country release dates)
             cur.execute(
@@ -3947,6 +4002,7 @@ def releases_browse_detail(release_id):
         imagery=imagery,
         release_streaming_links=release_streaming_links,
         tracks=tracks,
+        via_context=via_context,
     )
 
 

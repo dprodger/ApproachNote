@@ -93,7 +93,7 @@
         <div class="breadcrumb">
             <a href="{{ admin_url('/admin/songs') }}">Browse Songs</a>
             &nbsp;/&nbsp;
-            <a href="{{ admin_url('/admin/songs/') }}{{ recording.song_id }}">{{ recording.song_title }}</a>
+            <a href="{{ admin_url('/admin/songs/') }}{{ recording.song_id }}" title="{{ recording.song_title }}">{{ recording.song_title }}</a>
             &nbsp;/&nbsp;
             Recording
         </div>
@@ -163,8 +163,8 @@
             </thead>
             <tbody>
                 {% for rel in releases %}
-                <tr class="clickable" onclick="window.location='{{ admin_url('/admin/releases/') }}{{ rel.release_id }}'">
-                    <td><a href="{{ admin_url('/admin/releases/') }}{{ rel.release_id }}" onclick="event.stopPropagation()">{{ rel.release_title }}</a></td>
+                <tr class="clickable" onclick="window.location='{{ admin_url('/admin/releases/') }}{{ rel.release_id }}?via={{ recording.id }}'">
+                    <td><a href="{{ admin_url('/admin/releases/') }}{{ rel.release_id }}?via={{ recording.id }}" onclick="event.stopPropagation()">{{ rel.release_title }}</a></td>
                     <td>{{ rel.artist_credit or '' }}</td>
                     <td>{{ rel.release_year or '' }}</td>
                     <td>

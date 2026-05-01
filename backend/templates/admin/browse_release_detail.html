@@ -235,6 +235,14 @@
     <div class="container">
         <div class="breadcrumb">
             <a href="{{ admin_url('/admin/songs') }}">Browse Songs</a>
+            {% if via_context %}
+                &nbsp;/&nbsp;
+                <a href="{{ admin_url('/admin/songs/') }}{{ via_context.song_id }}"
+                   title="{{ via_context.song_title }}">{{ via_context.song_title }}</a>
+                &nbsp;/&nbsp;
+                <a href="{{ admin_url('/admin/recordings/') }}{{ via_context.recording_id }}"
+                   title="{{ via_context.recording_title or '(untitled)' }}">{{ via_context.recording_title or '(untitled)' }}</a>
+            {% endif %}
             &nbsp;/&nbsp;
             Release
         </div>
