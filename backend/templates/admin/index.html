@@ -204,6 +204,13 @@
                     <span class="endpoint">{{ admin_url('/admin/streaming-availability') }}</span>
                 </a>
 
+                <a href="{{ admin_url('/admin/release-streaming-mismatches') }}" class="card">
+                    <div class="card-icon">🪲</div>
+                    <h3>Release Streaming Mismatches</h3>
+                    <p>Releases where a track has a streaming link but the album doesn't — recording is "playable" in the app but no album art renders.</p>
+                    <span class="endpoint">{{ admin_url('/admin/release-streaming-mismatches') }}</span>
+                </a>
+
                 <a href="{{ admin_url('/admin/duration-mismatches') }}" class="card">
                     <div class="card-icon">⏱️</div>
                     <h3>Spotify Duration Mismatches</h3>

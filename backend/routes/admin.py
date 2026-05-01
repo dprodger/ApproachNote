@@ -3710,6 +3710,168 @@ def songs_browse_list():
     )
 
 
+@admin_bp.route('/release-streaming-mismatches')
+def release_streaming_mismatches():
+    """Admin diagnostic: releases where a track-level streaming link exists
+    but the corresponding album-level link doesn't.
+
+    The recording shows as "playable" in the iOS/Mac app (track link works)
+    but no album art is available (cover art is keyed off
+    release_imagery, which only gets populated when the album-level
+    matcher succeeds). #177.
+
+    Filters:
+        ?service=spotify|apple_music|youtube|all (default 'all')
+        ?hide_legacy=1 — for Spotify, hide rows where the legacy
+            releases.spotify_album_id column IS populated. Most of those
+            27k Spotify orphans are migration artifacts (track links got
+            normalized into recording_release_streaming_links but the
+            album-level links never made the move out of the legacy
+            column). The flag focuses on genuine matcher mismatches.
+
+    Capped at 200 rows; sort is orphan track count desc so the heaviest
+    cases sit at top. URL is :id of the release in the resulting table —
+    click through to /admin/releases/<id> to diagnose / rematch.
+    """
+    service_filter = request.args.get('service') or 'all'
+    if service_filter not in ('all', 'spotify', 'apple_music', 'youtube'):
+        service_filter = 'all'
+    hide_legacy = request.args.get('hide_legacy') == '1'
+    limit = 200
+
+    # The "track has a link, release doesn't" predicate is identical per
+    # service. Compute once per (release_id, service) pair, then aggregate.
+    base_sql = """
+        WITH track_services AS (
+            SELECT DISTINCT
+                rr.release_id,
+                rrsl.service
+            FROM recording_release_streaming_links rrsl
+            JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+        ),
+        orphans AS (
+            -- (release_id, service) pairs where the album-level link is missing.
+            SELECT t.release_id, t.service
+            FROM track_services t
+            WHERE NOT EXISTS (
+                SELECT 1 FROM release_streaming_links rsl
+                WHERE rsl.release_id = t.release_id AND rsl.service = t.service
+            )
+        ),
+        per_service AS (
+            -- Count orphan tracks per (release, service)
+            SELECT
+                rr.release_id,
+                rrsl.service,
+                COUNT(*) AS orphan_track_count
+            FROM recording_release_streaming_links rrsl
+            JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+            JOIN orphans o ON o.release_id = rr.release_id AND o.service = rrsl.service
+            GROUP BY rr.release_id, rrsl.service
+        ),
+        per_release AS (
+            SELECT
+                ps.release_id,
+                jsonb_object_agg(ps.service, ps.orphan_track_count) AS service_orphans,
+                SUM(ps.orphan_track_count) AS total_orphan_tracks,
+                array_agg(ps.service ORDER BY ps.service) AS services_missing
+            FROM per_service ps
+            GROUP BY ps.release_id
+        )
+        SELECT
+            rel.id AS release_id,
+            rel.title,
+            rel.artist_credit,
+            rel.release_year,
+            rel.musicbrainz_release_id AS mb_release_id,
+            rel.spotify_album_id AS legacy_spotify_album_id,
+            pr.service_orphans,
+            pr.total_orphan_tracks,
+            pr.services_missing,
+            (SELECT COUNT(*) FROM recording_releases rr WHERE rr.release_id = rel.id) AS total_tracks
+        FROM per_release pr
+        JOIN releases rel ON rel.id = pr.release_id
+        WHERE TRUE
+    """
+    params = []
+    if service_filter != 'all':
+        base_sql += " AND %s = ANY(pr.services_missing)"
+        params.append(service_filter)
+    if hide_legacy:
+        # Hide Spotify migration artifacts: don't show rows whose only
+        # missing service is spotify AND the legacy column is populated.
+        base_sql += """
+            AND NOT (
+                pr.services_missing = ARRAY['spotify']
+                AND rel.spotify_album_id IS NOT NULL
+            )
+        """
+    base_sql += """
+        ORDER BY pr.total_orphan_tracks DESC, rel.release_year NULLS LAST, rel.title
+        LIMIT %s
+    """
+    params.append(limit)
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(base_sql, params)
+            rows = cur.fetchall()
+
+            # Summary counts (independent of the filter — give the big picture).
+            cur.execute("""
+                WITH track_services AS (
+                    SELECT DISTINCT rr.release_id, rrsl.service
+                    FROM recording_release_streaming_links rrsl
+                    JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                ),
+                orphans AS (
+                    SELECT t.release_id, t.service
+                    FROM track_services t
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM release_streaming_links rsl
+                        WHERE rsl.release_id = t.release_id AND rsl.service = t.service
+                    )
+                )
+                SELECT
+                    o.service,
+                    COUNT(DISTINCT o.release_id) AS releases,
+                    COUNT(DISTINCT o.release_id) FILTER (
+                        WHERE o.service = 'spotify' AND rel.spotify_album_id IS NOT NULL
+                    ) AS legacy_only
+                FROM orphans o
+                JOIN releases rel ON rel.id = o.release_id
+                GROUP BY o.service
+                ORDER BY o.service
+            """)
+            per_service_summary = cur.fetchall()
+
+            cur.execute("""
+                WITH track_services AS (
+                    SELECT DISTINCT rr.release_id, rrsl.service
+                    FROM recording_release_streaming_links rrsl
+                    JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                )
+                SELECT COUNT(DISTINCT t.release_id) AS distinct_releases
+                FROM track_services t
+                WHERE NOT EXISTS (
+                    SELECT 1 FROM release_streaming_links rsl
+                    WHERE rsl.release_id = t.release_id AND rsl.service = t.service
+                )
+            """)
+            distinct_total = (cur.fetchone() or {}).get('distinct_releases', 0)
+
+    return render_template(
+        'admin/release_streaming_mismatches.html',
+        rows=rows,
+        per_service_summary=per_service_summary,
+        distinct_total=distinct_total,
+        service_filter=service_filter,
+        hide_legacy=hide_legacy,
+        limit=limit,
+        truncated=len(rows) >= limit,
+    )
+
+
 @admin_bp.route('/songs/<song_id>')
 def songs_browse_detail(song_id):
     """Song detail with sortable recording list.

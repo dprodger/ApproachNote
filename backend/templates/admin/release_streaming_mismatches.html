@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Release Streaming Mismatches — Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1280px; margin: 0 auto; }
+        .breadcrumb { font-size: 13px; margin-bottom: 12px; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .header { margin-bottom: 18px; }
+        .header h1 { font-size: 22px; color: #1d1d1f; margin-bottom: 4px; }
+        .header-subtitle { color: #666; font-size: 14px; }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .stat-card .v {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+        .stat-card .l {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .stat-card .sub {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+        }
+        .stat-card .v.spotify { color: #1db954; }
+        .stat-card .v.apple_music { color: #fa233b; }
+        .stat-card .v.youtube { color: #ff0000; }
+
+        .filters {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 12px 14px;
+            margin-bottom: 14px;
+            display: flex;
+            gap: 14px;
+            align-items: center;
+            flex-wrap: wrap;
+            font-size: 13px;
+        }
+        .filters label { color: #666; }
+        .filters select, .filters button {
+            padding: 6px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+        .filters button {
+            background: #0066cc;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+        .filters button.secondary {
+            background: #fff;
+            color: #0066cc;
+            border: 1px solid #0066cc;
+        }
+
+        .meta-line {
+            font-size: 13px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .meta-line .truncated { color: #c0392b; font-weight: 600; }
+
+        table.list {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+            table-layout: fixed;
+        }
+        table.list th, table.list td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        table.list th {
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            white-space: nowrap;
+        }
+        table.list tr:last-child td { border-bottom: none; }
+        table.list tbody tr.clickable:hover { background: #f8f9fa; cursor: pointer; }
+        table.list a { color: #0066cc; text-decoration: none; }
+        table.list a:hover { text-decoration: underline; }
+
+        col.col-title  { width: 30%; }
+        col.col-artist { width: 22%; }
+        col.col-year   { width: 60px; }
+        col.col-svc    { width: 96px; }
+        col.col-counts { width: 220px; }
+        col.col-legacy { width: 90px; }
+
+        td.cell-title { font-weight: 500; }
+        td.cell-title a { color: #1d1d1f; }
+        td.cell-title a:hover { color: #0066cc; }
+        .ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+        .muted { color: #888; }
+        .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+
+        .svc-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #fff;
+            margin-right: 4px;
+        }
+        .svc-spotify     { background: #1db954; }
+        .svc-apple_music { background: #fa233b; }
+        .svc-youtube     { background: #ff0000; }
+
+        .legacy-flag {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+            background: #fff3cd;
+            color: #856404;
+        }
+        .empty {
+            color: #888;
+            padding: 24px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/') }}">Admin</a>
+            &nbsp;/&nbsp;
+            Release Streaming Mismatches
+        </div>
+
+        <div class="header">
+            <h1>Release Streaming Mismatches</h1>
+            <p class="header-subtitle">
+                Releases where a track on the release has a streaming link, but the release itself doesn't have an
+                album-level link to the same service. The recording shows as <em>playable</em> in the apps but no
+                album art renders. <a href="https://github.com/dprodger/ApproachNote/issues/177" target="_blank" rel="noopener">#177</a>
+            </p>
+        </div>
+
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="v">{{ '{:,}'.format(distinct_total) }}</div>
+                <div class="l">Total Releases Affected</div>
+            </div>
+            {% for s in per_service_summary %}
+            <div class="stat-card">
+                <div class="v {{ s.service }}">{{ '{:,}'.format(s.releases) }}</div>
+                <div class="l">{{ s.service }}</div>
+                {% if s.legacy_only %}
+                <div class="sub">{{ '{:,}'.format(s.legacy_only) }} have legacy <code>spotify_album_id</code> populated</div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+
+        <form class="filters" method="get" action="{{ admin_url('/admin/release-streaming-mismatches') }}">
+            <label for="f-service">Service:</label>
+            <select id="f-service" name="service">
+                <option value="all"          {% if service_filter == 'all' %}selected{% endif %}>All</option>
+                <option value="spotify"      {% if service_filter == 'spotify' %}selected{% endif %}>Spotify only</option>
+                <option value="apple_music"  {% if service_filter == 'apple_music' %}selected{% endif %}>Apple Music only</option>
+                <option value="youtube"      {% if service_filter == 'youtube' %}selected{% endif %}>YouTube only</option>
+            </select>
+
+            <label>
+                <input type="checkbox" name="hide_legacy" value="1" {% if hide_legacy %}checked{% endif %} />
+                Hide Spotify migration artifacts (releases with legacy <code>spotify_album_id</code> populated)
+            </label>
+
+            <button type="submit">Apply</button>
+            {% if service_filter != 'all' or hide_legacy %}
+            <a href="{{ admin_url('/admin/release-streaming-mismatches') }}" class="secondary"
+               style="padding: 6px 10px; border: 1px solid #0066cc; border-radius: 6px; background: #fff; color: #0066cc; text-decoration: none;">
+               Clear
+            </a>
+            {% endif %}
+        </form>
+
+        <div class="meta-line">
+            Showing {{ rows | length }} release{{ '' if rows | length == 1 else 's' }}, sorted by orphan-track count desc.
+            {% if truncated %}
+                — <span class="truncated">capped at {{ limit }}; refine via filters</span>
+            {% endif %}
+        </div>
+
+        {% if rows %}
+        <table class="list">
+            <colgroup>
+                <col class="col-title" />
+                <col class="col-artist" />
+                <col class="col-year" />
+                <col class="col-svc" />
+                <col class="col-counts" />
+                <col class="col-legacy" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Release</th>
+                    <th>Artist</th>
+                    <th>Year</th>
+                    <th>Missing</th>
+                    <th>Orphan Tracks (per service / total tracks)</th>
+                    <th>Legacy Col</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr class="clickable"
+                    onclick="window.location='{{ admin_url('/admin/releases/') }}{{ r.release_id }}'">
+                    <td class="cell-title ellipsis">
+                        <a href="{{ admin_url('/admin/releases/') }}{{ r.release_id }}"
+                           onclick="event.stopPropagation()"
+                           title="{{ r.title }}">{{ r.title }}</a>
+                    </td>
+                    <td class="ellipsis muted" title="{{ r.artist_credit or '' }}">{{ r.artist_credit or '' }}</td>
+                    <td>{{ r.release_year or '' }}</td>
+                    <td>
+                        {% for svc in r.services_missing %}
+                          <span class="svc-badge svc-{{ svc }}">{{ svc }}</span>
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for svc, n in (r.service_orphans | dictsort) %}
+                          <span class="svc-badge svc-{{ svc }}">{{ svc }}</span>
+                          <span class="mono">{{ n }} / {{ r.total_tracks }}</span>{% if not loop.last %} &nbsp; {% endif %}
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% if r.legacy_spotify_album_id %}
+                          <span class="legacy-flag" title="legacy column populated: {{ r.legacy_spotify_album_id }}">
+                              spotify
+                          </span>
+                        {% else %}
+                          <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No releases match these filters.</div>
+        {% endif %}
+    </div>
+</body>
+</html>
