@@ -4265,6 +4265,270 @@ def diagnose_release_spotify(release_id):
     }), (500 if error else 200)
 
 
+@admin_bp.route('/releases/<release_id>/diagnose-apple', methods=['POST'])
+def diagnose_release_apple(release_id):
+    """Simulate the Apple Music matcher's album search against this release.
+
+    Mirrors what the Apple worker does at album-match time: builds a real
+    AppleMusicMatcher (dry_run=True so nothing writes), captures its
+    DEBUG-level reasoning into a buffer, and runs search_and_validate_album
+    against the release's artist + title + year. Returns the matcher's
+    result, the captured log, the inputs, and the thresholds — using the
+    matcher's actual code, not a parallel implementation, so any future
+    tuning shows up automatically.
+
+    Body params (JSON):
+        use_api_fallback: bool (default False) — if True, allow the
+            matcher to fall back to the iTunes Search API after the local
+            catalog misses. The worker runs with local_catalog_only=True
+            so the default here matches that behavior; flip the flag to
+            see what would happen if the API fallback were enabled.
+        force_refresh: bool (default False) — bypass the iTunes API
+            response cache when the API fallback runs. Only meaningful
+            when use_api_fallback is also True.
+    """
+    import logging
+    import uuid as _uuid_mod
+    from io import StringIO
+    from integrations.apple_music.matcher import AppleMusicMatcher
+    from integrations.apple_music.search import search_and_validate_album
+
+    body = request.get_json(silent=True) or {}
+    use_api_fallback = bool(body.get('use_api_fallback', False))
+    force_refresh = bool(body.get('force_refresh', False))
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, artist_credit, release_year
+                FROM releases WHERE id = %s
+                """,
+                (release_id,),
+            )
+            release = cur.fetchone()
+            if not release:
+                return jsonify({'error': 'Release not found'}), 404
+
+    log_buffer = StringIO()
+    diag_logger = logging.getLogger(f'admin.apple_diag.{_uuid_mod.uuid4().hex}')
+    diag_logger.setLevel(logging.DEBUG)
+    diag_logger.propagate = False
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    diag_logger.addHandler(handler)
+
+    error = None
+    result = None
+    try:
+        matcher = AppleMusicMatcher(
+            dry_run=True,
+            strict_mode=True,
+            force_refresh=force_refresh,
+            # Worker default is local_catalog_only=True; mirror that
+            # unless the admin explicitly opts into API fallback.
+            local_catalog_only=not use_api_fallback,
+            logger=diag_logger,
+        )
+        result = search_and_validate_album(
+            matcher,
+            artist_name=release['artist_credit'] or '',
+            album_title=release['title'],
+            release_year=release['release_year'],
+        )
+    except Exception as e:
+        logger.exception("Apple Music diagnosis failed for release %s", release_id)
+        error = str(e)
+    finally:
+        diag_logger.removeHandler(handler)
+        handler.close()
+
+    return jsonify({
+        'input': {
+            'album_title': release['title'],
+            'artist_name': release['artist_credit'],
+            'release_year': release['release_year'],
+            'use_api_fallback': use_api_fallback,
+            'force_refresh': force_refresh,
+            'thresholds': {
+                'min_artist_similarity': 75,
+                'min_album_similarity': 65,
+                'min_track_similarity': 85,
+            },
+        },
+        'matched': result is not None,
+        'result': result,
+        'log': log_buffer.getvalue(),
+        'error': error,
+    }), (500 if error else 200)
+
+
+@admin_bp.route('/releases/<release_id>/rematch-apple', methods=['POST'])
+def rematch_release_apple(release_id):
+    """Run the live Apple Music matcher against this single release and
+    persist the result (writes to the DB).
+
+    Calls the same AppleMusicMatcher.match_releases() the worker calls,
+    with rematch=True so the album is re-searched even when there's
+    already a stale "searched / no match" timestamp, and the new
+    release_ids filter so only THIS release is processed. A release can
+    hold tracks for multiple songs, so we loop over each unique song on
+    the release and call the matcher once per song on a single shared
+    matcher instance.
+
+    Snapshots release_streaming_links, recording_release_streaming_links,
+    and release_imagery for this release before and after, returns a diff.
+
+    Body params (JSON):
+        use_api_fallback: bool (default False) — same meaning as on the
+            diagnose endpoint. Worker default is local-only.
+    """
+    import logging
+    import uuid as _uuid_mod
+    from io import StringIO
+    from integrations.apple_music.matcher import AppleMusicMatcher
+
+    body = request.get_json(silent=True) or {}
+    use_api_fallback = bool(body.get('use_api_fallback', False))
+
+    def _snapshot(cur):
+        cur.execute(
+            """
+            SELECT 'album'  AS scope, NULL::uuid AS recording_release_id,
+                   service, service_id, service_url,
+                   match_method, match_confidence,
+                   NULL::text AS img_source, NULL::text AS img_type
+            FROM release_streaming_links WHERE release_id = %s
+            UNION ALL
+            SELECT 'track'  AS scope, rrsl.recording_release_id,
+                   rrsl.service, rrsl.service_id, rrsl.service_url,
+                   rrsl.match_method, rrsl.match_confidence,
+                   NULL, NULL
+            FROM recording_release_streaming_links rrsl
+            JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+            WHERE rr.release_id = %s
+            UNION ALL
+            SELECT 'imagery' AS scope, NULL,
+                   ri.source::text AS service, ri.source_id AS service_id,
+                   ri.source_url AS service_url,
+                   NULL, NULL,
+                   ri.source::text, ri.type::text
+            FROM release_imagery ri WHERE ri.release_id = %s
+            ORDER BY scope, service, recording_release_id
+            """,
+            (release_id, release_id, release_id),
+        )
+        return [dict(r) for r in cur.fetchall()]
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM releases WHERE id = %s", (release_id,))
+            if not cur.fetchone():
+                return jsonify({'error': 'Release not found'}), 404
+
+            cur.execute(
+                """
+                SELECT DISTINCT rec.song_id, s.title AS song_title
+                FROM recording_releases rr
+                JOIN recordings rec ON rec.id = rr.recording_id
+                JOIN songs s ON s.id = rec.song_id
+                WHERE rr.release_id = %s
+                ORDER BY s.title
+                """,
+                (release_id,),
+            )
+            songs = [dict(r) for r in cur.fetchall()]
+            before = _snapshot(cur)
+
+    if not songs:
+        return jsonify({'error': 'No songs linked to this release'}), 400
+
+    log_buffer = StringIO()
+    diag_logger = logging.getLogger(f'admin.apple_rematch.{_uuid_mod.uuid4().hex}')
+    diag_logger.setLevel(logging.DEBUG)
+    diag_logger.propagate = False
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    diag_logger.addHandler(handler)
+
+    error = None
+    per_song_results = []
+    matcher = None
+    try:
+        matcher = AppleMusicMatcher(
+            dry_run=False,
+            strict_mode=True,
+            force_refresh=True,
+            rematch=True,                              # full re-match — re-search album
+            local_catalog_only=not use_api_fallback,   # worker default: local only
+            logger=diag_logger,
+        )
+        for song in songs:
+            song_id_str = str(song['song_id'])
+            diag_logger.info(f"=== Processing song {song['song_title']!r} ({song_id_str}) ===")
+            res = matcher.match_releases(song_id_str, release_ids=[release_id])
+            per_song_results.append({
+                'song_id': song_id_str,
+                'song_title': song['song_title'],
+                'success': res.get('success', False),
+                'message': res.get('message'),
+            })
+    except Exception as e:
+        logger.exception("Apple Music rematch failed for release %s", release_id)
+        error = str(e)
+    finally:
+        diag_logger.removeHandler(handler)
+        handler.close()
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            after = _snapshot(cur)
+
+    def _key(row):
+        # imagery rows are keyed by (scope, source, type); streaming rows
+        # by (scope, service, recording_release_id). Identity is just
+        # "what counts as the same row in the table" — service-id changes
+        # show up as a 'changed' row, not added+removed.
+        if row['scope'] == 'imagery':
+            return ('imagery', row.get('img_source') or '', row.get('img_type') or '')
+        return (row['scope'], row['service'], str(row.get('recording_release_id') or ''))
+    before_by = {_key(r): r for r in before}
+    after_by = {_key(r): r for r in after}
+    added = [after_by[k] for k in after_by.keys() - before_by.keys()]
+    removed = [before_by[k] for k in before_by.keys() - after_by.keys()]
+    changed = []
+    for k in before_by.keys() & after_by.keys():
+        b, a = before_by[k], after_by[k]
+        if b.get('service_id') != a.get('service_id') or b.get('match_method') != a.get('match_method'):
+            changed.append({'before': b, 'after': a})
+
+    stats = matcher.stats if matcher else {}
+    return jsonify({
+        'songs_processed': per_song_results,
+        'stats': {
+            'releases_processed': stats.get('releases_processed', 0),
+            'releases_matched': stats.get('releases_matched', 0),
+            'releases_with_apple_music': stats.get('releases_with_apple_music', 0),
+            'releases_no_match': stats.get('releases_no_match', 0),
+            'releases_skipped': stats.get('releases_skipped', 0),
+            'tracks_matched': stats.get('tracks_matched', 0),
+            'tracks_no_match': stats.get('tracks_no_match', 0),
+            'artwork_added': stats.get('artwork_added', 0),
+            'local_catalog_hits': stats.get('local_catalog_hits', 0),
+            'api_calls': stats.get('api_calls', 0),
+        },
+        'changes': {
+            'added': added,
+            'removed': removed,
+            'changed': changed,
+        },
+        'log': log_buffer.getvalue(),
+        'error': error,
+    }), (500 if error else 200)
+
+
 @admin_bp.route('/recordings/<recording_id>')
 def recordings_browse_detail(recording_id):
     """Recording detail with release list."""

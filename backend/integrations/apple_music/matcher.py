@@ -164,7 +164,7 @@ class AppleMusicMatcher:
             self.min_album_similarity = 55
             self.min_track_similarity = 75
 
-    def match_releases(self, song_identifier: str) -> Dict[str, Any]:
+    def match_releases(self, song_identifier: str, release_ids=None) -> Dict[str, Any]:
         """
         Match all releases for a song to Apple Music.
 
@@ -172,6 +172,12 @@ class AppleMusicMatcher:
 
         Args:
             song_identifier: Song title or ID (with optional 'song-' prefix)
+            release_ids: Optional iterable of release UUIDs (str). When set,
+                only releases whose id is in the set are processed — every
+                other branch of the per-release loop is unchanged. Used by
+                the admin "rematch one release" diagnostic so the UI
+                exercises the same code path the worker uses, just narrowed
+                to one row.
 
         Returns:
             Dict with 'success', 'song', 'stats', and 'message' keys
@@ -197,6 +203,11 @@ class AppleMusicMatcher:
 
         # Get all releases for this song
         releases = get_releases_for_song(song_id, self.artist_filter)
+
+        # Optional release_ids filter (admin per-release rematch).
+        if release_ids:
+            wanted = {str(rid) for rid in release_ids}
+            releases = [r for r in releases if str(r['id']) in wanted]
 
         if not releases:
             return {
