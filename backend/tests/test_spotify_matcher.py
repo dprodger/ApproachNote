@@ -32,6 +32,7 @@ from integrations.spotify.matching import (
     split_title_qualifier,
     strip_ensemble_suffix,
     strip_live_suffix,
+    strip_mb_year_disambiguator,
     track_artist_matches_recording_leader,
     validate_album_match,
     validate_track_match,
@@ -282,6 +283,38 @@ class TestStripLiveSuffix:
     ])
     def test_strips_suffix(self, title, expected):
         assert strip_live_suffix(title) == expected
+
+
+class TestStripMBYearDisambiguator:
+    """The strip is applied only to search queries; validation still scores
+    against the original title, so this test only verifies the regex's
+    surface area — not whether a stripped query produces a match."""
+
+    @pytest.mark.parametrize("title,expected", [
+        # Canonical MB pattern with tildes around the year + trailing volume.
+        ("It's Up to You ~ 1946 ~ Volume 2",          "It's Up to You"),
+        ("The Chronological Classics ~ 1937–1939 ~",  "The Chronological Classics"),
+        ("Live in Paris ~ 1958 ~",                    "Live in Paris"),
+        # Year range with hyphen instead of en-dash.
+        ("Studio Sessions ~ 1955-57 ~",               "Studio Sessions"),
+        # No surrounding tildes -> leave alone (could be an arbitrary year
+        # in a real title).
+        ("Songs in A Minor (2001)",                   "Songs in A Minor (2001)"),
+        # Bare year as a real album title (Prince) — no anchor matches.
+        ("1999",                                      "1999"),
+        # No suffix at all.
+        ("Greatest Hits",                             "Greatest Hits"),
+        # Year embedded mid-string is left alone (not anchored at end).
+        ("1942 to 1945 - The Decca Years",            "1942 to 1945 - The Decca Years"),
+        # Empty / None inputs.
+        ("",                                          ""),
+    ])
+    def test_strips_mb_year_disambiguator(self, title, expected):
+        assert strip_mb_year_disambiguator(title) == expected
+
+    def test_none_input_returns_none(self):
+        # Match the convention of the other strip helpers.
+        assert strip_mb_year_disambiguator(None) is None
 
 
 class TestSplitTitleQualifier:

@@ -388,6 +388,54 @@ def strip_live_suffix(album_title: str) -> str:
     return album_title
 
 
+# MusicBrainz frequently disambiguates compilation series by appending the
+# year (or year range) of the source recordings inside tilde-delimited
+# pads — e.g. "It's Up to You ~ 1946 ~ Volume 2" or
+# "The Chronological Classics: Lunceford ~ 1937–1939 ~". Spotify carries the
+# same content under the bare title (or a slightly different volume marker),
+# which means our literal `album:"..."` queries miss every time.
+#
+# The regex anchors at end-of-string and requires the full
+# whitespace+tilde+year+optional-tilde envelope so a year that happens to
+# appear elsewhere in a title (e.g. Prince's "1999") is left intact. An
+# optional second-tilde plus an optional trailing chunk (volume marker) are
+# eaten too; the separator before the year is required to be a literal tilde
+# so we don't strip parenthesized years like "(2001)" — those usually ARE
+# load-bearing.
+_MB_YEAR_DISAMBIGUATOR_RE = re.compile(
+    r'\s*~\s*\d{4}(?:\s*[-–]\s*\d{2,4})?\s*(?:~\s*.*)?$',
+    re.UNICODE,
+)
+
+
+def strip_mb_year_disambiguator(album_title: str) -> str:
+    """
+    Strip the MusicBrainz-style ``~ YYYY ~`` (or ``~ YYYY–YYYY ~ Vol N``)
+    disambiguator suffix from an album title for search queries.
+
+    Used the same way as ``strip_live_suffix``: applied only to the search
+    query, never to the validation comparison. A wrong candidate still has
+    to clear the standard album/artist similarity thresholds against the
+    full original title.
+
+    Examples:
+        "It's Up to You ~ 1946 ~ Volume 2" -> "It's Up to You"
+        "The Chronological Classics ~ 1937–1939 ~" -> "The Chronological Classics"
+        "Live in Paris ~ 1958 ~"            -> "Live in Paris"
+        "Songs in A Minor (2001)"           -> "Songs in A Minor (2001)"   (untouched)
+        "1999"                              -> "1999"                       (untouched)
+        "Greatest Hits"                     -> "Greatest Hits"              (untouched)
+
+    Returns:
+        Album title with the MB year-disambiguator stripped, or the original
+        if no such suffix is present.
+    """
+    if not album_title:
+        return album_title
+
+    return _MB_YEAR_DISAMBIGUATOR_RE.sub('', album_title).strip()
+
+
 def normalize_for_comparison(text: str) -> str:
     """
     Normalize text for fuzzy comparison

@@ -28,6 +28,7 @@ from integrations.spotify.client import SpotifyRateLimitError, _CACHE_MISS
 from integrations.spotify.matching import (
     strip_ensemble_suffix,
     strip_live_suffix,
+    strip_mb_year_disambiguator,
     normalize_for_search,
     validate_track_match,
     validate_album_match,
@@ -299,6 +300,15 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
     stripped_album = strip_live_suffix(search_album)
     has_stripped_album = stripped_album != search_album
 
+    # Check if album title has a MusicBrainz-style ~ YYYY ~ disambiguator we
+    # can strip — common on compilation reissues like
+    # "It's Up to You ~ 1946 ~ Volume 2". Validation still scores against
+    # the full original title, so a candidate has to clear the same
+    # thresholds; this just gives Spotify a query string it can actually
+    # match exactly.
+    mb_stripped_album = strip_mb_year_disambiguator(search_album)
+    has_mb_stripped_album = mb_stripped_album != search_album
+
     if search_artist:
         search_strategies.append({
             'query': f'album:"{search_album}" artist:"{search_artist}"',
@@ -332,6 +342,18 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                 'description': f'quoted stripped album ({stripped_album}) and artist'
             })
 
+        # Try with MB-style ~ YYYY ~ disambiguator stripped (e.g.,
+        # "It's Up to You ~ 1946 ~ Volume 2" -> "It's Up to You").
+        if has_mb_stripped_album:
+            search_strategies.append({
+                'query': f'album:"{mb_stripped_album}" artist:"{search_artist}"',
+                'description': f'MB-stripped album ({mb_stripped_album}) and artist'
+            })
+            search_strategies.append({
+                'query': f'"{mb_stripped_album}" "{search_artist}"',
+                'description': f'quoted MB-stripped album ({mb_stripped_album}) and artist'
+            })
+
     search_strategies.append({
         'query': f'album:"{search_album}"',
         'description': 'exact album only'
@@ -342,6 +364,13 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
         search_strategies.append({
             'query': f'album:"{stripped_album}"',
             'description': f'stripped album only ({stripped_album})'
+        })
+
+    # Fallback: MB-stripped album only
+    if has_mb_stripped_album:
+        search_strategies.append({
+            'query': f'album:"{mb_stripped_album}"',
+            'description': f'MB-stripped album only ({mb_stripped_album})'
         })
 
     for strategy in search_strategies:
