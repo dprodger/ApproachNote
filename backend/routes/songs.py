@@ -402,6 +402,214 @@ def get_song_summary(song_id):
         return jsonify({'error': 'Failed to fetch song summary', 'detail': str(e)}), 500
 
 
+def fetch_song_recordings_listing(song_id, sort_by='year'):
+    """
+    Canonical "song's recording list" data fetch.
+
+    Returns the same payload the iOS/Mac apps see from
+    GET /api/songs/<song_id>/recordings, but as a plain list of dicts
+    (no jsonify, no Flask response). Admin pages call this directly so
+    they're guaranteed to render the *same* primary-release pick, cover
+    art priority, and streaming flags as the app — there's exactly one
+    SQL definition of "what you see in a recordings list".
+
+    Args:
+        song_id: UUID string
+        sort_by: 'year' (default) or 'name' (by leader's last name)
+
+    Returns:
+        List of recording dicts (empty list if no recordings).
+    """
+    if sort_by == 'name':
+        recordings_order = """
+            (
+                SELECT COALESCE(p2.sort_name, p2.name, 'ZZZ')
+                FROM recording_performers rp2
+                JOIN performers p2 ON rp2.performer_id = p2.id
+                WHERE rp2.recording_id = r.id AND rp2.role = 'leader'
+                ORDER BY COALESCE(p2.sort_name, p2.name)
+                LIMIT 1
+            ) ASC NULLS LAST,
+            r.recording_year ASC NULLS LAST
+        """
+    else:
+        recordings_order = "r.recording_year ASC NULLS LAST"
+
+    recordings_query = f"""
+        WITH
+        -- CTE 1: Front cover art (default release preferred, fallback to any linked release)
+        front_art AS (
+            SELECT DISTINCT ON (sub.recording_id)
+                sub.recording_id,
+                sub.image_url_small, sub.image_url_medium, sub.image_url_large,
+                sub.source, sub.source_url
+            FROM (
+                SELECT r.id as recording_id,
+                       ri.image_url_small, ri.image_url_medium, ri.image_url_large,
+                       ri.source::text as source, ri.source_url,
+                       1 as priority,
+                       CASE WHEN ri.source = 'MusicBrainz' THEN 0 ELSE 1 END as source_order
+                FROM recordings r
+                JOIN release_imagery ri ON ri.release_id = r.default_release_id AND ri.type = 'Front'
+                WHERE r.song_id = %s
+                UNION ALL
+                SELECT r.id, ri.image_url_small, ri.image_url_medium, ri.image_url_large,
+                       ri.source::text, ri.source_url,
+                       2 as priority,
+                       CASE WHEN ri.source = 'MusicBrainz' THEN 0 ELSE 1 END
+                FROM recordings r
+                JOIN recording_releases rr ON rr.recording_id = r.id
+                JOIN release_imagery ri ON ri.release_id = rr.release_id AND ri.type = 'Front'
+                WHERE r.song_id = %s
+            ) sub
+            ORDER BY sub.recording_id, sub.priority, sub.source_order
+        ),
+        -- CTE 2: Back cover art (default release only, for consistency with front)
+        back_art AS (
+            SELECT DISTINCT ON (r.id)
+                r.id as recording_id,
+                ri.image_url_small, ri.image_url_medium, ri.image_url_large,
+                ri.source::text as source, ri.source_url,
+                TRUE as has_back_cover
+            FROM recordings r
+            JOIN release_imagery ri ON ri.release_id = r.default_release_id AND ri.type = 'Back'
+            WHERE r.song_id = %s
+        ),
+        -- CTE 3: Streaming availability (all services in one pass)
+        streaming AS (
+            SELECT
+                rr.recording_id,
+                bool_or(TRUE) as has_streaming,
+                bool_or(rrsl.service = 'spotify') as has_spotify,
+                bool_or(rrsl.service = 'apple_music') as has_apple_music,
+                bool_or(rrsl.service = 'youtube') as has_youtube,
+                array_agg(DISTINCT rrsl.service) as streaming_services
+            FROM recording_releases rr
+            JOIN recording_release_streaming_links rrsl ON rrsl.recording_release_id = rr.id
+            WHERE rr.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
+            GROUP BY rr.recording_id
+        ),
+        -- CTE 4: Best Spotify URL per recording (prefer default release)
+        spotify_urls AS (
+            SELECT DISTINCT ON (rr.recording_id)
+                rr.recording_id,
+                rrsl.service_url as best_spotify_url
+            FROM recording_releases rr
+            JOIN recording_release_streaming_links rrsl
+                ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+            WHERE rr.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
+            ORDER BY rr.recording_id,
+                CASE WHEN rr.release_id = (
+                    SELECT default_release_id FROM recordings WHERE id = rr.recording_id
+                ) THEN 0 ELSE 1 END
+        ),
+        -- CTE 5: Lightweight community data — only is_instrumental consensus
+        -- (used for vocal/instrumental filter in recordings list; full community
+        -- data is fetched by the recording detail endpoint when needed)
+        community AS (
+            SELECT
+                rc.recording_id,
+                jsonb_build_object(
+                    'consensus', jsonb_build_object(
+                        'is_instrumental', (
+                            SELECT is_instrumental FROM recording_contributions rc2
+                            WHERE rc2.recording_id = rc.recording_id AND rc2.is_instrumental IS NOT NULL
+                            GROUP BY is_instrumental ORDER BY COUNT(*) DESC, MAX(updated_at) DESC LIMIT 1
+                        )
+                    ),
+                    'counts', jsonb_build_object(
+                        'instrumental', COUNT(*) FILTER (WHERE rc.is_instrumental IS NOT NULL)
+                    )
+                ) as community_data
+            FROM recording_contributions rc
+            WHERE rc.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
+            GROUP BY rc.recording_id
+        )
+        -- Main query: JOIN pre-computed CTEs instead of correlated subqueries
+        -- Fields deliberately excluded from this LIST-VIEW payload because
+        -- no list-row view reads them (recording detail re-fetches via
+        -- /api/recordings/<id>, which carries the full payload):
+        --   r.musicbrainz_id, r.default_release_id, r.recording_date,
+        --   r.label, r.notes
+        -- See backend/tests/test_song_recordings.py for the field contract.
+        SELECT
+            r.id,
+            r.title,
+            def_rel.title as album_title,
+            def_rel.artist_credit as artist_credit,
+            r.recording_year,
+            su.best_spotify_url,
+            fa.image_url_small as best_cover_art_small,
+            fa.image_url_medium as best_cover_art_medium,
+            fa.image_url_large as best_cover_art_large,
+            fa.source as best_cover_art_source,
+            fa.source_url as best_cover_art_source_url,
+            ba.image_url_small as back_cover_art_small,
+            ba.image_url_medium as back_cover_art_medium,
+            ba.image_url_large as back_cover_art_large,
+            COALESCE(ba.has_back_cover, FALSE) as has_back_cover,
+            ba.source as back_cover_source,
+            ba.source_url as back_cover_source_url,
+            r.is_canonical,
+            COALESCE(
+                json_agg(
+                    json_build_object(
+                        'id', p.id,
+                        'name', p.name,
+                        'sort_name', p.sort_name,
+                        'instrument', i.name,
+                        'role', rp.role
+                    ) ORDER BY
+                        CASE rp.role
+                            WHEN 'leader' THEN 1
+                            WHEN 'sideman' THEN 2
+                            ELSE 3
+                        END,
+                        COALESCE(p.sort_name, p.name)
+                ) FILTER (WHERE p.id IS NOT NULL),
+                '[]'::json
+            ) as performers,
+            COUNT(DISTINCT sar.id) as authority_count,
+            COALESCE(
+                array_agg(DISTINCT sar.source) FILTER (WHERE sar.source IS NOT NULL),
+                ARRAY[]::text[]
+            ) as authority_sources,
+            COALESCE(st.has_streaming, FALSE) as has_streaming,
+            COALESCE(st.has_spotify, FALSE) as has_spotify,
+            COALESCE(st.has_apple_music, FALSE) as has_apple_music,
+            COALESCE(st.has_youtube, FALSE) as has_youtube,
+            COALESCE(st.streaming_services, ARRAY[]::varchar[]) as streaming_services,
+            cm.community_data
+        FROM recordings r
+        LEFT JOIN releases def_rel ON r.default_release_id = def_rel.id
+        LEFT JOIN recording_performers rp ON r.id = rp.recording_id
+        LEFT JOIN performers p ON rp.performer_id = p.id
+        LEFT JOIN instruments i ON rp.instrument_id = i.id
+        LEFT JOIN song_authority_recommendations sar ON r.id = sar.recording_id
+        LEFT JOIN front_art fa ON fa.recording_id = r.id
+        LEFT JOIN back_art ba ON ba.recording_id = r.id
+        LEFT JOIN streaming st ON st.recording_id = r.id
+        LEFT JOIN spotify_urls su ON su.recording_id = r.id
+        LEFT JOIN community cm ON cm.recording_id = r.id
+        WHERE r.song_id = %s
+        GROUP BY r.id, def_rel.title, def_rel.artist_credit, r.recording_year,
+                 r.is_canonical,
+                 su.best_spotify_url,
+                 fa.image_url_small, fa.image_url_medium, fa.image_url_large, fa.source, fa.source_url,
+                 ba.image_url_small, ba.image_url_medium, ba.image_url_large, ba.has_back_cover, ba.source, ba.source_url,
+                 st.has_streaming, st.has_spotify, st.has_apple_music, st.has_youtube, st.streaming_services,
+                 cm.community_data
+        ORDER BY {recordings_order}
+    """
+
+    # CTEs use song_id 6 times + main WHERE uses it once = 7 params
+    recordings = db_tools.execute_query(
+        recordings_query,
+        (song_id, song_id, song_id, song_id, song_id, song_id, song_id)
+    )
+    return recordings or []
+
+
 @songs_bp.route('/songs/<song_id>/recordings', methods=['GET'])
 def get_song_recordings(song_id):
     """
@@ -419,201 +627,12 @@ def get_song_recordings(song_id):
     """
     try:
         sort_by = request.args.get('sort', 'year')
-
-        if sort_by == 'name':
-            recordings_order = """
-                (
-                    SELECT COALESCE(p2.sort_name, p2.name, 'ZZZ')
-                    FROM recording_performers rp2
-                    JOIN performers p2 ON rp2.performer_id = p2.id
-                    WHERE rp2.recording_id = r.id AND rp2.role = 'leader'
-                    ORDER BY COALESCE(p2.sort_name, p2.name)
-                    LIMIT 1
-                ) ASC NULLS LAST,
-                r.recording_year ASC NULLS LAST
-            """
-        else:
-            recordings_order = "r.recording_year ASC NULLS LAST"
-
-        recordings_query = f"""
-            WITH
-            -- CTE 1: Front cover art (default release preferred, fallback to any linked release)
-            front_art AS (
-                SELECT DISTINCT ON (sub.recording_id)
-                    sub.recording_id,
-                    sub.image_url_small, sub.image_url_medium, sub.image_url_large,
-                    sub.source, sub.source_url
-                FROM (
-                    SELECT r.id as recording_id,
-                           ri.image_url_small, ri.image_url_medium, ri.image_url_large,
-                           ri.source::text as source, ri.source_url,
-                           1 as priority,
-                           CASE WHEN ri.source = 'MusicBrainz' THEN 0 ELSE 1 END as source_order
-                    FROM recordings r
-                    JOIN release_imagery ri ON ri.release_id = r.default_release_id AND ri.type = 'Front'
-                    WHERE r.song_id = %s
-                    UNION ALL
-                    SELECT r.id, ri.image_url_small, ri.image_url_medium, ri.image_url_large,
-                           ri.source::text, ri.source_url,
-                           2 as priority,
-                           CASE WHEN ri.source = 'MusicBrainz' THEN 0 ELSE 1 END
-                    FROM recordings r
-                    JOIN recording_releases rr ON rr.recording_id = r.id
-                    JOIN release_imagery ri ON ri.release_id = rr.release_id AND ri.type = 'Front'
-                    WHERE r.song_id = %s
-                ) sub
-                ORDER BY sub.recording_id, sub.priority, sub.source_order
-            ),
-            -- CTE 2: Back cover art (default release only, for consistency with front)
-            back_art AS (
-                SELECT DISTINCT ON (r.id)
-                    r.id as recording_id,
-                    ri.image_url_small, ri.image_url_medium, ri.image_url_large,
-                    ri.source::text as source, ri.source_url,
-                    TRUE as has_back_cover
-                FROM recordings r
-                JOIN release_imagery ri ON ri.release_id = r.default_release_id AND ri.type = 'Back'
-                WHERE r.song_id = %s
-            ),
-            -- CTE 3: Streaming availability (all services in one pass)
-            streaming AS (
-                SELECT
-                    rr.recording_id,
-                    bool_or(TRUE) as has_streaming,
-                    bool_or(rrsl.service = 'spotify') as has_spotify,
-                    bool_or(rrsl.service = 'apple_music') as has_apple_music,
-                    bool_or(rrsl.service = 'youtube') as has_youtube,
-                    array_agg(DISTINCT rrsl.service) as streaming_services
-                FROM recording_releases rr
-                JOIN recording_release_streaming_links rrsl ON rrsl.recording_release_id = rr.id
-                WHERE rr.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
-                GROUP BY rr.recording_id
-            ),
-            -- CTE 4: Best Spotify URL per recording (prefer default release)
-            spotify_urls AS (
-                SELECT DISTINCT ON (rr.recording_id)
-                    rr.recording_id,
-                    rrsl.service_url as best_spotify_url
-                FROM recording_releases rr
-                JOIN recording_release_streaming_links rrsl
-                    ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
-                WHERE rr.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
-                ORDER BY rr.recording_id,
-                    CASE WHEN rr.release_id = (
-                        SELECT default_release_id FROM recordings WHERE id = rr.recording_id
-                    ) THEN 0 ELSE 1 END
-            ),
-            -- CTE 5: Lightweight community data — only is_instrumental consensus
-            -- (used for vocal/instrumental filter in recordings list; full community
-            -- data is fetched by the recording detail endpoint when needed)
-            community AS (
-                SELECT
-                    rc.recording_id,
-                    jsonb_build_object(
-                        'consensus', jsonb_build_object(
-                            'is_instrumental', (
-                                SELECT is_instrumental FROM recording_contributions rc2
-                                WHERE rc2.recording_id = rc.recording_id AND rc2.is_instrumental IS NOT NULL
-                                GROUP BY is_instrumental ORDER BY COUNT(*) DESC, MAX(updated_at) DESC LIMIT 1
-                            )
-                        ),
-                        'counts', jsonb_build_object(
-                            'instrumental', COUNT(*) FILTER (WHERE rc.is_instrumental IS NOT NULL)
-                        )
-                    ) as community_data
-                FROM recording_contributions rc
-                WHERE rc.recording_id IN (SELECT id FROM recordings WHERE song_id = %s)
-                GROUP BY rc.recording_id
-            )
-            -- Main query: JOIN pre-computed CTEs instead of correlated subqueries
-            -- Fields deliberately excluded from this LIST-VIEW payload because
-            -- no list-row view reads them (recording detail re-fetches via
-            -- /api/recordings/<id>, which carries the full payload):
-            --   r.musicbrainz_id, r.default_release_id, r.recording_date,
-            --   r.label, r.notes
-            -- See backend/tests/test_song_recordings.py for the field contract.
-            SELECT
-                r.id,
-                r.title,
-                def_rel.title as album_title,
-                def_rel.artist_credit as artist_credit,
-                r.recording_year,
-                su.best_spotify_url,
-                fa.image_url_small as best_cover_art_small,
-                fa.image_url_medium as best_cover_art_medium,
-                fa.image_url_large as best_cover_art_large,
-                fa.source as best_cover_art_source,
-                fa.source_url as best_cover_art_source_url,
-                ba.image_url_small as back_cover_art_small,
-                ba.image_url_medium as back_cover_art_medium,
-                ba.image_url_large as back_cover_art_large,
-                COALESCE(ba.has_back_cover, FALSE) as has_back_cover,
-                ba.source as back_cover_source,
-                ba.source_url as back_cover_source_url,
-                r.is_canonical,
-                COALESCE(
-                    json_agg(
-                        json_build_object(
-                            'id', p.id,
-                            'name', p.name,
-                            'sort_name', p.sort_name,
-                            'instrument', i.name,
-                            'role', rp.role
-                        ) ORDER BY
-                            CASE rp.role
-                                WHEN 'leader' THEN 1
-                                WHEN 'sideman' THEN 2
-                                ELSE 3
-                            END,
-                            COALESCE(p.sort_name, p.name)
-                    ) FILTER (WHERE p.id IS NOT NULL),
-                    '[]'::json
-                ) as performers,
-                COUNT(DISTINCT sar.id) as authority_count,
-                COALESCE(
-                    array_agg(DISTINCT sar.source) FILTER (WHERE sar.source IS NOT NULL),
-                    ARRAY[]::text[]
-                ) as authority_sources,
-                COALESCE(st.has_streaming, FALSE) as has_streaming,
-                COALESCE(st.has_spotify, FALSE) as has_spotify,
-                COALESCE(st.has_apple_music, FALSE) as has_apple_music,
-                COALESCE(st.has_youtube, FALSE) as has_youtube,
-                COALESCE(st.streaming_services, ARRAY[]::varchar[]) as streaming_services,
-                cm.community_data
-            FROM recordings r
-            LEFT JOIN releases def_rel ON r.default_release_id = def_rel.id
-            LEFT JOIN recording_performers rp ON r.id = rp.recording_id
-            LEFT JOIN performers p ON rp.performer_id = p.id
-            LEFT JOIN instruments i ON rp.instrument_id = i.id
-            LEFT JOIN song_authority_recommendations sar ON r.id = sar.recording_id
-            LEFT JOIN front_art fa ON fa.recording_id = r.id
-            LEFT JOIN back_art ba ON ba.recording_id = r.id
-            LEFT JOIN streaming st ON st.recording_id = r.id
-            LEFT JOIN spotify_urls su ON su.recording_id = r.id
-            LEFT JOIN community cm ON cm.recording_id = r.id
-            WHERE r.song_id = %s
-            GROUP BY r.id, def_rel.title, def_rel.artist_credit, r.recording_year,
-                     r.is_canonical,
-                     su.best_spotify_url,
-                     fa.image_url_small, fa.image_url_medium, fa.image_url_large, fa.source, fa.source_url,
-                     ba.image_url_small, ba.image_url_medium, ba.image_url_large, ba.has_back_cover, ba.source, ba.source_url,
-                     st.has_streaming, st.has_spotify, st.has_apple_music, st.has_youtube, st.streaming_services,
-                     cm.community_data
-            ORDER BY {recordings_order}
-        """
-
-        # CTEs use song_id 6 times + main WHERE uses it once = 7 params
-        recordings = db_tools.execute_query(
-            recordings_query,
-            (song_id, song_id, song_id, song_id, song_id, song_id, song_id)
-        )
-
+        recordings = fetch_song_recordings_listing(song_id, sort_by=sort_by)
         return jsonify({
             'song_id': song_id,
-            'recordings': recordings if recordings else [],
-            'recording_count': len(recordings) if recordings else 0
+            'recordings': recordings,
+            'recording_count': len(recordings),
         })
-
     except Exception as e:
         logger.error(f"Error fetching song recordings: {e}")
         return jsonify({'error': 'Failed to fetch recordings', 'detail': str(e)}), 500

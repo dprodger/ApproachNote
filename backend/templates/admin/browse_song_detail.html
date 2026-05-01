@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ song.title }} — Song Detail (Admin)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .breadcrumb { font-size: 13px; margin-bottom: 12px; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .summary {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .summary h1 { font-size: 22px; margin-bottom: 6px; color: #1d1d1f; }
+        .summary .composer { color: #666; font-size: 15px; margin-bottom: 10px; }
+        .summary dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 14px;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .summary dt { color: #888; }
+        .summary dd a { color: #0066cc; text-decoration: none; }
+        .summary dd a:hover { text-decoration: underline; }
+        .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 8px 0 10px;
+        }
+        .section-header h2 { font-size: 16px; color: #1d1d1f; }
+        .section-header .hint { font-size: 12px; color: #888; }
+
+        table.list {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+            table-layout: fixed; /* keeps columns from blowing out */
+        }
+        table.list th, table.list td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            vertical-align: middle;
+        }
+        table.list th {
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+            cursor: pointer;
+            user-select: none;
+            white-space: nowrap;
+        }
+        table.list th.sortable::after {
+            content: '\2195';
+            color: #ccc;
+            margin-left: 4px;
+            font-size: 10px;
+        }
+        table.list th.sort-asc::after { content: '\2191'; color: #0066cc; }
+        table.list th.sort-desc::after { content: '\2193'; color: #0066cc; }
+        table.list tr:last-child td { border-bottom: none; }
+        table.list tbody tr:hover { background: #f8f9fa; cursor: pointer; }
+        table.list a { color: #0066cc; text-decoration: none; }
+        table.list a:hover { text-decoration: underline; }
+        td.muted { color: #888; }
+
+        /* Per-column widths (table-layout: fixed) */
+        col.col-title       { width: 22%; }
+        col.col-release     { width: 28%; }
+        col.col-performers  { width: 28%; }
+        col.col-year        { width: 56px; }
+        col.col-rels        { width: 64px; }
+        col.col-mbrec       { width: 96px; }
+        col.col-recid       { width: 96px; }
+
+        td.cell-title {
+            font-weight: 500;
+            line-height: 1.3;
+        }
+        td.cell-title a { color: #1d1d1f; }
+        td.cell-title a:hover { color: #0066cc; }
+
+        /* Two-line clamp with hover-tooltip via title= */
+        .clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            color: #555;
+            line-height: 1.3;
+        }
+
+        /* Primary Release cell: thumb + stacked text */
+        .release-cell {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            min-width: 0;
+        }
+        .release-cell .thumb {
+            width: 44px;
+            height: 44px;
+            flex-shrink: 0;
+            border-radius: 4px;
+            background: #eee center / cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 18px;
+            border: 1px solid #e0e0e0;
+        }
+        .release-cell .meta { min-width: 0; line-height: 1.3; }
+        .release-cell .meta .rtitle {
+            font-weight: 500;
+            color: #1d1d1f;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .release-cell .meta .rsub {
+            font-size: 11px;
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .badge {
+            display: inline-block;
+            font-size: 9px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: #e3f2fd;
+            color: #0d47a1;
+            text-transform: uppercase;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+        .empty { color: #888; padding: 24px; text-align: center; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/songs') }}">&larr; Browse Songs</a>
+        </div>
+
+        <div class="summary">
+            <h1>{{ song.title }}</h1>
+            {% if song.composer %}
+              <div class="composer">{{ song.composer }}</div>
+            {% endif %}
+            <dl>
+                <dt>Song ID</dt>
+                <dd class="mono">{{ song.id }}</dd>
+
+                <dt>MB Work ID</dt>
+                <dd>
+                  {% if song.musicbrainz_id %}
+                    <a class="mono" href="https://musicbrainz.org/work/{{ song.musicbrainz_id }}" target="_blank" rel="noopener">{{ song.musicbrainz_id }}</a>
+                  {% else %}<span class="muted">—</span>{% endif %}
+                </dd>
+
+                {% if song.second_mb_id %}
+                <dt>Secondary MB Work ID</dt>
+                <dd>
+                    <a class="mono" href="https://musicbrainz.org/work/{{ song.second_mb_id }}" target="_blank" rel="noopener">{{ song.second_mb_id }}</a>
+                </dd>
+                {% endif %}
+
+                {% if song.composed_year or song.composed_key %}
+                <dt>Composed</dt>
+                <dd>{{ song.composed_year or '' }}{% if song.composed_key %} · key {{ song.composed_key }}{% endif %}</dd>
+                {% endif %}
+
+                {% if song.alt_titles %}
+                <dt>Alt Titles</dt>
+                <dd>{{ song.alt_titles | join(' · ') }}</dd>
+                {% endif %}
+
+                {% if song.wikipedia_url %}
+                <dt>Wikipedia</dt>
+                <dd><a href="{{ song.wikipedia_url }}" target="_blank" rel="noopener">{{ song.wikipedia_url }}</a></dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        <div class="section-header">
+            <h2>Recordings ({{ recordings | length }})</h2>
+            <span class="hint">Click a column header to sort. Click a row to open the recording.</span>
+        </div>
+
+        {% if recordings %}
+        <table class="list" id="recordings-table">
+            <colgroup>
+                <col class="col-title" />
+                <col class="col-release" />
+                <col class="col-performers" />
+                <col class="col-year" />
+                <col class="col-rels" />
+                <col class="col-mbrec" />
+                <col class="col-recid" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th class="sortable" data-key="title" data-type="text">Title</th>
+                    <th class="sortable" data-key="album_title" data-type="text">Primary Release</th>
+                    <th class="sortable" data-key="performers_display" data-type="text">Performers</th>
+                    <th class="sortable" data-key="recording_year" data-type="num">Year</th>
+                    <th class="sortable" data-key="release_count" data-type="num">Releases</th>
+                    <th class="sortable" data-key="mb_recording_id" data-type="text">MB Rec</th>
+                    <th class="sortable" data-key="recording_id" data-type="text">Recording ID</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in recordings %}
+                <tr onclick="window.location='{{ admin_url('/admin/recordings/') }}{{ r.id }}'"
+                    data-title="{{ r.title or '' }}"
+                    data-album_title="{{ r.album_title or '' }}"
+                    data-performers_display="{{ r.performers_display or '' }}"
+                    data-recording_year="{{ r.recording_year or '' }}"
+                    data-release_count="{{ r.release_count }}"
+                    data-mb_recording_id="{{ r.mb_recording_id or '' }}"
+                    data-recording_id="{{ r.id }}">
+                    <td class="cell-title">
+                        <a href="{{ admin_url('/admin/recordings/') }}{{ r.id }}">{{ r.title or '(untitled)' }}</a>
+                        {% if r.is_canonical %}<span class="badge">canonical</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if r.album_title %}
+                        <div class="release-cell">
+                            {% if r.best_cover_art_small or r.best_cover_art_medium %}
+                            <div class="thumb" style="background-image: url('{{ r.best_cover_art_small or r.best_cover_art_medium }}');"
+                                 title="Cover art source: {{ r.best_cover_art_source or 'unknown' }}"></div>
+                            {% else %}
+                            <div class="thumb">♪</div>
+                            {% endif %}
+                            <div class="meta">
+                                <div class="rtitle" title="{{ r.album_title }}">{{ r.album_title }}</div>
+                                <div class="rsub" title="{{ r.artist_credit or '' }}{% if r.primary_release_year %} · {{ r.primary_release_year }}{% endif %}">
+                                    {{ r.artist_credit or '' }}{% if r.primary_release_year %} · {{ r.primary_release_year }}{% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if r.performers_display %}
+                        <div class="clamp-2" title="{{ r.performers_display }}">{{ r.performers_display }}</div>
+                        {% endif %}
+                    </td>
+                    <td>{{ r.recording_year or '' }}</td>
+                    <td>{{ r.release_count }}</td>
+                    <td class="mono">
+                        {% if r.mb_recording_id %}
+                          <a href="https://musicbrainz.org/recording/{{ r.mb_recording_id }}" target="_blank" rel="noopener" onclick="event.stopPropagation()">{{ r.mb_recording_id[:8] }}…</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                    <td class="mono">{{ (r.id | string)[:8] }}…</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No recordings for this song.</div>
+        {% endif %}
+    </div>
+
+    <script>
+    // Simple client-side table sort. Click a th[data-key] to sort by that
+    // column's data-* attribute on the row. data-type=num parses as float.
+    (function() {
+        const table = document.getElementById('recordings-table');
+        if (!table) return;
+        const tbody = table.tBodies[0];
+        const headers = table.querySelectorAll('th.sortable');
+
+        headers.forEach(th => {
+            th.addEventListener('click', () => {
+                const key = th.dataset.key;
+                const type = th.dataset.type || 'text';
+                const current = th.classList.contains('sort-asc') ? 'asc'
+                              : th.classList.contains('sort-desc') ? 'desc' : '';
+                const next = current === 'asc' ? 'desc' : 'asc';
+
+                // Reset other headers
+                headers.forEach(h => h.classList.remove('sort-asc', 'sort-desc'));
+                th.classList.add(next === 'asc' ? 'sort-asc' : 'sort-desc');
+
+                const rows = Array.from(tbody.querySelectorAll('tr'));
+                rows.sort((a, b) => {
+                    let av = a.dataset[key] || '';
+                    let bv = b.dataset[key] || '';
+                    if (type === 'num') {
+                        av = av === '' ? Number.NEGATIVE_INFINITY : parseFloat(av);
+                        bv = bv === '' ? Number.NEGATIVE_INFINITY : parseFloat(bv);
+                        return next === 'asc' ? av - bv : bv - av;
+                    }
+                    av = av.toLowerCase();
+                    bv = bv.toLowerCase();
+                    if (av < bv) return next === 'asc' ? -1 : 1;
+                    if (av > bv) return next === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                rows.forEach(r => tbody.appendChild(r));
+            });
+        });
+    })();
+    </script>
+</body>
+</html>

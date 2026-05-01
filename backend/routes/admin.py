@@ -3647,3 +3647,467 @@ def spotify_rematch_run_detail(song_id, run_id):
         grouped_changes=grouped,
         song_id=song_id,
     )
+
+
+# ============================================================================
+# Browse: Song / Recording / (later) Release detail pages
+#
+# Read-only admin pages for tracing data end-to-end. Issue #176 covers
+# expansion to release detail (recording_releases + streaming links). For
+# now: songs list/search → song detail → recording detail.
+# ============================================================================
+
+@admin_bp.route('/songs')
+def songs_browse_list():
+    """Searchable song list. ?q= filters by title or alt_titles, case- and
+    accent-insensitive (Postgres `unaccent`). No pagination yet — capped
+    at 200 rows."""
+    from db_utils import normalize_apostrophes
+    q = (request.args.get('q') or '').strip()
+    limit = 200
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            if q:
+                # Normalize apostrophes on the input; `unaccent` strips
+                # diacritics on both sides of the LIKE so "naima" finds
+                # "Naïma" and "si tu vois ma mere" finds "...mère".
+                like = f"%{normalize_apostrophes(q).lower()}%"
+                cur.execute(
+                    """
+                    SELECT s.id, s.title, s.composer, s.musicbrainz_id, s.second_mb_id,
+                           (SELECT COUNT(*) FROM recordings r WHERE r.song_id = s.id) AS recording_count
+                    FROM songs s
+                    WHERE LOWER(unaccent(s.title)) LIKE LOWER(unaccent(%s))
+                       OR EXISTS (
+                           SELECT 1 FROM unnest(COALESCE(s.alt_titles, ARRAY[]::text[])) AS t
+                           WHERE LOWER(unaccent(t)) LIKE LOWER(unaccent(%s))
+                       )
+                    ORDER BY s.title
+                    LIMIT %s
+                    """,
+                    (like, like, limit),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT s.id, s.title, s.composer, s.musicbrainz_id, s.second_mb_id,
+                           (SELECT COUNT(*) FROM recordings r WHERE r.song_id = s.id) AS recording_count
+                    FROM songs s
+                    ORDER BY s.title
+                    LIMIT %s
+                    """,
+                    (limit,),
+                )
+            songs = cur.fetchall()
+
+    return render_template(
+        'admin/browse_songs_list.html',
+        songs=songs,
+        q=q,
+        limit=limit,
+        truncated=len(songs) >= limit,
+    )
+
+
+@admin_bp.route('/songs/<song_id>')
+def songs_browse_detail(song_id):
+    """Song detail with sortable recording list.
+
+    The recordings list is fetched via the SAME helper the iOS/Mac app
+    consumes from /api/songs/<id>/recordings (`fetch_song_recordings_listing`
+    in routes/songs.py). The admin layer adds a small supplementary SELECT
+    for diagnostic-only fields (MB recording ID, release count, default
+    release ID, primary release year) that the API deliberately omits from
+    its list payload — they're displayed alongside the canonical fields,
+    never substituted in.
+    """
+    from routes.songs import fetch_song_recordings_listing
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, composer, musicbrainz_id, second_mb_id,
+                       composed_year, composed_key, wikipedia_url, alt_titles
+                FROM songs WHERE id = %s
+                """,
+                (song_id,),
+            )
+            song = cur.fetchone()
+            if not song:
+                return ('Song not found', 404)
+
+            # Diagnostic-only extras keyed by recording id. Kept separate
+            # from the canonical helper output so the admin can never
+            # disagree with the app on cover art / album title / artist
+            # credit — those come from fetch_song_recordings_listing only.
+            cur.execute(
+                """
+                SELECT r.id,
+                       r.musicbrainz_id AS mb_recording_id,
+                       r.default_release_id,
+                       (SELECT COUNT(*) FROM recording_releases rr WHERE rr.recording_id = r.id) AS release_count,
+                       (SELECT release_year FROM releases WHERE id = r.default_release_id) AS primary_release_year
+                FROM recordings r
+                WHERE r.song_id = %s
+                """,
+                (song_id,),
+            )
+            extras_by_id = {str(row['id']): row for row in cur.fetchall()}
+
+    # Canonical app payload (same SQL as /api/songs/<id>/recordings).
+    recordings = fetch_song_recordings_listing(song_id, sort_by='year')
+
+    # Merge diagnostic extras onto each row, and project performers (a
+    # JSON list of dicts in the canonical payload) into a comma-joined
+    # display string for the table.
+    for r in recordings:
+        rid = str(r['id'])
+        extra = extras_by_id.get(rid, {})
+        r['mb_recording_id'] = extra.get('mb_recording_id')
+        r['default_release_id'] = extra.get('default_release_id')
+        r['release_count'] = extra.get('release_count', 0)
+        r['primary_release_year'] = extra.get('primary_release_year')
+        # Canonical performers shape: [{name, sort_name, instrument, role}, ...]
+        # Already ordered leader → sideman → other in SQL.
+        r['performers_display'] = ', '.join(
+            p['name'] for p in (r.get('performers') or []) if p.get('name')
+        )
+
+    return render_template(
+        'admin/browse_song_detail.html',
+        song=song,
+        recordings=recordings,
+    )
+
+
+@admin_bp.route('/releases/<release_id>')
+def releases_browse_detail(release_id):
+    """Release detail.
+
+    Diagnostic-only page (no app-facing /releases endpoint to mirror, since
+    releases aren't exposed as first-class objects in the public API; the
+    apps only see the album_title/artist_credit/cover-art fields the song
+    payload pre-joins). The page exposes everything we know about the
+    release row, all imagery rows from every source, all release-level
+    streaming links, and the per-track table with each recording_release's
+    streaming-link rows attached.
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            # 1) Release row + lookup-table joins for human-readable
+            #    format/packaging/status names.
+            cur.execute(
+                """
+                SELECT rel.*,
+                       fmt.name AS format_name,
+                       pkg.name AS packaging_name,
+                       sts.name AS status_name
+                FROM releases rel
+                LEFT JOIN release_formats fmt ON fmt.id = rel.format_id
+                LEFT JOIN release_packaging pkg ON pkg.id = rel.packaging_id
+                LEFT JOIN release_statuses sts ON sts.id = rel.status_id
+                WHERE rel.id = %s
+                """,
+                (release_id,),
+            )
+            release = cur.fetchone()
+            if not release:
+                return ('Release not found', 404)
+
+            # 2) Release events (per-country release dates)
+            cur.execute(
+                """
+                SELECT country, release_date
+                FROM release_events
+                WHERE release_id = %s
+                ORDER BY release_date NULLS LAST, country
+                """,
+                (release_id,),
+            )
+            release_events = cur.fetchall()
+
+            # 3) Release labels (label name + catalog number per label)
+            cur.execute(
+                """
+                SELECT label_name, catalog_number, musicbrainz_label_id
+                FROM release_labels
+                WHERE release_id = %s
+                ORDER BY label_name
+                """,
+                (release_id,),
+            )
+            release_labels = cur.fetchall()
+
+            # 4) All imagery, every source, every type — show what we have
+            cur.execute(
+                """
+                SELECT id, source::text AS source, source_id, source_url,
+                       type::text AS type,
+                       image_url_small, image_url_medium, image_url_large,
+                       approved, comment, updated_at
+                FROM release_imagery
+                WHERE release_id = %s
+                ORDER BY (type = 'Front') DESC, type, source
+                """,
+                (release_id,),
+            )
+            imagery = cur.fetchall()
+
+            # 5) Release-level streaming links (album-level Apple/Spotify/etc.)
+            cur.execute(
+                """
+                SELECT id, service, service_id, service_url,
+                       match_confidence, match_method,
+                       matched_at, last_verified_at, notes
+                FROM release_streaming_links
+                WHERE release_id = %s
+                ORDER BY service
+                """,
+                (release_id,),
+            )
+            release_streaming_links = cur.fetchall()
+
+            # 6) Tracks on this release (recording_releases joined to recordings)
+            cur.execute(
+                """
+                SELECT rr.id AS recording_release_id,
+                       rr.recording_id,
+                       rr.disc_number, rr.track_number, rr.track_position,
+                       rr.track_title, rr.track_artist_credit, rr.track_length_ms,
+                       rec.title AS recording_title,
+                       rec.musicbrainz_id AS mb_recording_id,
+                       rec.recording_year,
+                       rec.song_id,
+                       s.title AS song_title
+                FROM recording_releases rr
+                JOIN recordings rec ON rec.id = rr.recording_id
+                LEFT JOIN songs s ON s.id = rec.song_id
+                WHERE rr.release_id = %s
+                ORDER BY rr.disc_number NULLS LAST, rr.track_number NULLS LAST
+                """,
+                (release_id,),
+            )
+            tracks = cur.fetchall()
+
+            # 7) All track-level streaming links for this release in one shot;
+            #    grouped per recording_release_id below.
+            cur.execute(
+                """
+                SELECT rrsl.id, rrsl.recording_release_id,
+                       rrsl.service, rrsl.service_id, rrsl.service_url,
+                       rrsl.service_title, rrsl.duration_ms, rrsl.preview_url,
+                       rrsl.isrc, rrsl.match_confidence, rrsl.match_method,
+                       rrsl.matched_at, rrsl.last_verified_at, rrsl.notes
+                FROM recording_release_streaming_links rrsl
+                JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                WHERE rr.release_id = %s
+                ORDER BY rr.disc_number, rr.track_number, rrsl.service
+                """,
+                (release_id,),
+            )
+            track_links_rows = cur.fetchall()
+
+    # Service → release_imagery source mapping. Used to surface the
+    # streaming-service-side artwork next to its track-level link
+    # ("imagery for this Apple Music track" = the matching release-level
+    # 'Apple' imagery, since per-track artwork isn't stored separately).
+    service_to_source = {
+        'apple_music': 'Apple',
+        'spotify': 'Spotify',
+        'youtube': None,
+    }
+    imagery_by_source = {}
+    for im in imagery:
+        # First match wins; ORDER BY above prefers Front covers.
+        imagery_by_source.setdefault(im['source'], im)
+
+    # Group track streaming links by recording_release_id and attach the
+    # service-matching imagery thumb URL to each link.
+    links_by_rr = {}
+    for link in track_links_rows:
+        link['imagery_url'] = None
+        link['imagery_source_url'] = None
+        src = service_to_source.get(link['service'])
+        if src and src in imagery_by_source:
+            im = imagery_by_source[src]
+            link['imagery_url'] = im['image_url_small'] or im['image_url_medium']
+            link['imagery_source_url'] = im['source_url']
+        links_by_rr.setdefault(str(link['recording_release_id']), []).append(link)
+
+    for t in tracks:
+        t['streaming_links'] = links_by_rr.get(str(t['recording_release_id']), [])
+
+    return render_template(
+        'admin/browse_release_detail.html',
+        release=release,
+        release_events=release_events,
+        release_labels=release_labels,
+        imagery=imagery,
+        release_streaming_links=release_streaming_links,
+        tracks=tracks,
+    )
+
+
+@admin_bp.route('/releases/<release_id>/diagnose-spotify', methods=['POST'])
+def diagnose_release_spotify(release_id):
+    """Simulate the Spotify matcher's album-search ladder against this release.
+
+    Builds a real SpotifyMatcher (dry_run=True so nothing writes), pipes
+    its DEBUG-level reasoning into a per-request buffer, and calls the
+    same search_spotify_album() the worker calls. Returns the matcher's
+    result plus the captured log so the admin can see exactly which
+    queries were tried, which candidates came back, and why each was
+    accepted or rejected — using the live matcher rules rather than a
+    parallel implementation.
+
+    Body params (JSON):
+        force_refresh: bool (default False) — bypass the Spotify search
+            cache. Useful when the cache has a stale "no match" entry.
+    """
+    import logging
+    import uuid
+    from io import StringIO
+    from integrations.spotify.matcher import SpotifyMatcher
+    from integrations.spotify.search import search_spotify_album
+
+    body = request.get_json(silent=True) or {}
+    force_refresh = bool(body.get('force_refresh', False))
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, artist_credit, release_year
+                FROM releases WHERE id = %s
+                """,
+                (release_id,),
+            )
+            release = cur.fetchone()
+            if not release:
+                return jsonify({'error': 'Release not found'}), 404
+
+            # Pick the first track's song title for validate_album_match's
+            # track-presence fallback (used when artist similarity is low
+            # but the album does contain the song we expected).
+            cur.execute(
+                """
+                SELECT s.title AS song_title
+                FROM recording_releases rr
+                JOIN recordings rec ON rec.id = rr.recording_id
+                JOIN songs s ON s.id = rec.song_id
+                WHERE rr.release_id = %s
+                ORDER BY rr.disc_number NULLS LAST, rr.track_number NULLS LAST
+                LIMIT 1
+                """,
+                (release_id,),
+            )
+            song_row = cur.fetchone()
+            song_title = song_row['song_title'] if song_row else None
+
+    # Per-request isolated logger → buffer, so we capture only this run's
+    # output and don't bleed handlers across requests.
+    log_buffer = StringIO()
+    diag_logger = logging.getLogger(f'admin.spotify_diag.{uuid.uuid4().hex}')
+    diag_logger.setLevel(logging.DEBUG)
+    diag_logger.propagate = False
+    handler = logging.StreamHandler(log_buffer)
+    handler.setLevel(logging.DEBUG)
+    handler.setFormatter(logging.Formatter('%(message)s'))
+    diag_logger.addHandler(handler)
+
+    error = None
+    result = None
+    try:
+        matcher = SpotifyMatcher(
+            dry_run=True,
+            strict_mode=True,        # match the worker's default
+            force_refresh=force_refresh,
+            logger=diag_logger,
+        )
+        result = search_spotify_album(
+            matcher,
+            album_title=release['title'],
+            artist_name=release['artist_credit'],
+            song_title=song_title,
+        )
+    except Exception as e:
+        logger.exception("Spotify diagnosis failed for release %s", release_id)
+        error = str(e)
+    finally:
+        diag_logger.removeHandler(handler)
+        handler.close()
+
+    # Strip ANSI / non-essentials, keep raw text.
+    log_text = log_buffer.getvalue()
+
+    return jsonify({
+        'input': {
+            'album_title': release['title'],
+            'artist_name': release['artist_credit'],
+            'release_year': release['release_year'],
+            'song_title_used_for_verify': song_title,
+            'force_refresh': force_refresh,
+            'thresholds': {
+                'min_artist_similarity': 75,
+                'min_album_similarity': 65,
+                'min_track_similarity': 85,
+            },
+        },
+        'matched': result is not None,
+        'result': result,
+        'log': log_text,
+        'error': error,
+    }), (500 if error else 200)
+
+
+@admin_bp.route('/recordings/<recording_id>')
+def recordings_browse_detail(recording_id):
+    """Recording detail with release list."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT r.id, r.title, r.musicbrainz_id AS mb_recording_id,
+                       r.recording_year, r.recording_date, r.label, r.is_canonical,
+                       r.song_id, s.title AS song_title,
+                       r.source_mb_work_id, r.duration_ms
+                FROM recordings r
+                JOIN songs s ON s.id = r.song_id
+                WHERE r.id = %s
+                """,
+                (recording_id,),
+            )
+            recording = cur.fetchone()
+            if not recording:
+                return ('Recording not found', 404)
+
+            cur.execute(
+                """
+                SELECT rr.id AS recording_release_id,
+                       rr.release_id,
+                       rr.disc_number,
+                       rr.track_number,
+                       rel.title AS release_title,
+                       rel.artist_credit,
+                       rel.release_year,
+                       rel.musicbrainz_release_id AS mb_release_id,
+                       rel.spotify_album_id,
+                       (SELECT service_id FROM release_streaming_links rsl
+                          WHERE rsl.release_id = rel.id AND rsl.service = 'apple_music') AS apple_music_album_id
+                FROM recording_releases rr
+                JOIN releases rel ON rel.id = rr.release_id
+                WHERE rr.recording_id = %s
+                ORDER BY rel.release_year NULLS LAST, rel.title
+                """,
+                (recording_id,),
+            )
+            releases = cur.fetchall()
+
+    return render_template(
+        'admin/browse_recording_detail.html',
+        recording=recording,
+        releases=releases,
+    )
+

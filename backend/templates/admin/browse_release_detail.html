@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ release.title }} — Release Detail (Admin)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1280px; margin: 0 auto; }
+        .breadcrumb { font-size: 13px; margin-bottom: 12px; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .summary {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .summary h1 { font-size: 22px; margin-bottom: 4px; color: #1d1d1f; }
+        .summary .artist { color: #666; font-size: 14px; margin-bottom: 12px; }
+        .summary dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 14px;
+            font-size: 13px;
+        }
+        .summary dt { color: #888; }
+        .summary dd a { color: #0066cc; text-decoration: none; }
+        .summary dd a:hover { text-decoration: underline; }
+        .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+        .muted { color: #888; }
+
+        h2.section-title {
+            font-size: 14px;
+            color: #1d1d1f;
+            margin: 18px 0 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 700;
+        }
+        .section-hint { font-size: 12px; color: #888; margin-bottom: 8px; }
+
+        /* Diagnose panel */
+        .diag-panel {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 14px 16px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .diag-panel .controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+        }
+        .diag-panel button {
+            padding: 8px 14px;
+            background: #0066cc;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .diag-panel button:hover { background: #0055aa; }
+        .diag-panel button:disabled { background: #aaa; cursor: not-allowed; }
+        .diag-panel label { color: #666; font-size: 12px; user-select: none; }
+        .diag-result { margin-top: 10px; }
+        .diag-status {
+            display: inline-block;
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .diag-status.matched { background: #d4edda; color: #155724; }
+        .diag-status.no-match { background: #f8d7da; color: #721c24; }
+        .diag-status.error { background: #fff3cd; color: #856404; }
+        .diag-result dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 14px;
+            font-size: 12px;
+            margin: 8px 0;
+        }
+        .diag-result dt { color: #888; }
+        .diag-log {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            font-size: 11.5px;
+            line-height: 1.5;
+            padding: 10px 12px;
+            border-radius: 6px;
+            max-height: 480px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .diag-log .ok    { color: #4ec9b0; }
+        .diag-log .bad   { color: #f48771; }
+        .diag-log .arrow { color: #569cd6; }
+        .diag-log .dim   { color: #808080; }
+
+        /* Imagery gallery */
+        .imagery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 14px;
+            margin-bottom: 8px;
+        }
+        .imagery-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .imagery-card .thumb {
+            aspect-ratio: 1 / 1;
+            background: #eee center / cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            font-size: 24px;
+        }
+        .imagery-card .meta {
+            padding: 8px 10px;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+        .imagery-card .meta .row { display: flex; justify-content: space-between; gap: 8px; }
+        .imagery-card .meta .src { font-weight: 600; color: #1d1d1f; }
+        .imagery-card .meta .type { color: #666; }
+        .imagery-card .meta a { color: #0066cc; text-decoration: none; }
+        .imagery-card .meta a:hover { text-decoration: underline; }
+
+        table.list {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+        }
+        table.list th, table.list td {
+            padding: 8px 10px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 13px;
+            vertical-align: top;
+        }
+        table.list th {
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            color: #666;
+        }
+        table.list tr:last-child td { border-bottom: none; }
+        table.list a { color: #0066cc; text-decoration: none; }
+        table.list a:hover { text-decoration: underline; }
+
+        /* Streaming pill */
+        .stream-list { display: flex; flex-direction: column; gap: 6px; }
+        .stream-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+        }
+        .stream-row .svc-thumb {
+            width: 32px;
+            height: 32px;
+            flex-shrink: 0;
+            border-radius: 4px;
+            background: #f0f0f0 center / cover no-repeat;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+            border: 1px solid #e0e0e0;
+            font-size: 14px;
+        }
+        .svc-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            font-weight: 600;
+            text-transform: uppercase;
+            color: #fff;
+            margin-right: 4px;
+        }
+        .svc-apple_music { background: #fa233b; }
+        .svc-spotify     { background: #1db954; }
+        .svc-youtube     { background: #ff0000; }
+        .svc-other       { background: #666; }
+        .stream-row .meta { line-height: 1.3; min-width: 0; }
+        .stream-row .meta .top { font-weight: 500; }
+        .stream-row .meta .sub { color: #888; font-size: 11px; }
+
+        .empty { color: #888; padding: 16px; text-align: center; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+
+        /* Track table column widths */
+        col.col-pos       { width: 60px; }
+        col.col-title     { width: 24%; }
+        col.col-tracktitle{ width: 18%; }
+        col.col-mb        { width: 96px; }
+        col.col-recid     { width: 96px; }
+        col.col-stream    { width: auto; }
+
+        td.track-pos { text-align: center; color: #666; font-variant-numeric: tabular-nums; }
+        td.track-title-recording { font-weight: 500; }
+        td.track-title-recording a { color: #1d1d1f; }
+        td.track-title-recording a:hover { color: #0066cc; }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/songs') }}">Browse Songs</a>
+            &nbsp;/&nbsp;
+            Release
+        </div>
+
+        <div class="summary">
+            <h1>{{ release.title }}</h1>
+            {% if release.artist_credit %}
+              <div class="artist">{{ release.artist_credit }}</div>
+            {% endif %}
+            <dl>
+                <dt>Release ID</dt>
+                <dd class="mono">{{ release.id }}</dd>
+
+                <dt>MB Release ID</dt>
+                <dd>
+                    {% if release.musicbrainz_release_id %}
+                      <a class="mono" href="https://musicbrainz.org/release/{{ release.musicbrainz_release_id }}" target="_blank" rel="noopener">{{ release.musicbrainz_release_id }}</a>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                </dd>
+
+                {% if release.musicbrainz_release_group_id %}
+                <dt>MB Release Group</dt>
+                <dd><a class="mono" href="https://musicbrainz.org/release-group/{{ release.musicbrainz_release_group_id }}" target="_blank" rel="noopener">{{ release.musicbrainz_release_group_id }}</a></dd>
+                {% endif %}
+
+                {% if release.disambiguation %}
+                <dt>Disambiguation</dt>
+                <dd>{{ release.disambiguation }}</dd>
+                {% endif %}
+
+                {% if release.release_date or release.release_year %}
+                <dt>Released</dt>
+                <dd>{{ release.release_date or release.release_year }}{% if release.country %} · {{ release.country }}{% endif %}</dd>
+                {% endif %}
+
+                {% if release.format_name or release.packaging_name or release.status_name %}
+                <dt>Format</dt>
+                <dd>
+                  {% set parts = [] %}
+                  {% if release.format_name %}{% set _ = parts.append(release.format_name) %}{% endif %}
+                  {% if release.packaging_name %}{% set _ = parts.append(release.packaging_name) %}{% endif %}
+                  {% if release.status_name %}{% set _ = parts.append(release.status_name) %}{% endif %}
+                  {{ parts | join(' · ') }}
+                </dd>
+                {% endif %}
+
+                {% if release.label or release.catalog_number %}
+                <dt>Label</dt>
+                <dd>{{ release.label or '' }}{% if release.catalog_number %} · cat # {{ release.catalog_number }}{% endif %}</dd>
+                {% endif %}
+
+                {% if release_labels %}
+                <dt>Other Labels</dt>
+                <dd>
+                  {% for rl in release_labels %}
+                    {{ rl.label_name }}{% if rl.catalog_number %} ({{ rl.catalog_number }}){% endif %}{% if not loop.last %}, {% endif %}
+                  {% endfor %}
+                </dd>
+                {% endif %}
+
+                {% if release.barcode %}
+                <dt>Barcode</dt>
+                <dd class="mono">{{ release.barcode }}</dd>
+                {% endif %}
+
+                {% if release.total_tracks or release.total_discs %}
+                <dt>Tracks</dt>
+                <dd>{{ release.total_tracks or '?' }} track{{ '' if release.total_tracks == 1 else 's' }}{% if release.total_discs and release.total_discs > 1 %} · {{ release.total_discs }} discs{% endif %}</dd>
+                {% endif %}
+
+                {% if release.language or release.script %}
+                <dt>Language</dt>
+                <dd>{{ release.language or '' }}{% if release.script %} ({{ release.script }}){% endif %}</dd>
+                {% endif %}
+
+                {% if release_events %}
+                <dt>Release Events</dt>
+                <dd>
+                  {% for ev in release_events %}
+                    {{ ev.country or '?' }}: {{ ev.release_date or '?' }}{% if not loop.last %} · {% endif %}
+                  {% endfor %}
+                </dd>
+                {% endif %}
+
+                {% if release.cover_art_checked_at or release.apple_music_searched_at %}
+                <dt>Searched</dt>
+                <dd>
+                  {% if release.cover_art_checked_at %}CAA: {{ release.cover_art_checked_at.strftime('%Y-%m-%d') }}{% endif %}
+                  {% if release.cover_art_checked_at and release.apple_music_searched_at %} · {% endif %}
+                  {% if release.apple_music_searched_at %}Apple: {{ release.apple_music_searched_at.strftime('%Y-%m-%d') }}{% endif %}
+                </dd>
+                {% endif %}
+
+                {% if release.amazon_url or release.discogs_url %}
+                <dt>External</dt>
+                <dd>
+                  {% if release.amazon_url %}<a href="{{ release.amazon_url }}" target="_blank" rel="noopener">Amazon</a>{% endif %}
+                  {% if release.amazon_url and release.discogs_url %} · {% endif %}
+                  {% if release.discogs_url %}<a href="{{ release.discogs_url }}" target="_blank" rel="noopener">Discogs</a>{% endif %}
+                </dd>
+                {% endif %}
+
+                {% if release.cover_art_url %}
+                <dt>Legacy <code>cover_art_url</code></dt>
+                <dd><a class="mono" href="{{ release.cover_art_url }}" target="_blank" rel="noopener">{{ release.cover_art_url }}</a></dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        <h2 class="section-title">Diagnose Spotify Match</h2>
+        <div class="section-hint">
+            Re-runs the live Spotify matcher (<code>integrations.spotify.search.search_spotify_album</code>)
+            against this release's title and artist credit, with the same thresholds the worker uses
+            (strict mode: artist≥75%, album≥65%, track≥85%). Nothing is written to the DB. Inspect the
+            log to see each query strategy attempted, every candidate Spotify returned, and why each
+            one was accepted or rejected.
+        </div>
+        <div class="diag-panel">
+            <div class="controls">
+                <button id="diag-run">Run diagnosis</button>
+                <label><input type="checkbox" id="diag-force" /> force refresh (bypass Spotify search cache)</label>
+                <span class="dim" style="font-size: 11px; color: #888;">
+                    Searching for: <strong>{{ release.title }}</strong> by <strong>{{ release.artist_credit or '(no artist)' }}</strong>
+                </span>
+            </div>
+            <div id="diag-result" class="diag-result"></div>
+        </div>
+
+        <h2 class="section-title">Imagery ({{ imagery | length }})</h2>
+        <div class="section-hint">All <code>release_imagery</code> rows for this release, every source, every type. The app's recordings list picks from these (MusicBrainz first, then any other source).</div>
+        {% if imagery %}
+        <div class="imagery-grid">
+            {% for im in imagery %}
+            <div class="imagery-card">
+                {% if im.image_url_small or im.image_url_medium or im.image_url_large %}
+                <div class="thumb" style="background-image: url('{{ im.image_url_medium or im.image_url_small or im.image_url_large }}');"></div>
+                {% else %}
+                <div class="thumb">♪</div>
+                {% endif %}
+                <div class="meta">
+                    <div class="row">
+                        <span class="src">{{ im.source }}</span>
+                        <span class="type">{{ im.type }}</span>
+                    </div>
+                    {% if im.image_url_large %}
+                    <div><a href="{{ im.image_url_large }}" target="_blank" rel="noopener">view large</a></div>
+                    {% endif %}
+                    {% if im.source_url %}
+                    <div><a href="{{ im.source_url }}" target="_blank" rel="noopener">source</a></div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty">No imagery for this release.</div>
+        {% endif %}
+
+        <h2 class="section-title">Release-Level Streaming Links ({{ release_streaming_links | length }})</h2>
+        <div class="section-hint">Album-level Apple Music / Spotify / etc. links from <code>release_streaming_links</code>. Track-level links live below per-track.</div>
+        {% if release_streaming_links %}
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Service</th>
+                    <th>Service ID</th>
+                    <th>Match Method</th>
+                    <th>Confidence</th>
+                    <th>Matched</th>
+                    <th>URL</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in release_streaming_links %}
+                <tr>
+                    <td><span class="svc-badge svc-{{ s.service }}">{{ s.service }}</span></td>
+                    <td class="mono">{{ s.service_id or '' }}</td>
+                    <td>{{ s.match_method or '' }}</td>
+                    <td>{{ '%.2f' | format(s.match_confidence) if s.match_confidence is not none else '' }}</td>
+                    <td>{{ s.matched_at.strftime('%Y-%m-%d') if s.matched_at else '' }}</td>
+                    <td>
+                        {% if s.service_url %}<a href="{{ s.service_url }}" target="_blank" rel="noopener">open</a>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No album-level streaming links.</div>
+        {% endif %}
+
+        <h2 class="section-title">Tracks ({{ tracks | length }})</h2>
+        <div class="section-hint">Each row is a <code>recording_releases</code> row joining a recording to this release. Click the recording title to drill in. Track-level streaming links from <code>recording_release_streaming_links</code> are listed inline; the thumbnail is the matching service's release-level imagery.</div>
+        {% if tracks %}
+        <table class="list">
+            <colgroup>
+                <col class="col-pos" />
+                <col class="col-title" />
+                <col class="col-tracktitle" />
+                <col class="col-mb" />
+                <col class="col-recid" />
+                <col class="col-stream" />
+            </colgroup>
+            <thead>
+                <tr>
+                    <th>Track</th>
+                    <th>Recording (Song)</th>
+                    <th>Track Title (on this release)</th>
+                    <th>MB Rec</th>
+                    <th>Recording ID</th>
+                    <th>Streaming Links</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in tracks %}
+                <tr>
+                    <td class="track-pos">
+                        {% if t.disc_number and t.disc_number > 1 %}{{ t.disc_number }}-{% endif %}{{ t.track_number or '?' }}
+                    </td>
+                    <td class="track-title-recording">
+                        <a href="{{ admin_url('/admin/recordings/') }}{{ t.recording_id }}">{{ t.recording_title or '(untitled)' }}</a>
+                        {% if t.song_title and t.song_id %}
+                          <div class="muted" style="font-size: 11px;">
+                            ↳ <a href="{{ admin_url('/admin/songs/') }}{{ t.song_id }}">{{ t.song_title }}</a>
+                          </div>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if t.track_title %}{{ t.track_title }}{% else %}<span class="muted">—</span>{% endif %}
+                        {% if t.track_artist_credit and t.track_artist_credit != release.artist_credit %}
+                          <div class="muted" style="font-size: 11px;">{{ t.track_artist_credit }}</div>
+                        {% endif %}
+                    </td>
+                    <td class="mono">
+                        {% if t.mb_recording_id %}
+                          <a href="https://musicbrainz.org/recording/{{ t.mb_recording_id }}" target="_blank" rel="noopener">{{ t.mb_recording_id[:8] }}…</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                    <td class="mono">{{ (t.recording_id | string)[:8] }}…</td>
+                    <td>
+                        {% if t.streaming_links %}
+                        <div class="stream-list">
+                            {% for l in t.streaming_links %}
+                            <div class="stream-row">
+                                {% if l.imagery_url %}
+                                <div class="svc-thumb"
+                                     style="background-image: url('{{ l.imagery_url }}');"
+                                     title="release_imagery thumb for {{ l.service }}"></div>
+                                {% else %}
+                                <div class="svc-thumb">♪</div>
+                                {% endif %}
+                                <div class="meta">
+                                    <div class="top">
+                                        <span class="svc-badge svc-{{ l.service }}">{{ l.service }}</span>
+                                        <span class="mono">{{ l.service_id or '' }}</span>
+                                        {% if l.service_url %} · <a href="{{ l.service_url }}" target="_blank" rel="noopener">open</a>{% endif %}
+                                    </div>
+                                    <div class="sub">
+                                        {{ l.match_method or '' }}{% if l.match_confidence is not none %} · {{ '%.2f' | format(l.match_confidence) }}{% endif %}
+                                        {% if l.isrc %} · ISRC {{ l.isrc }}{% endif %}
+                                        {% if l.matched_at %} · {{ l.matched_at.strftime('%Y-%m-%d') }}{% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <span class="muted">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">No tracks linked to this release.</div>
+        {% endif %}
+    </div>
+
+    <script>
+    (function() {
+        const RELEASE_ID = "{{ release.id }}";
+        const btn = document.getElementById('diag-run');
+        const force = document.getElementById('diag-force');
+        const out = document.getElementById('diag-result');
+        if (!btn) return;
+
+        // Light syntax-highlight the matcher's log: ✓ green, ✗ red,
+        // → arrow blue, "Candidate Summary" / "Trying" headers dim.
+        function highlight(text) {
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/(✓[^\n]*)/g, '<span class="ok">$1</span>')
+                .replace(/(✗[^\n]*)/g, '<span class="bad">$1</span>')
+                .replace(/(→[^\n]*)/g, '<span class="arrow">$1</span>')
+                .replace(/(--- Candidate Summary ---|-------------------------)/g,
+                         '<span class="dim">$1</span>');
+        }
+
+        function escapeHtml(s) {
+            return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;')
+                            .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        btn.addEventListener('click', async () => {
+            btn.disabled = true;
+            btn.textContent = 'Running…';
+            out.innerHTML = '';
+            try {
+                const resp = await fetch(
+                    `{{ admin_url('/admin/releases/') }}${RELEASE_ID}/diagnose-spotify`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ force_refresh: force.checked }),
+                    }
+                );
+                const data = await resp.json();
+                renderResult(data);
+            } catch (e) {
+                out.innerHTML = `<div class="diag-status error">Request failed</div><div>${escapeHtml(String(e))}</div>`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Run diagnosis';
+            }
+        });
+
+        function renderResult(data) {
+            const status = data.error
+                ? `<span class="diag-status error">Error</span>`
+                : data.matched
+                    ? `<span class="diag-status matched">Match — would be accepted</span>`
+                    : `<span class="diag-status no-match">No match — current rules would not have linked this</span>`;
+
+            const input = data.input || {};
+            const result = data.result || {};
+            const scores = result.similarity_scores || {};
+
+            let resultBlock = '';
+            if (data.matched) {
+                resultBlock = `
+                    <strong>Match found:</strong>
+                    <dl>
+                        <dt>Spotify album</dt><dd>${escapeHtml(result.name || '')}</dd>
+                        <dt>Spotify artists</dt><dd>${escapeHtml((result.artists || []).join(', '))}</dd>
+                        <dt>Album ID</dt><dd><a href="https://open.spotify.com/album/${escapeHtml(result.id)}" target="_blank" rel="noopener">${escapeHtml(result.id)}</a></dd>
+                        <dt>Album similarity</dt><dd>${scores.album != null ? scores.album.toFixed(1) + '%' : '—'} (substring: ${scores.album_is_substring ? 'yes' : 'no'})</dd>
+                        <dt>Artist similarity</dt><dd>${scores.artist != null ? scores.artist.toFixed(1) + '%' : '—'} (substring: ${scores.artist_is_substring ? 'yes' : 'no'})</dd>
+                    </dl>
+                `;
+            }
+
+            const inputBlock = `
+                <details>
+                    <summary style="cursor: pointer; font-size: 12px; color: #666;">Inputs</summary>
+                    <dl>
+                        <dt>Album title sent</dt><dd>${escapeHtml(input.album_title || '')}</dd>
+                        <dt>Artist sent</dt><dd>${escapeHtml(input.artist_name || '')}</dd>
+                        <dt>Year</dt><dd>${input.release_year || ''}</dd>
+                        <dt>Verify-track song</dt><dd>${escapeHtml(input.song_title_used_for_verify || '')}</dd>
+                        <dt>Force refresh</dt><dd>${input.force_refresh ? 'yes' : 'no (cache used)'}</dd>
+                        <dt>Thresholds</dt><dd>album ≥ ${input.thresholds?.min_album_similarity}%, artist ≥ ${input.thresholds?.min_artist_similarity}%, track ≥ ${input.thresholds?.min_track_similarity}%</dd>
+                    </dl>
+                </details>
+            `;
+
+            const logBlock = data.log
+                ? `<div class="diag-log">${highlight(data.log)}</div>`
+                : '<div class="empty" style="font-size: 12px;">No log output captured.</div>';
+
+            out.innerHTML = `
+                ${status}
+                ${data.error ? `<div style="color: #c00; font-size: 12px; margin-bottom: 8px;">${escapeHtml(data.error)}</div>` : ''}
+                ${resultBlock}
+                ${inputBlock}
+                <div style="font-size: 11px; color: #888; margin-top: 10px; margin-bottom: 4px;">Matcher log:</div>
+                ${logBlock}
+            `;
+        }
+    })();
+    </script>
+</body>
+</html>

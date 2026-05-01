@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ recording.title }} — Recording Detail (Admin)</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .breadcrumb { font-size: 13px; margin-bottom: 12px; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .summary {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 18px;
+        }
+        .summary h1 { font-size: 22px; margin-bottom: 6px; color: #1d1d1f; }
+        .summary dl {
+            display: grid;
+            grid-template-columns: max-content 1fr;
+            gap: 4px 14px;
+            font-size: 13px;
+            margin-top: 6px;
+        }
+        .summary dt { color: #888; }
+        .summary dd a { color: #0066cc; text-decoration: none; }
+        .summary dd a:hover { text-decoration: underline; }
+        .mono { font-family: 'SF Mono', Monaco, monospace; font-size: 12px; }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin: 8px 0 10px;
+        }
+        .section-header h2 { font-size: 16px; color: #1d1d1f; }
+        .section-header .hint { font-size: 12px; color: #888; }
+
+        table.list {
+            width: 100%;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            border-collapse: collapse;
+        }
+        table.list th, table.list td {
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            vertical-align: top;
+        }
+        table.list th {
+            background: #fafafa;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #666;
+        }
+        table.list tr:last-child td { border-bottom: none; }
+        table.list tbody tr.clickable:hover { background: #f8f9fa; cursor: pointer; }
+        table.list a { color: #0066cc; text-decoration: none; }
+        table.list a:hover { text-decoration: underline; }
+        td.muted, .muted { color: #888; }
+        .empty { color: #888; padding: 24px; text-align: center; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+        .badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            background: #e3f2fd;
+            color: #0d47a1;
+            text-transform: uppercase;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/songs') }}">Browse Songs</a>
+            &nbsp;/&nbsp;
+            <a href="{{ admin_url('/admin/songs/') }}{{ recording.song_id }}">{{ recording.song_title }}</a>
+            &nbsp;/&nbsp;
+            Recording
+        </div>
+
+        <div class="summary">
+            <h1>
+                {{ recording.title or '(untitled)' }}
+                {% if recording.is_canonical %} <span class="badge">canonical</span>{% endif %}
+            </h1>
+            <dl>
+                <dt>Recording ID</dt>
+                <dd class="mono">{{ recording.id }}</dd>
+
+                <dt>Owning Song</dt>
+                <dd>
+                    <a href="{{ admin_url('/admin/songs/') }}{{ recording.song_id }}">{{ recording.song_title }}</a>
+                    <span class="muted mono">&nbsp;{{ recording.song_id }}</span>
+                </dd>
+
+                <dt>MB Recording ID</dt>
+                <dd>
+                    {% if recording.mb_recording_id %}
+                        <a class="mono" href="https://musicbrainz.org/recording/{{ recording.mb_recording_id }}" target="_blank" rel="noopener">{{ recording.mb_recording_id }}</a>
+                    {% else %}<span class="muted">—</span>{% endif %}
+                </dd>
+
+                {% if recording.recording_year or recording.recording_date %}
+                <dt>Recorded</dt>
+                <dd>{{ recording.recording_date or recording.recording_year }}</dd>
+                {% endif %}
+
+                {% if recording.label %}
+                <dt>Label</dt>
+                <dd>{{ recording.label }}</dd>
+                {% endif %}
+
+                {% if recording.duration_ms %}
+                <dt>Duration</dt>
+                <dd>{{ '%d:%02d' | format(recording.duration_ms // 60000, (recording.duration_ms // 1000) % 60) }}</dd>
+                {% endif %}
+
+                {% if recording.source_mb_work_id %}
+                <dt>Source MB Work</dt>
+                <dd><a class="mono" href="https://musicbrainz.org/work/{{ recording.source_mb_work_id }}" target="_blank" rel="noopener">{{ recording.source_mb_work_id }}</a></dd>
+                {% endif %}
+            </dl>
+        </div>
+
+        <div class="section-header">
+            <h2>Releases ({{ releases | length }})</h2>
+            <span class="hint">Release detail page coming next; for now, follow the MB / Spotify / Apple links.</span>
+        </div>
+
+        {% if releases %}
+        <table class="list">
+            <thead>
+                <tr>
+                    <th>Release Title</th>
+                    <th>Artist Credit</th>
+                    <th>Year</th>
+                    <th>Disc / Track</th>
+                    <th>Release ID</th>
+                    <th>MB Release</th>
+                    <th>Spotify Album</th>
+                    <th>Apple Music Album</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rel in releases %}
+                <tr class="clickable" onclick="window.location='{{ admin_url('/admin/releases/') }}{{ rel.release_id }}'">
+                    <td><a href="{{ admin_url('/admin/releases/') }}{{ rel.release_id }}" onclick="event.stopPropagation()">{{ rel.release_title }}</a></td>
+                    <td>{{ rel.artist_credit or '' }}</td>
+                    <td>{{ rel.release_year or '' }}</td>
+                    <td>
+                        {% if rel.disc_number or rel.track_number %}
+                            {{ rel.disc_number or '?' }} / {{ rel.track_number or '?' }}
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                    <td class="mono">{{ (rel.release_id | string)[:8] }}…</td>
+                    <td>
+                        {% if rel.mb_release_id %}
+                            <a class="mono" href="https://musicbrainz.org/release/{{ rel.mb_release_id }}" target="_blank" rel="noopener">{{ rel.mb_release_id[:8] }}…</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if rel.spotify_album_id %}
+                            <a class="mono" href="https://open.spotify.com/album/{{ rel.spotify_album_id }}" target="_blank" rel="noopener">{{ rel.spotify_album_id[:10] }}…</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                    <td>
+                        {% if rel.apple_music_album_id %}
+                            <a class="mono" href="https://music.apple.com/us/album/{{ rel.apple_music_album_id }}" target="_blank" rel="noopener">{{ rel.apple_music_album_id }}</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="empty">This recording isn't linked to any releases.</div>
+        {% endif %}
+    </div>
+</body>
+</html>
