@@ -517,7 +517,17 @@ def normalize_for_comparison(text: str) -> str:
     text = text.replace(' orchestra', '')
     text = text.replace(' band', '')
     text = text.replace(' ensemble', '')
-    
+
+    # Normalize volume / part markers so MB's verbose form matches Spotify's
+    # abbreviated form (and vice versa). The trailing digit is required so we
+    # never collapse "Volume" / "Part" when they're load-bearing nouns
+    # ("Turn the Volume Up", "Part of Me"). Both tokens stay distinct from
+    # each other — "vol 2" and "pt 2" don't merge, only their abbreviations.
+    #   "volume 2", "vol. 2", "Vol.2"  -> "vol 2"
+    #   "part 2",   "pt. 2",  "Pt.2"   -> "pt 2"
+    text = re.sub(r'\b(?:volume|vol)\.?\s*(\d+)', r'vol \1', text)
+    text = re.sub(r'\b(?:part|pt)\.?\s*(\d+)', r'pt \1', text)
+
     # Normalize "and" vs "&"
     text = text.replace(' & ', ' and ')
 

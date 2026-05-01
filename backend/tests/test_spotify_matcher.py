@@ -66,6 +66,18 @@ class TestNormalizeForComparison:
         # Film-source annotation
         ("An Affair to Remember - From the 20th Century-Fox Film",
          "an affair to remember"),
+        # Volume / part marker canonicalization — MB writes "Volume 2",
+        # Spotify writes "Vol 2" or "Vol. 2", and we want them to compare equal.
+        ("It's Up to You, Volume 2",   "it s up to you, vol 2"),
+        ("It's Up to You, Vol. 2",     "it s up to you, vol 2"),
+        ("It's Up to You, Vol.2",      "it s up to you, vol 2"),
+        ("It's Up to You, Vol 2",      "it s up to you, vol 2"),
+        ("Studio Sessions Part 3",     "studio sessions pt 3"),
+        ("Studio Sessions Pt. 3",      "studio sessions pt 3"),
+        # Marker without a trailing digit stays alone — we don't want
+        # "Turn the Volume Up" or "Part of Me" mangled.
+        ("Turn the Volume Up",         "turn the volume up"),
+        ("Part of Me",                 "part of me"),
     ])
     def test_strips_common_annotations(self, raw, expected):
         assert normalize_for_comparison(raw) == expected
