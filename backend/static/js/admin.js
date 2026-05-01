@@ -1,11 +1,17 @@
 // Admin CSRF helper.
 //
-// Wraps window.fetch so every state-changing call to /admin/* carries the
-// `X-CSRF-Token` header from the `admin_csrf` cookie. Pair with the
-// double-submit-cookie check in middleware/admin_middleware.py.
+// Wraps window.fetch so every state-changing same-origin call from an admin
+// page carries the `X-CSRF-Token` header from the `admin_csrf` cookie. Pair
+// with the double-submit-cookie check in middleware/admin_middleware.py.
 //
-// Safe to load on any admin page; no-ops on GET/HEAD/OPTIONS and on
-// cross-origin URLs.
+// Stamps on:
+//   - any path that starts with /admin (apex domain, e.g. api.approachnote.com)
+//   - any same-origin path on the admin subdomain (admin.approachnote.com,
+//     where the WSGI subdomain middleware strips `/admin` from public URLs
+//     before they reach the browser)
+//
+// Stays out of cross-origin requests so the token can't leak to third-party
+// APIs an admin page might call.
 
 (function () {
     if (window.__adminFetchPatched) return;
@@ -16,12 +22,17 @@
         return m ? decodeURIComponent(m[1]) : '';
     }
 
-    function isAdminPath(url) {
+    function shouldStampCsrf(url) {
         if (typeof url !== 'string') return false;
+        // Explicit /admin paths always count, even on apex.
         if (url.startsWith('/admin')) return true;
+        // Otherwise resolve against current origin and stamp iff
+        // same-origin. On the admin subdomain that's the whole site;
+        // on apex this is effectively a no-op (admin pages here only
+        // fetch /admin/* URLs, already covered above).
         try {
             var u = new URL(url, window.location.origin);
-            return u.origin === window.location.origin && u.pathname.startsWith('/admin');
+            return u.origin === window.location.origin;
         } catch (_e) {
             return false;
         }
@@ -35,7 +46,7 @@
         var url = (typeof input === 'string') ? input : (input && input.url) || '';
         var method = (init.method || (input && input.method) || 'GET').toUpperCase();
 
-        if (UNSAFE[method] && isAdminPath(url)) {
+        if (UNSAFE[method] && shouldStampCsrf(url)) {
             var headers = new Headers(init.headers || (input && input.headers) || undefined);
             if (!headers.has('X-CSRF-Token')) {
                 headers.set('X-CSRF-Token', readCsrf());
