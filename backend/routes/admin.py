@@ -3720,8 +3720,13 @@ def release_streaming_mismatches():
     release_imagery, which only gets populated when the album-level
     matcher succeeds). #177.
 
+    YouTube is intentionally excluded — YouTube has no album concept (just
+    videos/tracks), so a "track has a link but the release doesn't" pattern
+    is meaningless there. Issue #182. The filter applies inside the SQL
+    CTEs so YouTube never contributes to either the table or the summary.
+
     Filters:
-        ?service=spotify|apple_music|youtube|all (default 'all')
+        ?service=spotify|apple_music|all (default 'all')
         ?hide_legacy=1 — for Spotify, hide rows where the legacy
             releases.spotify_album_id column IS populated. Most of those
             27k Spotify orphans are migration artifacts (track links got
@@ -3734,13 +3739,15 @@ def release_streaming_mismatches():
     click through to /admin/releases/<id> to diagnose / rematch.
     """
     service_filter = request.args.get('service') or 'all'
-    if service_filter not in ('all', 'spotify', 'apple_music', 'youtube'):
+    if service_filter not in ('all', 'spotify', 'apple_music'):
         service_filter = 'all'
     hide_legacy = request.args.get('hide_legacy') == '1'
     limit = 200
 
     # The "track has a link, release doesn't" predicate is identical per
     # service. Compute once per (release_id, service) pair, then aggregate.
+    # YouTube is filtered out at the source CTE — see #182, the album
+    # concept doesn't apply there.
     base_sql = """
         WITH track_services AS (
             SELECT DISTINCT
@@ -3748,6 +3755,7 @@ def release_streaming_mismatches():
                 rrsl.service
             FROM recording_release_streaming_links rrsl
             JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+            WHERE rrsl.service != 'youtube'
         ),
         orphans AS (
             -- (release_id, service) pairs where the album-level link is missing.
@@ -3820,11 +3828,13 @@ def release_streaming_mismatches():
             rows = cur.fetchall()
 
             # Summary counts (independent of the filter — give the big picture).
+            # Same youtube exclusion as the main query above (#182).
             cur.execute("""
                 WITH track_services AS (
                     SELECT DISTINCT rr.release_id, rrsl.service
                     FROM recording_release_streaming_links rrsl
                     JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                    WHERE rrsl.service != 'youtube'
                 ),
                 orphans AS (
                     SELECT t.release_id, t.service
@@ -3852,6 +3862,7 @@ def release_streaming_mismatches():
                     SELECT DISTINCT rr.release_id, rrsl.service
                     FROM recording_release_streaming_links rrsl
                     JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
+                    WHERE rrsl.service != 'youtube'
                 )
                 SELECT COUNT(DISTINCT t.release_id) AS distinct_releases
                 FROM track_services t
