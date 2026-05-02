@@ -86,8 +86,11 @@ Don't make a habit of it.
   tight per-endpoint limits don't cause flakes. `test_rate_limit.py`
   overrides the autouse fixture to re-enable enforcement and reset the
   in-memory counters between tests.
-- **External OAuth**: Google / Apple sign-in is not covered yet — both
-  require mocking remote JWKS clients and live in a follow-up issue.
+- **External OAuth**: Google / Apple sign-in are covered in `test_oauth.py`.
+  The remote token-verification calls
+  (`google.oauth2.id_token.verify_oauth2_token` and
+  `jwt.PyJWKClient.get_signing_key_from_jwt` + `jwt.decode`) are stubbed
+  per test, so nothing hits Google's tokeninfo or Apple's JWKS endpoint.
 
 ## Adding a test
 
