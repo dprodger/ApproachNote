@@ -3743,12 +3743,6 @@ def release_streaming_mismatches():
 
     Filters:
         ?service=spotify|apple_music|all (default 'all')
-        ?hide_legacy=1 — for Spotify, hide rows where the legacy
-            releases.spotify_album_id column IS populated. Most of those
-            27k Spotify orphans are migration artifacts (track links got
-            normalized into recording_release_streaming_links but the
-            album-level links never made the move out of the legacy
-            column). The flag focuses on genuine matcher mismatches.
 
     Capped at 200 rows; sort is orphan track count desc so the heaviest
     cases sit at top. URL is :id of the release in the resulting table —
@@ -3757,7 +3751,6 @@ def release_streaming_mismatches():
     service_filter = request.args.get('service') or 'all'
     if service_filter not in ('all', 'spotify', 'apple_music'):
         service_filter = 'all'
-    hide_legacy = request.args.get('hide_legacy') == '1'
     limit = 200
 
     # The "track has a link, release doesn't" predicate is identical per
@@ -3808,12 +3801,6 @@ def release_streaming_mismatches():
             rel.artist_credit,
             rel.release_year,
             rel.musicbrainz_release_id AS mb_release_id,
-            -- Phase B exception: this admin page exists to expose drift between
-            -- the legacy releases.spotify_album_id column and the normalized
-            -- release_streaming_links table. The legacy_spotify_album_id read
-            -- here is intentionally kept until Phase C drops the column and
-            -- the hide_legacy filter alongside it.
-            rel.spotify_album_id AS legacy_spotify_album_id,
             pr.service_orphans,
             pr.total_orphan_tracks,
             pr.services_missing,
@@ -3826,17 +3813,6 @@ def release_streaming_mismatches():
     if service_filter != 'all':
         base_sql += " AND %s = ANY(pr.services_missing)"
         params.append(service_filter)
-    if hide_legacy:
-        # Hide Spotify migration artifacts: don't show rows whose only
-        # missing service is spotify AND the legacy column is populated.
-        # Cast to varchar[] — services_missing comes back as the column's
-        # native varchar[] (PG doesn't auto-cast text[] vs varchar[]).
-        base_sql += """
-            AND NOT (
-                pr.services_missing = ARRAY['spotify']::varchar[]
-                AND rel.spotify_album_id IS NOT NULL
-            )
-        """
     base_sql += """
         ORDER BY pr.total_orphan_tracks DESC, rel.release_year NULLS LAST, rel.title
         LIMIT %s
@@ -3867,12 +3843,8 @@ def release_streaming_mismatches():
                 )
                 SELECT
                     o.service,
-                    COUNT(DISTINCT o.release_id) AS releases,
-                    COUNT(DISTINCT o.release_id) FILTER (
-                        WHERE o.service = 'spotify' AND rel.spotify_album_id IS NOT NULL
-                    ) AS legacy_only
+                    COUNT(DISTINCT o.release_id) AS releases
                 FROM orphans o
-                JOIN releases rel ON rel.id = o.release_id
                 GROUP BY o.service
                 ORDER BY o.service
             """)
@@ -3900,7 +3872,6 @@ def release_streaming_mismatches():
         per_service_summary=per_service_summary,
         distinct_total=distinct_total,
         service_filter=service_filter,
-        hide_legacy=hide_legacy,
         limit=limit,
         truncated=len(rows) >= limit,
     )

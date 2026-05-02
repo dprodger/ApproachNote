@@ -118,7 +118,6 @@ CREATE TABLE releases (
     total_discs INTEGER DEFAULT 1,
     cover_art_url VARCHAR(500),
     cover_art_checked_at TIMESTAMP WITH TIME ZONE,
-    spotify_album_id VARCHAR(50),
     apple_music_searched_at TIMESTAMP WITH TIME ZONE,
     amazon_url VARCHAR(500),
     discogs_url VARCHAR(500),
@@ -640,7 +639,6 @@ CREATE INDEX idx_releases_release_date ON releases (release_date);
 CREATE INDEX idx_releases_release_year ON releases (release_year);
 CREATE INDEX idx_releases_label ON releases (label);
 CREATE INDEX idx_releases_barcode ON releases (barcode);
-CREATE INDEX idx_releases_spotify_album_id ON releases (spotify_album_id);
 CREATE INDEX idx_releases_cover_art_checked_at ON releases (cover_art_checked_at) WHERE cover_art_checked_at IS NULL;
 
 -- Recordings

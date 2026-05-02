@@ -126,7 +126,6 @@
         col.col-year   { width: 60px; }
         col.col-svc    { width: 96px; }
         col.col-counts { width: 220px; }
-        col.col-legacy { width: 90px; }
 
         td.cell-title { font-weight: 500; }
         td.cell-title a { color: #1d1d1f; }
@@ -149,15 +148,6 @@
         .svc-apple_music { background: #fa233b; }
         .svc-youtube     { background: #ff0000; }
 
-        .legacy-flag {
-            display: inline-block;
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-weight: 600;
-            background: #fff3cd;
-            color: #856404;
-        }
         .empty {
             color: #888;
             padding: 24px;
@@ -195,9 +185,6 @@
             <div class="stat-card">
                 <div class="v {{ s.service }}">{{ '{:,}'.format(s.releases) }}</div>
                 <div class="l">{{ s.service }}</div>
-                {% if s.legacy_only %}
-                <div class="sub">{{ '{:,}'.format(s.legacy_only) }} have legacy <code>spotify_album_id</code> populated</div>
-                {% endif %}
             </div>
             {% endfor %}
         </div>
@@ -210,13 +197,8 @@
                 <option value="apple_music"  {% if service_filter == 'apple_music' %}selected{% endif %}>Apple Music only</option>
             </select>
 
-            <label>
-                <input type="checkbox" name="hide_legacy" value="1" {% if hide_legacy %}checked{% endif %} />
-                Hide Spotify migration artifacts (releases with legacy <code>spotify_album_id</code> populated)
-            </label>
-
             <button type="submit">Apply</button>
-            {% if service_filter != 'all' or hide_legacy %}
+            {% if service_filter != 'all' %}
             <a href="{{ admin_url('/admin/release-streaming-mismatches') }}" class="secondary"
                style="padding: 6px 10px; border: 1px solid #0066cc; border-radius: 6px; background: #fff; color: #0066cc; text-decoration: none;">
                Clear
@@ -239,7 +221,6 @@
                 <col class="col-year" />
                 <col class="col-svc" />
                 <col class="col-counts" />
-                <col class="col-legacy" />
             </colgroup>
             <thead>
                 <tr>
@@ -248,7 +229,6 @@
                     <th>Year</th>
                     <th>Missing</th>
                     <th>Orphan Tracks (per service / total tracks)</th>
-                    <th>Legacy Col</th>
                 </tr>
             </thead>
             <tbody>
@@ -272,15 +252,6 @@
                           <span class="svc-badge svc-{{ svc }}">{{ svc }}</span>
                           <span class="mono">{{ n }} / {{ r.total_tracks }}</span>{% if not loop.last %} &nbsp; {% endif %}
                         {% endfor %}
-                    </td>
-                    <td>
-                        {% if r.legacy_spotify_album_id %}
-                          <span class="legacy-flag" title="legacy column populated: {{ r.legacy_spotify_album_id }}">
-                              spotify
-                          </span>
-                        {% else %}
-                          <span class="muted">—</span>
-                        {% endif %}
                     </td>
                 </tr>
                 {% endfor %}

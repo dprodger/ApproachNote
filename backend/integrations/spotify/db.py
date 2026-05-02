@@ -460,18 +460,9 @@ def update_release_spotify_data(conn, release_id: str, spotify_data: dict,
     if album_art:
         upsert_release_imagery(conn, release_id, album_art, source_id=album_id, log=log)
 
-    # Phase B transition: dual-write the legacy releases.spotify_album_id
-    # column AND the normalized release_streaming_links row. Phase C will
-    # remove the legacy write once readers have been live for a few days.
     with conn.cursor() as cur:
-        cur.execute("""
-            UPDATE releases
-            SET spotify_album_id = %s,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (album_id, release_id))
-
-        # Normalized streaming links table — the source of truth for readers.
+        # release_streaming_links is the source of truth — the legacy
+        # releases.spotify_album_id column was dropped in migration 017.
         service_url = f'https://open.spotify.com/album/{album_id}'
         cur.execute("""
             INSERT INTO release_streaming_links (
@@ -518,14 +509,8 @@ def clear_release_spotify_data(conn, release_id: str,
         return
 
     with conn.cursor() as cur:
-        cur.execute("""
-            UPDATE releases
-            SET spotify_album_id = NULL,
-                updated_at = CURRENT_TIMESTAMP
-            WHERE id = %s
-        """, (release_id,))
-
-        # Remove from streaming links table
+        # Remove from streaming links table (source of truth since
+        # migration 017 dropped releases.spotify_album_id).
         cur.execute("""
             DELETE FROM release_streaming_links
             WHERE release_id = %s AND service = 'spotify'

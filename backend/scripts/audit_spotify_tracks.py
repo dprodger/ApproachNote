@@ -797,27 +797,17 @@ def get_orphaned_albums(song_id: str) -> list:
 def clear_spotify_album_from_release(release_id: str) -> bool:
     """
     Clear the Spotify album link from a release.
-    Returns True if a row was removed (or the legacy column cleared).
+    Returns True if a row was removed.
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            # Remove from normalized streaming links table.
             cur.execute("""
                 DELETE FROM release_streaming_links
                 WHERE release_id = %s AND service = 'spotify'
             """, (release_id,))
             removed = cur.rowcount
-            # Phase B transition: also clear the legacy column so the
-            # streaming-mismatches admin page doesn't keep reporting drift.
-            # The legacy write goes away in Phase C.
-            cur.execute("""
-                UPDATE releases
-                SET spotify_album_id = NULL,
-                    updated_at = NOW()
-                WHERE id = %s
-            """, (release_id,))
             conn.commit()
-            return (removed > 0) or (cur.rowcount > 0)
+            return removed > 0
 
 
 def find_orphaned_albums(song_name: str, matcher: SpotifyMatcher, fix: bool = False) -> dict:
