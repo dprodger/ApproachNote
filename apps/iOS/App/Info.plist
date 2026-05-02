@@ -18,7 +18,14 @@
     <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
     <string>$(CURRENT_PROJECT_VERSION)</string>
-    
+
+    <!-- Export Compliance: app uses only HTTPS via URLSession and standard
+         OS auth libraries (Sign in with Apple, Google Sign-In, JWT). All
+         such use is exempt under US EAR §740.17(b), so the answer to
+         App Store Connect's encryption-documentation prompt is "no". -->
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
+
     <!-- Google Sign In Configuration -->
     <key>GIDClientID</key>
     <string>771367679852-bns841o89en9bfdulo5s5vltpucqj1vh.apps.googleusercontent.com</string>

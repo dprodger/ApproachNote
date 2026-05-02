@@ -22,6 +22,9 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<!-- Export Compliance: see iOS/App/Info.plist. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

@@ -10,6 +10,9 @@
 	<array>
 		<string>approachnote</string>
 	</array>
+	<!-- Export Compliance: see Mac/App/Info.plist. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSExtension</key>
 	<dict>
 		<key>NSExtensionAttributes</key>

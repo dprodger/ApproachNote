@@ -22,6 +22,12 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Export Compliance: app uses only HTTPS via URLSession and standard
+	     OS auth libraries (Sign in with Apple, Google Sign-In, JWT). All
+	     such use is exempt under US EAR §740.17(b), so the answer to
+	     App Store Connect's encryption-documentation prompt is "no". -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>LSMinimumSystemVersion</key>
 	<string>$(MACOSX_DEPLOYMENT_TARGET)</string>
 	<key>NSHumanReadableCopyright</key>
