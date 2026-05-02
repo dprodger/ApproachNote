@@ -25,19 +25,24 @@ def register_blueprints(app):
     from routes.contributions import contributions_bp
     from routes.musicbrainz import musicbrainz_bp
 
+    # Unversioned: load-balancer probe + admin web UI.
     app.register_blueprint(health_bp)
-    app.register_blueprint(research_bp)
-    app.register_blueprint(songs_bp)
-    app.register_blueprint(recordings_bp)
-    app.register_blueprint(performers_bp)
-    app.register_blueprint(images_bp)
-    app.register_blueprint(repertoires_bp)
-    app.register_blueprint(transcriptions_bp)
-    app.register_blueprint(reports_bp)
-    app.register_blueprint(authorities_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_research_bp)
-    app.register_blueprint(videos_bp)
-    app.register_blueprint(favorites_bp)
-    app.register_blueprint(contributions_bp)
-    app.register_blueprint(musicbrainz_bp)
+
+    # Public client API — every client-facing route lives under /v1/.
+    # See docs/api-versioning.md for policy. The url_prefix passed here
+    # overrides any url_prefix set on the Blueprint() itself.
+    app.register_blueprint(research_bp, url_prefix='/v1')
+    app.register_blueprint(songs_bp, url_prefix='/v1')
+    app.register_blueprint(recordings_bp, url_prefix='/v1')
+    app.register_blueprint(performers_bp, url_prefix='/v1')
+    app.register_blueprint(images_bp, url_prefix='/v1')
+    app.register_blueprint(repertoires_bp, url_prefix='/v1/repertoires')
+    app.register_blueprint(transcriptions_bp, url_prefix='/v1')
+    app.register_blueprint(reports_bp, url_prefix='/v1')
+    app.register_blueprint(authorities_bp, url_prefix='/v1')
+    app.register_blueprint(videos_bp, url_prefix='/v1')
+    app.register_blueprint(favorites_bp, url_prefix='/v1')
+    app.register_blueprint(contributions_bp, url_prefix='/v1')
+    app.register_blueprint(musicbrainz_bp, url_prefix='/v1')

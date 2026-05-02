@@ -44,7 +44,7 @@ def test_google_login_creates_new_user(client, db, mocker):
         },
     )
 
-    resp = client.post("/auth/google", json={"id_token": "fake-google-token"})
+    resp = client.post("/v1/auth/google", json={"id_token": "fake-google-token"})
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["user"]["email"] == "newuser@gmail.com"
@@ -76,7 +76,7 @@ def test_google_login_links_existing_email(client, db, register_user, mocker):
         },
     )
 
-    resp = client.post("/auth/google", json={"id_token": "fake-google-token"})
+    resp = client.post("/v1/auth/google", json={"id_token": "fake-google-token"})
     assert resp.status_code == 200
 
     with db.cursor() as cur:
@@ -95,7 +95,7 @@ def test_google_login_rejects_invalid_signature(client, mocker):
         side_effect=ValueError("Invalid token signature"),
     )
 
-    resp = client.post("/auth/google", json={"id_token": "tampered-token"})
+    resp = client.post("/v1/auth/google", json={"id_token": "tampered-token"})
     assert resp.status_code == 401
     assert "Invalid token" in resp.get_json()["error"]
 
@@ -107,7 +107,7 @@ def test_google_login_rejects_wrong_audience(client, mocker):
         side_effect=ValueError("Token has wrong audience some-other-client"),
     )
 
-    resp = client.post("/auth/google", json={"id_token": "wrong-aud-token"})
+    resp = client.post("/v1/auth/google", json={"id_token": "wrong-aud-token"})
     assert resp.status_code == 401
     assert "Invalid token" in resp.get_json()["error"]
 
@@ -138,7 +138,7 @@ def test_apple_login_creates_new_user(client, db, mocker):
     )
 
     resp = client.post(
-        "/auth/apple",
+        "/v1/auth/apple",
         json={
             "identity_token": "fake-apple-token",
             "full_name": "Apple User",
@@ -175,7 +175,7 @@ def test_apple_login_links_existing_email(client, db, register_user, mocker):
     )
 
     resp = client.post(
-        "/auth/apple",
+        "/v1/auth/apple",
         json={"identity_token": "fake-apple-token"},
     )
     assert resp.status_code == 200
@@ -197,7 +197,7 @@ def test_apple_login_rejects_invalid_signature(client, mocker):
     )
 
     resp = client.post(
-        "/auth/apple",
+        "/v1/auth/apple",
         json={"identity_token": "tampered-apple-token"},
     )
     assert resp.status_code == 401
@@ -212,7 +212,7 @@ def test_apple_login_rejects_wrong_audience(client, mocker):
     )
 
     resp = client.post(
-        "/auth/apple",
+        "/v1/auth/apple",
         json={"identity_token": "wrong-aud-apple-token"},
     )
     assert resp.status_code == 401

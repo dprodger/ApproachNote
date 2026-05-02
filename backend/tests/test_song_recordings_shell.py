@@ -291,7 +291,7 @@ def test_top_level_shape(client, shell_fixture):
     ``SongRecordingsResponse`` decoder can be reused for both endpoints.
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell"
     )
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
@@ -310,7 +310,7 @@ def test_each_recording_has_exact_expected_fields(client, shell_fixture):
     the SELECT and forgets to update a consumer).
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell"
     )
     assert resp.status_code == 200
     body = resp.get_json()
@@ -336,7 +336,7 @@ def test_forbidden_hydrate_only_fields_stay_out(client, shell_fixture):
     defeated and Swift decode would be harder to reason about.
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell"
     )
     body = resp.get_json()
     for rec in body["recordings"]:
@@ -357,7 +357,7 @@ def test_cte_fallthrough_for_bare_recording(client, shell_fixture):
     doesn't appear in the group headers).
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell"
     )
     body = resp.get_json()
 
@@ -394,7 +394,7 @@ def test_populated_recording_leader_surfaces(client, shell_fixture):
     instruments-for-filter rule ("everyone") are different. Both matter.
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell"
     )
     body = resp.get_json()
 
@@ -437,7 +437,7 @@ def test_name_sort_branch_returns_contract_shape(client, shell_fixture):
     doesn't slip through.
     """
     resp = client.get(
-        f"/songs/{shell_fixture['song_id']}/recordings/shell?sort=name"
+        f"/v1/songs/{shell_fixture['song_id']}/recordings/shell?sort=name"
     )
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
@@ -453,7 +453,7 @@ def test_unknown_song_returns_empty_list(client):
     """
     import uuid
     unknown = str(uuid.uuid4())
-    resp = client.get(f"/songs/{unknown}/recordings/shell")
+    resp = client.get(f"/v1/songs/{unknown}/recordings/shell")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["recording_count"] == 0

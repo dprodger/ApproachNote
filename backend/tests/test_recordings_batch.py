@@ -226,7 +226,7 @@ def _batch_url(ids):
     ``?ids=a&ids=b``) would be a one-line change here rather than a
     sweep across every test.
     """
-    return f"/recordings/batch?ids={','.join(ids)}"
+    return f"/v1/recordings/batch?ids={','.join(ids)}"
 
 
 def test_response_envelope_is_recordings_array(client, batch_fixture):
@@ -348,7 +348,7 @@ def test_whitespace_around_ids_is_tolerated(client, batch_fixture):
     bare = batch_fixture["bare_recording_id"]
     # Leading/trailing spaces, a trailing comma, and a duplicate empty
     # field from a double comma — all should be cleaned up server-side.
-    resp = client.get(f"/recordings/batch?ids=  {populated} ,, {bare} ,")
+    resp = client.get(f"/v1/recordings/batch?ids=  {populated} ,, {bare} ,")
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
     assert len(body["recordings"]) == 2
@@ -360,20 +360,20 @@ def test_whitespace_around_ids_is_tolerated(client, batch_fixture):
 
 def test_missing_ids_param_returns_400(client):
     """No ``ids`` at all → 400. Don't let an empty request hit the DB."""
-    resp = client.get("/recordings/batch")
+    resp = client.get("/v1/recordings/batch")
     assert resp.status_code == 400
     assert "ids" in resp.get_json()["error"].lower()
 
 
 def test_empty_ids_value_returns_400(client):
     """``?ids=`` with no value → 400."""
-    resp = client.get("/recordings/batch?ids=")
+    resp = client.get("/v1/recordings/batch?ids=")
     assert resp.status_code == 400
 
 
 def test_only_separators_returns_400(client):
     """``?ids=,,,`` (all commas, no real IDs) → 400 after the strip pass."""
-    resp = client.get("/recordings/batch?ids=,,,")
+    resp = client.get("/v1/recordings/batch?ids=,,,")
     assert resp.status_code == 400
 
 
@@ -382,7 +382,7 @@ def test_malformed_uuid_returns_400(client):
     Client-side bugs that construct bad IDs should surface clearly rather
     than as a cryptic psycopg error.
     """
-    resp = client.get("/recordings/batch?ids=not-a-uuid")
+    resp = client.get("/v1/recordings/batch?ids=not-a-uuid")
     assert resp.status_code == 400
     assert "uuid" in resp.get_json()["error"].lower()
 

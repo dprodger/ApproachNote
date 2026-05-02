@@ -25,7 +25,8 @@ from typing import Any
 
 from flask import Blueprint, jsonify, render_template, request
 
-from core import research_jobs
+import db_utils as db_tools
+from core import research_jobs, research_queue
 from db_utils import get_db_connection
 
 logger = logging.getLogger(__name__)
@@ -353,3 +354,84 @@ def enqueue():
     if job_id is None:
         return jsonify({'error': 'enqueue failed (see worker logs)'}), 500
     return jsonify({'job_id': job_id}), 201
+
+
+@admin_research_bp.route('/queue-all-songs', methods=['POST'])
+def queue_all_songs_for_research():
+    """Bulk-enqueue songs into the in-process research queue.
+
+    Query Parameters:
+        batch_size (int, optional): Limit number of songs to queue
+        repertoire_id (uuid, optional): Only queue songs from this repertoire
+        force_refresh (bool, optional): If true (default), bypass cache ("deep refresh").
+                                       If false, use cached data ("simple refresh").
+    """
+    try:
+        batch_size = request.args.get('batch_size', type=int)
+        repertoire_id = request.args.get('repertoire_id')
+        force_refresh_param = request.args.get('force_refresh', 'true').lower()
+        force_refresh = force_refresh_param in ('true', '1', 'yes')
+
+        if repertoire_id:
+            query = """
+                SELECT s.id, s.title
+                FROM songs s
+                INNER JOIN repertoire_songs rs ON s.id = rs.song_id
+                WHERE rs.repertoire_id = %s
+                ORDER BY s.title
+            """
+            params = (repertoire_id,)
+        else:
+            query = "SELECT id, title FROM songs ORDER BY title"
+            params = None
+
+        if batch_size and batch_size > 0:
+            query += f" LIMIT {batch_size}"
+
+        songs = db_tools.execute_query(query, params) if params else db_tools.execute_query(query)
+
+        if not songs:
+            return jsonify({
+                'success': True,
+                'message': 'No songs found in database',
+                'songs_queued': 0,
+                'queue_size': research_queue.get_queue_size()
+            }), 200
+
+        queued_count = 0
+        failed_songs = []
+
+        for song in songs:
+            success = research_queue.add_song_to_queue(
+                song['id'], song['title'], force_refresh=force_refresh
+            )
+            if success:
+                queued_count += 1
+            else:
+                failed_songs.append({'id': song['id'], 'title': song['title']})
+
+        response_data = {
+            'success': True,
+            'message': f'Queued {queued_count} songs for research',
+            'total_songs': len(songs),
+            'songs_queued': queued_count,
+            'songs_failed': len(failed_songs),
+            'force_refresh': force_refresh,
+            'queue_size': research_queue.get_queue_size()
+        }
+
+        if failed_songs:
+            response_data['failed_songs'] = failed_songs
+            logger.warning(f"Failed to queue {len(failed_songs)} songs")
+
+        logger.info(f"Admin: Queued {queued_count}/{len(songs)} songs for research")
+
+        return jsonify(response_data), 202
+
+    except Exception as e:
+        logger.error(f"Error queuing all songs for research: {e}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'error': 'Internal server error',
+            'detail': str(e)
+        }), 500

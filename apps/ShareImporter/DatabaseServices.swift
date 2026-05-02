@@ -8,8 +8,9 @@
 import Foundation
 
 // Hardcoded because the share extension target can't link apps/Shared/Services/APIClient.swift.
-// Keep in sync with APIClient.baseURL.
+// Keep in sync with APIClient.baseURL and APIClient.apiVersionPath.
 private let apiBaseURL = "https://api.approachnote.com"
+private let apiVersionPath = "/v1"
 private let requestTimeout: TimeInterval = 10.0
 
 final class ShareDatabaseService {
@@ -72,7 +73,7 @@ final class ShareDatabaseService {
     }
 
     private func get<T: Decodable>(path: String) async throws -> T {
-        guard let url = URL(string: apiBaseURL + path) else {
+        guard let url = URL(string: apiBaseURL + apiVersionPath + path) else {
             throw URLError(.badURL)
         }
 

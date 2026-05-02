@@ -28,7 +28,7 @@ def test_forgot_password_known_email_inserts_token_and_sends_email(
     )
 
     resp = client.post(
-        "/auth/forgot-password",
+        "/v1/auth/forgot-password",
         json={"email": "forgot-me@example.com"},
     )
     assert resp.status_code == 200
@@ -67,7 +67,7 @@ def test_forgot_password_unknown_email_returns_200_without_inserting_token(
     )
 
     resp = client.post(
-        "/auth/forgot-password",
+        "/v1/auth/forgot-password",
         json={"email": "nobody@example.com"},
     )
     assert resp.status_code == 200
@@ -112,7 +112,7 @@ def test_reset_password_with_valid_token_updates_password_and_marks_used(
     _insert_reset_token(db, user_id=user_id, token="valid-reset-token")
 
     resp = client.post(
-        "/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": "valid-reset-token", "password": "brand-new-password"},
     )
     assert resp.status_code == 200
@@ -129,13 +129,13 @@ def test_reset_password_with_valid_token_updates_password_and_marks_used(
 
     # Login with the new password works; old password no longer does.
     resp_new = client.post(
-        "/auth/login",
+        "/v1/auth/login",
         json={"email": "reset-me@example.com", "password": "brand-new-password"},
     )
     assert resp_new.status_code == 200
 
     resp_old = client.post(
-        "/auth/login",
+        "/v1/auth/login",
         json={"email": "reset-me@example.com", "password": "old-password-123"},
     )
     assert resp_old.status_code == 401
@@ -150,7 +150,7 @@ def test_reset_password_with_used_token_is_rejected(
     _insert_reset_token(db, user_id=user_id, token="already-used-token", used=True)
 
     resp = client.post(
-        "/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": "already-used-token", "password": "new-password-456"},
     )
     # The handler returns 401 when the token row isn't usable; the issue
@@ -173,7 +173,7 @@ def test_reset_password_with_expired_token_is_rejected(
     )
 
     resp = client.post(
-        "/auth/reset-password",
+        "/v1/auth/reset-password",
         json={"token": "expired-reset-token", "password": "new-password-456"},
     )
     assert resp.status_code == 401
@@ -189,13 +189,13 @@ def test_change_password_with_correct_current_password(
 ):
     register_user(email="changer@example.com", password="current-password-1")
     login = client.post(
-        "/auth/login",
+        "/v1/auth/login",
         json={"email": "changer@example.com", "password": "current-password-1"},
     ).get_json()
     headers = {"Authorization": f"Bearer {login['access_token']}"}
 
     resp = client.post(
-        "/auth/change-password",
+        "/v1/auth/change-password",
         json={
             "current_password": "current-password-1",
             "new_password": "different-password-2",
@@ -207,13 +207,13 @@ def test_change_password_with_correct_current_password(
 
     # Old password no longer works; new one does.
     resp_old = client.post(
-        "/auth/login",
+        "/v1/auth/login",
         json={"email": "changer@example.com", "password": "current-password-1"},
     )
     assert resp_old.status_code == 401
 
     resp_new = client.post(
-        "/auth/login",
+        "/v1/auth/login",
         json={"email": "changer@example.com", "password": "different-password-2"},
     )
     assert resp_new.status_code == 200

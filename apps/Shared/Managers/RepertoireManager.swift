@@ -79,16 +79,8 @@ class RepertoireManager: ObservableObject {
             errorMessage = nil
         }
         
-        // Build URL
-        let urlString = "\(APIClient.baseURL)/repertoires/"
-        guard let url = URL(string: urlString) else {
-            await MainActor.run {
-                errorMessage = "Invalid URL"
-                isLoading = false
-            }
-            return
-        }
-        
+        let url = URL.api(path: "/repertoires/")
+
         do {
             // Use AuthenticationManager's method which handles token refresh automatically
             let data = try await authManager.makeAuthenticatedRequest(url: url)
@@ -144,11 +136,8 @@ class RepertoireManager: ObservableObject {
             return false
         }
         
-        let urlString = "\(APIClient.baseURL)/repertoires/\(repertoireId)/songs/\(songId)"
-        guard let url = URL(string: urlString) else {
-            return false
-        }
-        
+        let url = URL.api(path: "/repertoires/\(repertoireId)/songs/\(songId)")
+
         Log.data.debug("Adding song \(songId, privacy: .private) to repertoire \(repertoireId, privacy: .private)")
         
         do {
@@ -197,11 +186,8 @@ class RepertoireManager: ObservableObject {
             return false
         }
         
-        let urlString = "\(APIClient.baseURL)/repertoires/"
-        guard let url = URL(string: urlString) else {
-            return false
-        }
-        
+        let url = URL.api(path: "/repertoires/")
+
         var body: [String: Any] = ["name": name]
         if let desc = description {
             body["description"] = desc
@@ -246,11 +232,8 @@ class RepertoireManager: ObservableObject {
             return false
         }
         
-        let urlString = "\(APIClient.baseURL)/repertoires/\(id)"
-        guard let url = URL(string: urlString) else {
-            return false
-        }
-        
+        let url = URL.api(path: "/repertoires/\(id)")
+
         Log.data.debug("Deleting repertoire: \(id, privacy: .private)")
         
         do {

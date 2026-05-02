@@ -58,9 +58,11 @@ logger.info(f"Flask app initialized in PID {os.getpid()}")
 from routes.auth import auth_bp
 from routes.password import password_bp
 
-# Register authentication blueprints
-app.register_blueprint(auth_bp)
-app.register_blueprint(password_bp)
+# Register authentication blueprints under /v1/auth/. Both blueprints set
+# url_prefix='/auth' on their Blueprint() definition; passing url_prefix
+# here overrides that, yielding final paths like /v1/auth/login.
+app.register_blueprint(auth_bp, url_prefix='/v1/auth')
+app.register_blueprint(password_bp, url_prefix='/v1/auth')
 
 # Register all route blueprints
 from routes import register_blueprints

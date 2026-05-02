@@ -7,6 +7,20 @@ import os
 enum APIClient {
     static let baseURL = "https://api.approachnote.com"
 
+    /// API version segment prepended to every request path by `URL.api(path:)`.
+    /// Always `/v1` in release builds. In DEBUG builds, the
+    /// `APIVersionOverride` UserDefaults key (e.g. `"/v2"`, `""`) overrides
+    /// it so we can hit pre-release versions or the unversioned legacy
+    /// surface from a TestFlight-style menu without rebuilding.
+    static var apiVersionPath: String {
+        #if DEBUG
+        if let override = UserDefaults.standard.string(forKey: "APIVersionOverride") {
+            return override
+        }
+        #endif
+        return "/v1"
+    }
+
     // MARK: - Diagnostics
 
     private(set) static var requestCounter = 0
@@ -54,10 +68,14 @@ enum APIClient {
 
 extension URL {
     /// Constructs an API URL from a path relative to `APIClient.baseURL`.
+    /// `APIClient.apiVersionPath` (default `/v1`) is inserted between the
+    /// base URL and the path, so call sites pass resource paths only
+    /// (e.g. `/songs/123`).
     /// Crashes with a descriptive message instead of a generic force-unwrap failure.
     static func api(path: String) -> URL {
-        guard let url = URL(string: "\(APIClient.baseURL)\(path)") else {
-            preconditionFailure("Invalid API URL: \(APIClient.baseURL)\(path)")
+        let full = "\(APIClient.baseURL)\(APIClient.apiVersionPath)\(path)"
+        guard let url = URL(string: full) else {
+            preconditionFailure("Invalid API URL: \(full)")
         }
         return url
     }

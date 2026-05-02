@@ -353,7 +353,7 @@ def register_user(client):
         if email is None:
             email = f"user-{uuid.uuid4().hex[:8]}@example.com"
         resp = client.post(
-            "/auth/register",
+            "/v1/auth/register",
             json={"email": email, "password": password, "display_name": display_name},
         )
         assert resp.status_code == 201, (

@@ -72,12 +72,12 @@ def test_login_returns_429_after_quota_exhausted(client, register_user):
 
     # The first `cap` attempts pass the limiter (and 401 on bad password).
     for _ in range(cap):
-        resp = _post(client, "/auth/login",
+        resp = _post(client, "/v1/auth/login",
                      {"email": "login-bot@example.com", "password": "wrong"})
         assert resp.status_code == 401
 
     # The next one is over the cap.
-    resp = _post(client, "/auth/login",
+    resp = _post(client, "/v1/auth/login",
                  {"email": "login-bot@example.com", "password": "wrong"})
     assert resp.status_code == 429
     body = resp.get_json()
@@ -95,13 +95,13 @@ def test_register_returns_429_after_quota_exhausted(client):
     cap = _login_count(REGISTER_LIMIT)
 
     for i in range(cap):
-        resp = _post(client, "/auth/register", {
+        resp = _post(client, "/v1/auth/register", {
             "email": f"reg-{i}@example.com",
             "password": "password1234",
         })
         assert resp.status_code == 201, resp.get_json()
 
-    resp = _post(client, "/auth/register", {
+    resp = _post(client, "/v1/auth/register", {
         "email": "reg-overflow@example.com",
         "password": "password1234",
     })
@@ -119,11 +119,11 @@ def test_forgot_password_returns_429_after_quota_exhausted(client):
     # Use a non-existent email — the handler always returns 200 to prevent
     # enumeration, so all `cap` attempts succeed at the HTTP layer.
     for _ in range(cap):
-        resp = _post(client, "/auth/forgot-password",
+        resp = _post(client, "/v1/auth/forgot-password",
                      {"email": "ghost@example.com"})
         assert resp.status_code == 200
 
-    resp = _post(client, "/auth/forgot-password",
+    resp = _post(client, "/v1/auth/forgot-password",
                  {"email": "ghost@example.com"})
     assert resp.status_code == 429
 
@@ -138,16 +138,16 @@ def test_login_quota_isolated_per_client_ip(client, register_user):
 
     # Burn the quota from IP A.
     for _ in range(cap):
-        _post(client, "/auth/login",
+        _post(client, "/v1/auth/login",
               {"email": "iso@example.com", "password": "wrong"},
               ip="1.2.3.4")
-    blocked = _post(client, "/auth/login",
+    blocked = _post(client, "/v1/auth/login",
                     {"email": "iso@example.com", "password": "wrong"},
                     ip="1.2.3.4")
     assert blocked.status_code == 429
 
     # IP B should be unaffected — gets 401 (bad password), not 429.
-    other = _post(client, "/auth/login",
+    other = _post(client, "/v1/auth/login",
                   {"email": "iso@example.com", "password": "wrong"},
                   ip="5.6.7.8")
     assert other.status_code == 401
@@ -169,7 +169,7 @@ def test_change_password_quota_shared_across_ips_for_same_user(
     # rotating the password. The limiter increments either way.
     for _ in range(cap):
         resp = _post(
-            client, "/auth/change-password",
+            client, "/v1/auth/change-password",
             {"current_password": "wrong-current", "new_password": "newpass1234"},
             ip="1.2.3.4",
             extra_headers=headers,
@@ -178,7 +178,7 @@ def test_change_password_quota_shared_across_ips_for_same_user(
 
     # Same user, different IP — should still hit the per-user cap.
     resp = _post(
-        client, "/auth/change-password",
+        client, "/v1/auth/change-password",
         {"current_password": "wrong-current", "new_password": "newpass1234"},
         ip="9.9.9.9",
         extra_headers=headers,
@@ -197,7 +197,7 @@ def test_change_password_quota_isolated_per_user_on_same_ip(
     # Burn user A's quota from IP X.
     for _ in range(cap):
         _post(
-            client, "/auth/change-password",
+            client, "/v1/auth/change-password",
             {"current_password": "wrong-current", "new_password": "newpass1234"},
             ip="7.7.7.7",
             extra_headers={"Authorization": f"Bearer {a['access_token']}"},
@@ -205,7 +205,7 @@ def test_change_password_quota_isolated_per_user_on_same_ip(
 
     # User B from the same IP X should get a fresh quota — 401, not 429.
     resp = _post(
-        client, "/auth/change-password",
+        client, "/v1/auth/change-password",
         {"current_password": "wrong-current", "new_password": "newpass1234"},
         ip="7.7.7.7",
         extra_headers={"Authorization": f"Bearer {b['access_token']}"},

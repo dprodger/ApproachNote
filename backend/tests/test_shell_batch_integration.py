@@ -245,14 +245,14 @@ def test_shell_plus_batch_matches_list_endpoint(client, three_recording_fixture)
     fx = three_recording_fixture
 
     # ---- 1. list endpoint (the existing, full payload) ----
-    list_resp = client.get(f"/songs/{fx['song_id']}/recordings")
+    list_resp = client.get(f"/v1/songs/{fx['song_id']}/recordings")
     assert list_resp.status_code == 200
     list_body = list_resp.get_json()
     assert list_body["recording_count"] == 3
 
     # ---- 2. shell endpoint ----
     shell_resp = client.get(
-        f"/songs/{fx['song_id']}/recordings/shell"
+        f"/v1/songs/{fx['song_id']}/recordings/shell"
     )
     assert shell_resp.status_code == 200
     shell_body = shell_resp.get_json()
@@ -261,7 +261,7 @@ def test_shell_plus_batch_matches_list_endpoint(client, three_recording_fixture)
     # ---- 3. batch endpoint with the IDs from shell ----
     shell_ids = [r["id"] for r in shell_body["recordings"]]
     batch_resp = client.get(
-        f"/recordings/batch?ids={','.join(shell_ids)}"
+        f"/v1/recordings/batch?ids={','.join(shell_ids)}"
     )
     assert batch_resp.status_code == 200
     batch_body = batch_resp.get_json()

@@ -305,7 +305,7 @@ def song_fixture(db):
 
 def test_top_level_shape(client, song_fixture):
     """Top-level response envelope must carry song_id / recordings / count."""
-    resp = client.get(f"/songs/{song_fixture['song_id']}/recordings")
+    resp = client.get(f"/v1/songs/{song_fixture['song_id']}/recordings")
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
 
@@ -323,7 +323,7 @@ def test_each_recording_has_exact_expected_fields(client, song_fixture):
       * accidental addition of a detail-only field to the list payload
         (set mismatch the other way, keeps the list endpoint lean).
     """
-    resp = client.get(f"/songs/{song_fixture['song_id']}/recordings")
+    resp = client.get(f"/v1/songs/{song_fixture['song_id']}/recordings")
     assert resp.status_code == 200
     body = resp.get_json()
 
@@ -347,7 +347,7 @@ def test_dropped_fields_stay_dropped(client, song_fixture):
     Named so ``grep musicbrainz_id backend/tests`` surfaces this test when
     someone considers re-adding a dropped field.
     """
-    resp = client.get(f"/songs/{song_fixture['song_id']}/recordings")
+    resp = client.get(f"/v1/songs/{song_fixture['song_id']}/recordings")
     body = resp.get_json()
     for rec in body["recordings"]:
         leaked = DROPPED_LIST_FIELDS & set(rec.keys())
@@ -370,7 +370,7 @@ def test_cte_fallthrough_for_bare_recording(client, song_fixture):
     from ``bool`` to ``bool | null`` and break Swift decoding into ``Bool``
     for callers that have since un-optionaled it).
     """
-    resp = client.get(f"/songs/{song_fixture['song_id']}/recordings")
+    resp = client.get(f"/v1/songs/{song_fixture['song_id']}/recordings")
     body = resp.get_json()
 
     bare = next(
@@ -402,7 +402,7 @@ def test_populated_recording_surfaces_joined_data(client, song_fixture):
     should expose the data from every CTE so refactors can't silently
     sever a JOIN.
     """
-    resp = client.get(f"/songs/{song_fixture['song_id']}/recordings")
+    resp = client.get(f"/v1/songs/{song_fixture['song_id']}/recordings")
     body = resp.get_json()
 
     rec = next(
@@ -434,7 +434,7 @@ def test_name_sort_branch_returns_contract_shape(client, song_fixture):
     query, so exercise it explicitly with the same contract assertion.
     """
     resp = client.get(
-        f"/songs/{song_fixture['song_id']}/recordings?sort=name"
+        f"/v1/songs/{song_fixture['song_id']}/recordings?sort=name"
     )
     assert resp.status_code == 200, resp.get_json()
     body = resp.get_json()
@@ -449,7 +449,7 @@ def test_unknown_song_returns_empty_list(client):
     client's expectation (it shows an empty list rather than erroring).
     """
     unknown = str(uuid.uuid4())
-    resp = client.get(f"/songs/{unknown}/recordings")
+    resp = client.get(f"/v1/songs/{unknown}/recordings")
     assert resp.status_code == 200
     body = resp.get_json()
     assert body["recording_count"] == 0
