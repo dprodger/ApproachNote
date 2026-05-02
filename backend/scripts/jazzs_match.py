@@ -92,8 +92,12 @@ class JazzStandardsMatcher:
         normalized = normalized.lower()
         
         # Remove various quote styles and apostrophes at word boundaries
-        normalized = re.sub(r"[''`']", "", normalized)
-        normalized = re.sub(r'["""]', "", normalized)
+        # \u escapes used so editor smart-quote autocorrect can't rewrite
+        # the literal characters back to ASCII (which is exactly how this
+        # regex got broken before — see normalize_title in
+        # integrations/musicbrainz/client.py for the same fix).
+        normalized = re.sub("[\u2018\u2019\u02bc\u0060']", "", normalized)
+        normalized = re.sub("[\u201c\u201d\u201e\"]", "", normalized)
         
         # Remove "the" at the beginning
         normalized = re.sub(r'^the\s+', '', normalized)

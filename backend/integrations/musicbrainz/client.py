@@ -329,24 +329,30 @@ class MusicBrainzSearcher:
             Normalized title string
         """
         normalized = title.lower()
-        
-        # Replace all types of apostrophes with standard apostrophe
-        # Includes: ' (right single quotation), ʼ (modifier letter apostrophe), 
-        # ` (grave accent), ´ (acute accent)
-        apostrophe_variants = [''', ''', 'ʼ', '`', '´']
+
+        # Replace all variants of apostrophes / single-quotes with ASCII '.
+        # \u escapes are used deliberately: literal smart quotes here got
+        # silently rewritten to ASCII by an editor's autocorrect once before,
+        # which broke every title comparison containing an apostrophe.
+        #   U+2018 left single quotation, U+2019 right single quotation,
+        #   U+02BC modifier letter apostrophe, U+0060 grave, U+00B4 acute
+        apostrophe_variants = ['\u2018', '\u2019', '\u02bc', '\u0060', '\u00b4']
         for variant in apostrophe_variants:
             normalized = normalized.replace(variant, "'")
-        
-        # Replace different types of dashes/hyphens
-        dash_variants = ['–', '—', '−']  # en dash, em dash, minus
+
+        # Replace different types of dashes/hyphens with ASCII -.
+        #   U+2013 en dash, U+2014 em dash, U+2212 minus
+        dash_variants = ['\u2013', '\u2014', '\u2212']
         for variant in dash_variants:
             normalized = normalized.replace(variant, '-')
-        
-        # Replace different types of quotes
-        quote_variants = ['"', '"', '„', '«', '»']  # smart quotes, guillemets
+
+        # Replace different types of double-quotes with ASCII ".
+        #   U+201C left double quotation, U+201D right double quotation,
+        #   U+201E double low-9 quotation, U+00AB / U+00BB guillemets
+        quote_variants = ['\u201c', '\u201d', '\u201e', '\u00ab', '\u00bb']
         for variant in quote_variants:
             normalized = normalized.replace(variant, '"')
-        
+
         return normalized
     
     def search_musicbrainz_work(self, title, composer):
