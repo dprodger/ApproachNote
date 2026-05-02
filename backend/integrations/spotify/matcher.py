@@ -406,8 +406,13 @@ class SpotifyMatcher:
                 # Track whether this release had previous Spotify data (for cleanup on rematch failure)
                 had_previous_spotify = bool(release.get('spotify_album_id'))
 
-                # Search Spotify for album (with song title for track verification fallback)
-                spotify_match = search_spotify_album(self, title, artist_name, song['title'])
+                # Search Spotify for album (with song title for track verification fallback,
+                # and release_id so the validator can gate weak-artist candidates on a
+                # full MB-vs-Spotify tracklist comparison — see search.py / issue #184)
+                spotify_match = search_spotify_album(
+                    self, title, artist_name, song['title'],
+                    release_id=release['id'],
+                )
 
                 if spotify_match:
                     # Check if this album is blocked for this song

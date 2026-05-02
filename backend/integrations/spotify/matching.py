@@ -824,14 +824,15 @@ def validate_track_match(spotify_track: dict, expected_song: str,
     return True, "Valid match", scores
 
 
-def validate_album_match(spotify_album: dict, expected_album: str, 
+def validate_album_match(spotify_album: dict, expected_album: str,
                          expected_artist: str, min_album_similarity: int,
                          min_artist_similarity: int,
                          song_title: str = None,
-                         verify_track_callback=None) -> tuple:
+                         verify_track_callback=None,
+                         verify_tracklist_callback=None) -> tuple:
     """
     Validate that a Spotify album result actually matches what we're looking for
-    
+
     Args:
         spotify_album: Spotify album dict from search results
         expected_album: Album title we're searching for
@@ -844,7 +845,17 @@ def validate_album_match(spotify_album: dict, expected_album: str,
                    a track matching this title.
         verify_track_callback: Optional callback function(album_id, song_title) -> bool
                               for verifying track presence
-    
+        verify_tracklist_callback: Optional callback function(album_id) -> bool|None
+                              that compares the full MB tracklist against
+                              this Spotify album's tracklist. Consulted only
+                              when artist similarity is below threshold —
+                              the case where the substring/track-presence
+                              fallbacks below tend to admit compilations
+                              that share an album title and one track but
+                              are otherwise unrelated (issue #184). True
+                              forces accept, False forces reject, None
+                              falls through to the existing fallback logic.
+
     Returns:
         tuple: (is_valid, reason, scores_dict)
     """
@@ -937,10 +948,41 @@ def validate_album_match(spotify_album: dict, expected_album: str,
         logger.debug(f"      Album accepted via substring containment ({album_similarity}%)")
     
     if expected_artist and artist_similarity < min_artist_similarity:
-        # Check if artist is accepted via substring containment 
+        # Tracklist verification first — when the artist signal is weak,
+        # the substring/track-presence fallbacks below will happily admit
+        # a compilation that shares the album title and contains the song
+        # but is otherwise unrelated (issue #184: MB "Djangology" by Django
+        # Reinhardt & Stéphane Grappelli matched to a Spotify compilation
+        # by Django Reinhardt + Quintette du Hot Club de France because
+        # one credited Spotify artist is a substring of the MB credit).
+        # Comparing the full MB tracklist against the candidate's Spotify
+        # tracklist is the strongest signal we have for "is this actually
+        # the same album."
+        if verify_tracklist_callback:
+            tl_album_id = spotify_album.get('id')
+            tracklist_result = (
+                verify_tracklist_callback(tl_album_id) if tl_album_id else None
+            )
+            if tracklist_result is False:
+                return (
+                    False,
+                    "Tracklist mismatch (Spotify album appears to be a different release)",
+                    scores,
+                )
+            if tracklist_result is True:
+                scores['verified_by_tracklist'] = True
+                logger.debug(
+                    f"      Album accepted via tracklist verification (artist {artist_similarity}%)")
+                return True, "Valid match (verified by tracklist)", scores
+            # tracklist_result is None — couldn't verify (no MB ID,
+            # MB unreachable, etc.). Fall through to the existing
+            # substring / track-presence fallback so an outage in MB
+            # doesn't block all weak-artist matches.
+
+        # Check if artist is accepted via substring containment
         # (e.g., "Lynne Arriale" contained in "Lynne Arriale Trio")
         artist_valid_by_substring = artist_is_substring and artist_similarity >= 50
-        
+
         if artist_valid_by_substring:
             logger.debug(f"      Artist accepted via substring containment ({artist_similarity}%)")
         else:
@@ -1079,35 +1121,18 @@ def duration_adjusted_score(title_score: float, expected_ms: int,
     return title_score + adjustment
 
 
-def check_album_context_via_tracklist(conn, release_id: str,
-                                      spotify_tracks: list) -> dict:
-    """
-    Compare the full MusicBrainz release tracklist against the Spotify album
-    tracklist to assess whether this is genuinely the same album.
+def fetch_mb_tracks_for_release(conn, release_id: str) -> list:
+    """Fetch the MusicBrainz tracklist for one of our internal releases.
 
-    Used as a rescue signal for tracks that would otherwise be rejected on
-    duration confidence alone — if the surrounding album clearly lines up
-    with Spotify, we trust the match more.
-
-    Returns:
-        Dict with mb_track_count, spotify_track_count, matched_count,
-        match_ratio (float 0.0-1.0), and matched_titles (list of
-        (mb_title, sp_title, similarity) tuples).
+    Returns a list of {title, position, normalized} dicts ordered by
+    position across all media. Returns [] if the release has no MB ID
+    or the MB lookup failed — callers must treat empty as "unable to
+    verify" rather than "tracklist is empty".
     """
-    # Local imports to avoid a module-level dependency from spotify.matching
+    # Local import — avoid a module-level dependency from spotify.matching
     # on integrations.musicbrainz.
     from integrations.musicbrainz.utils import MusicBrainzSearcher
-    from rapidfuzz import fuzz
 
-    result = {
-        'mb_track_count': 0,
-        'spotify_track_count': len(spotify_tracks),
-        'matched_count': 0,
-        'match_ratio': 0.0,
-        'matched_titles': [],
-    }
-
-    # Get the MB release ID for this release
     with conn.cursor() as cur:
         cur.execute(
             "SELECT musicbrainz_release_id FROM releases WHERE id = %s",
@@ -1116,17 +1141,13 @@ def check_album_context_via_tracklist(conn, release_id: str,
         row = cur.fetchone()
 
     if not row or not row['musicbrainz_release_id']:
-        return result
+        return []
 
-    mb_release_id = row['musicbrainz_release_id']
-
-    # Fetch full tracklist from MusicBrainz
     mb_searcher = MusicBrainzSearcher()
-    release_data = mb_searcher.get_release_details(mb_release_id)
+    release_data = mb_searcher.get_release_details(row['musicbrainz_release_id'])
     if not release_data:
-        return result
+        return []
 
-    # Extract MB tracks
     mb_tracks = []
     position = 0
     for medium in release_data.get('media', []):
@@ -1137,17 +1158,34 @@ def check_album_context_via_tracklist(conn, release_id: str,
                 'position': position,
                 'normalized': normalize_for_comparison(track.get('title', '')),
             })
+    return mb_tracks
 
-    result['mb_track_count'] = len(mb_tracks)
-    if not mb_tracks:
+
+def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
+    """Match MB tracks to Spotify tracks by title similarity (with a small
+    same-position bonus) and report coverage stats.
+
+    Returns a dict with mb_track_count, spotify_track_count, matched_count,
+    match_ratio (0.0-1.0), and matched_titles (list of (mb_title, sp_title,
+    similarity) tuples). The match-acceptance threshold is 75 (token-sort).
+    """
+    from rapidfuzz import fuzz
+
+    result = {
+        'mb_track_count': len(mb_tracks),
+        'spotify_track_count': len(spotify_tracks),
+        'matched_count': 0,
+        'match_ratio': 0.0,
+        'matched_titles': [],
+    }
+
+    if not mb_tracks or not spotify_tracks:
         return result
 
-    # Pre-normalize Spotify track titles
     sp_normalized = [
         normalize_for_comparison(t['name']) for t in spotify_tracks
     ]
 
-    # Match MB tracks to Spotify tracks by title similarity
     used_sp_indices = set()
     for mb_track in mb_tracks:
         best_score = 0
@@ -1158,7 +1196,6 @@ def check_album_context_via_tracklist(conn, release_id: str,
             if idx in used_sp_indices:
                 continue
             score = fuzz.token_sort_ratio(mb_track['normalized'], sp_norm)
-            # Small position bonus
             if abs(mb_track['position'] - (idx + 1)) <= 2 and score >= 70:
                 score = min(100, score + 5)
             if score > best_score:
@@ -1177,6 +1214,28 @@ def check_album_context_via_tracklist(conn, release_id: str,
         if result['mb_track_count'] > 0 else 0.0
     )
     return result
+
+
+def check_album_context_via_tracklist(conn, release_id: str,
+                                      spotify_tracks: list) -> dict:
+    """
+    Compare the full MusicBrainz release tracklist against the Spotify album
+    tracklist to assess whether this is genuinely the same album.
+
+    Used as a rescue signal for tracks that would otherwise be rejected on
+    duration confidence alone — if the surrounding album clearly lines up
+    with Spotify, we trust the match more.
+
+    Returns:
+        Dict with mb_track_count, spotify_track_count, matched_count,
+        match_ratio (float 0.0-1.0), and matched_titles (list of
+        (mb_title, sp_title, similarity) tuples).
+    """
+    mb_tracks = fetch_mb_tracks_for_release(conn, release_id)
+    info = compare_mb_to_spotify_tracks(mb_tracks, spotify_tracks)
+    # Preserve the original return shape — callers expect mb_track_count=0
+    # both for "no MB data" and "MB returned an empty release".
+    return info
 
 
 def match_track_to_recording(log: logging.Logger, stats: dict,

@@ -4401,6 +4401,7 @@ def diagnose_release_spotify(release_id):
             album_title=release['title'],
             artist_name=release['artist_credit'],
             song_title=song_title,
+            release_id=release_id,
         )
     except Exception as e:
         logger.exception("Spotify diagnosis failed for release %s", release_id)

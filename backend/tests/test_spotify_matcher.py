@@ -570,6 +570,101 @@ class TestValidateAlbumMatch:
         assert ok is False
         assert "Album similarity" in reason
 
+    def test_tracklist_gate_rejects_when_callback_returns_false(self):
+        # Issue #184: Spotify "Djangology (feat. Stéphane Grappelli)" by
+        # Django Reinhardt + Quintette du Hot Club de France would pass
+        # today (album sim ~100%, artist via the spotify-subset substring
+        # path). With a tracklist-verify callback that reports a mismatch
+        # we must reject before the substring path admits the candidate.
+        album = {
+            'id': 'sp-djangology-compilation',
+            'name': 'Djangology (feat. Stéphane Grappelli)',
+            'artists': [
+                {'name': 'Django Reinhardt'},
+                {'name': 'Quintette du Hot Club de France'},
+            ],
+        }
+        calls = []
+
+        def reject_tracklist(album_id):
+            calls.append(album_id)
+            return False
+
+        ok, reason, _ = validate_album_match(
+            album, "Djangology", "Django Reinhardt & Stéphane Grappelli",
+            min_album_similarity=65, min_artist_similarity=75,
+            verify_tracklist_callback=reject_tracklist,
+        )
+        assert ok is False
+        assert "Tracklist mismatch" in reason
+        assert calls == ['sp-djangology-compilation']
+
+    def test_tracklist_gate_accepts_when_callback_returns_true(self):
+        # Same shape as the false-positive case — but this time the
+        # tracklists actually agree, so the gate accepts immediately
+        # without falling into the substring or track-presence paths.
+        album = {
+            'id': 'sp-real-album',
+            'name': 'Djangology',
+            'artists': [{'name': 'Django Reinhardt'}],
+        }
+
+        def verify_tracklist(album_id):
+            return True
+
+        ok, reason, scores = validate_album_match(
+            album, "Djangology", "Django Reinhardt & Stéphane Grappelli",
+            min_album_similarity=65, min_artist_similarity=75,
+            verify_tracklist_callback=verify_tracklist,
+        )
+        assert ok is True
+        assert "tracklist" in reason
+        assert scores.get('verified_by_tracklist') is True
+
+    def test_tracklist_gate_none_falls_back_to_existing_logic(self):
+        # When the tracklist callback can't decide (returns None — e.g.,
+        # MB unreachable, no MB ID on the release) we must preserve the
+        # prior substring fallback. This is the legitimate ensemble case
+        # where Spotify's "Bill Evans Trio" is a superset of the expected
+        # "Bill Evans" — the substring path should accept on its own.
+        album = {
+            'id': 'sp-waltz-debby',
+            'name': 'Waltz for Debby',
+            'artists': [{'name': 'Bill Evans Trio'}],
+        }
+
+        def cant_verify(album_id):
+            return None
+
+        ok, _, _ = validate_album_match(
+            album, "Waltz for Debby", "Bill Evans",
+            min_album_similarity=65, min_artist_similarity=75,
+            verify_tracklist_callback=cant_verify,
+        )
+        assert ok is True
+
+    def test_tracklist_gate_only_consulted_when_artist_is_weak(self):
+        # If the artist already meets the threshold the gate is irrelevant
+        # — we shouldn't fire it (one less MB API call per matcher run).
+        album = {
+            'id': 'sp-strong-match',
+            'name': 'Kind of Blue',
+            'artists': [{'name': 'Miles Davis'}],
+        }
+        calls = []
+
+        def tracklist_callback(album_id):
+            calls.append(album_id)
+            return False  # if invoked, it would reject — assert it isn't
+
+        ok, _, _ = validate_album_match(
+            album, "Kind of Blue", "Miles Davis",
+            min_album_similarity=65, min_artist_similarity=75,
+            verify_tracklist_callback=tracklist_callback,
+        )
+        assert ok is True
+        assert calls == []
+
 
 # ---------------------------------------------------------------------------
 # match_track_to_recording (canned candidate tracklists)

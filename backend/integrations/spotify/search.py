@@ -26,6 +26,8 @@ import requests
 
 from integrations.spotify.client import SpotifyRateLimitError, _CACHE_MISS
 from integrations.spotify.matching import (
+    compare_mb_to_spotify_tracks,
+    fetch_mb_tracks_for_release,
     strip_ensemble_suffix,
     strip_live_suffix,
     strip_mb_year_disambiguator,
@@ -34,6 +36,16 @@ from integrations.spotify.matching import (
     validate_album_match,
     verify_album_contains_track,
 )
+
+# Tracklist-verification thresholds for the issue-#184 weak-artist gate.
+# An MB release whose 60%+ of tracks line up with a candidate Spotify album
+# is treated as the same release (lenient enough to ride out reissues with
+# extra bonus tracks; strict enough to reject compilations that share only
+# a title and one or two tracks). MIN_TRACKLIST_MATCHED is enforced as
+# `min(MIN_TRACKLIST_MATCHED, mb_track_count)` so 1- or 2-track EPs aren't
+# automatically unverifiable.
+MIN_TRACKLIST_RATIO = 0.6
+MIN_TRACKLIST_MATCHED = 3
 
 logger = logging.getLogger(__name__)
 
@@ -233,7 +245,9 @@ def search_spotify_track(matcher, song_title: str, album_title: str,
 
 
 def search_spotify_album(matcher, album_title: str, artist_name: str = None,
-                         song_title: str = None) -> Optional[dict]:
+                         song_title: str = None,
+                         release_id: str = None,
+                         conn_factory=None) -> Optional[dict]:
     """
     Search Spotify for an album with fuzzy validation.
 
@@ -248,6 +262,16 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
         song_title: Song title for track verification fallback (optional).
                    When provided, albums with high similarity but low artist
                    match can still be accepted if they contain this track.
+        release_id: Internal `releases.id` for the MB release we're matching
+                   against. When provided alongside `conn_factory`, the
+                   validator gates weak-artist candidates on a full-tracklist
+                   comparison between MB and Spotify (issue #184). Omitting
+                   either disables the gate and preserves the prior
+                   substring/track-presence behavior.
+        conn_factory: Zero-arg callable that returns a context-manager DB
+                   connection. Lets us look up `musicbrainz_release_id` and
+                   delay opening the connection until the gate actually
+                   fires. Defaults to `db_utils.get_db_connection`.
 
     Returns:
         dict with 'url', 'id', 'artists', 'name', 'album_art', 'similarity_scores'
@@ -263,6 +287,45 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
         return verify_album_contains_track(
             client, log, matcher.min_track_similarity, album_id, st
         )
+
+    # Tracklist gate (issue #184). Returns True if MB and Spotify
+    # tracklists agree, False if they don't, None if we couldn't fetch
+    # one side. Closure-caches the MB tracklist so candidate fanout
+    # doesn't multiply the MB API call.
+    verify_tracklist = None
+    if release_id is not None:
+        from db_utils import get_db_connection as _default_conn_factory
+        _conn_factory = conn_factory or _default_conn_factory
+        _mb_cache = {}  # 'tracks' set on first lookup
+
+        def _verify_tracklist(spotify_album_id: str):
+            if 'tracks' not in _mb_cache:
+                try:
+                    with _conn_factory() as _conn:
+                        _mb_cache['tracks'] = fetch_mb_tracks_for_release(
+                            _conn, release_id)
+                except Exception as e:
+                    log.debug(f"      Tracklist gate: MB fetch failed: {e}")
+                    _mb_cache['tracks'] = []
+            mb_tracks = _mb_cache['tracks']
+            if not mb_tracks:
+                return None  # unable to verify — fall back
+            sp_tracks = client.get_album_tracks(spotify_album_id)
+            if not sp_tracks:
+                return None
+            info = compare_mb_to_spotify_tracks(mb_tracks, sp_tracks)
+            min_required = min(MIN_TRACKLIST_MATCHED, info['mb_track_count'])
+            verified = (
+                info['match_ratio'] >= MIN_TRACKLIST_RATIO
+                and info['matched_count'] >= min_required
+            )
+            log.debug(
+                f"      Tracklist gate: {info['matched_count']}/{info['mb_track_count']} "
+                f"MB tracks match ({info['match_ratio']:.0%}) → "
+                f"{'verified' if verified else 'mismatch'}")
+            return verified
+
+        verify_tracklist = _verify_tracklist
 
     # Check cache first (reuse search cache with 'album' prefix)
     cache_path = client._get_search_cache_path('album', album_title, artist_name)
@@ -416,6 +479,7 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                             matcher.min_artist_similarity,
                             song_title=song_title,
                             verify_track_callback=_verify_track,
+                            verify_tracklist_callback=verify_tracklist,
                         )
                         exact_matches.append({
                             'index': i,
@@ -471,6 +535,7 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                         matcher.min_artist_similarity,
                         song_title=song_title,
                         verify_track_callback=_verify_track,
+                        verify_tracklist_callback=verify_tracklist,
                     )
                     candidate_results.append({
                         'index': i,
