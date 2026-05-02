@@ -336,19 +336,6 @@
                 </dd>
                 {% endif %}
 
-                {% if release.amazon_url or release.discogs_url %}
-                <dt>External</dt>
-                <dd>
-                  {% if release.amazon_url %}<a href="{{ release.amazon_url }}" target="_blank" rel="noopener">Amazon</a>{% endif %}
-                  {% if release.amazon_url and release.discogs_url %} · {% endif %}
-                  {% if release.discogs_url %}<a href="{{ release.discogs_url }}" target="_blank" rel="noopener">Discogs</a>{% endif %}
-                </dd>
-                {% endif %}
-
-                {% if release.cover_art_url %}
-                <dt>Legacy <code>cover_art_url</code></dt>
-                <dd><a class="mono" href="{{ release.cover_art_url }}" target="_blank" rel="noopener">{{ release.cover_art_url }}</a></dd>
-                {% endif %}
             </dl>
         </div>
 
