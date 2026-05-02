@@ -9,7 +9,8 @@ Functions in this module are stateless and can be used independently.
 
 import re
 import logging
-from typing import List, Optional
+from dataclasses import dataclass, field
+from typing import List, Literal, Optional
 from rapidfuzz import fuzz
 
 logger = logging.getLogger(__name__)
@@ -824,14 +825,319 @@ def validate_track_match(spotify_track: dict, expected_song: str,
     return True, "Valid match", scores
 
 
+# =============================================================================
+# Unified album-identity assessment (issue #184)
+# =============================================================================
+#
+# assess_album_match is the single source of truth for "is this Spotify album
+# the same release as this MB release?" Combines four signals — title, artist,
+# tracklist coverage, tracklist ordering — into one verdict (accept / borderline
+# / reject) plus a per-signal breakdown. Both the matcher's album-acceptance
+# gate and the diagnose admin route use this function so they always agree.
+#
+# The decision rules are interpretable, not weighted-score; each rule below
+# maps directly to a real false-positive or near-miss pattern. Ordering uses
+# longest-increasing-subsequence over Spotify positions in MB-position order
+# (see compare_mb_to_spotify_tracks) — robust to reissues with bonus tracks
+# (LIS == matched_count) and sensitive to compilation reshuffles.
+
+# Tracklist thresholds. Coverage = matched MB tracks / total MB tracks.
+# Ordering = LIS / matched_count (None when matched_count < 3 — too noisy).
+COVERAGE_REJECT_BELOW = 0.4
+COVERAGE_ACCEPT_AT_LEAST = 0.6
+COVERAGE_RELAX_ORDERING_AT_LEAST = 0.8  # high coverage tolerates worse ordering
+ORDERING_REJECT_BELOW = 0.4
+
+# Substring-direction labels for the artist signal.
+#   'expected_in_spotify' : MB credit fits inside a Spotify artist name
+#                           (the legitimate ensemble case — "Bill Evans" on
+#                            Spotify's "Bill Evans Trio").
+#   'spotify_in_expected' : a Spotify artist name fits inside the MB credit
+#                           (the suspicious case — Spotify drops one of two
+#                            credited collaborators; root cause of issue #184).
+#   'none'                : neither direction.
+ArtistSubstringDir = Literal['none', 'expected_in_spotify', 'spotify_in_expected']
+Verdict = Literal['accept', 'borderline', 'reject']
+
+
+@dataclass
+class AlbumMatchAssessment:
+    verdict: Verdict
+    reason: str
+
+    # Title and artist scores are 0-100 (calculate_similarity).
+    title: float
+    title_substring: bool
+    artist: float
+    artist_substring_dir: ArtistSubstringDir
+    artist_best_individual: float
+    artist_full_string: float
+
+    # Tracklist signals (0.0-1.0). None when MB or Spotify tracklist
+    # was unavailable; ordering is also None when matched_count < 3.
+    coverage: Optional[float]
+    ordering: Optional[float]
+
+    mb_track_count: int
+    spotify_track_count: int
+    matched_count: int
+
+    # Raw matched pairs for display: (mb_title, mb_pos, sp_title, sp_pos, score).
+    matched_pairs: list = field(default_factory=list)
+
+    # Useful when the validator needs to log "what we evaluated".
+    spotify_album: str = ''
+    spotify_artist: str = ''
+
+    def as_scores_dict(self) -> dict:
+        """Backward-compatible dict in the shape the old validate_album_match
+        returned via its third tuple slot. Matchers and tests that consumed
+        that shape keep working."""
+        return {
+            'album': self.title,
+            'album_is_substring': self.title_substring,
+            'artist': self.artist,
+            'artist_is_substring': self.artist_substring_dir != 'none',
+            'artist_substring_dir': self.artist_substring_dir,
+            'artist_best_individual': self.artist_best_individual,
+            'artist_full_string': self.artist_full_string,
+            'spotify_album': self.spotify_album,
+            'spotify_artist': self.spotify_artist,
+            'coverage': self.coverage,
+            'ordering': self.ordering,
+            'matched_count': self.matched_count,
+            'mb_track_count': self.mb_track_count,
+            'spotify_track_count': self.spotify_track_count,
+        }
+
+
+def assess_album_match(
+    *,
+    mb_album_title: str,
+    mb_artist_credit: str,
+    spotify_album_name: str,
+    spotify_artists: list,
+    mb_tracks: Optional[list] = None,
+    spotify_tracks: Optional[list] = None,
+    min_album_similarity: int = 65,
+    min_artist_similarity: int = 75,
+) -> AlbumMatchAssessment:
+    """Score whether a Spotify album is the same release as the MB album,
+    using title + artist + tracklist coverage + tracklist ordering.
+
+    Inputs:
+        mb_album_title, mb_artist_credit: from the MB releases row.
+        spotify_album_name: spotify_album['name'].
+        spotify_artists: spotify_album['artists'] — accepts list of dicts
+            with 'name' or list of strings.
+        mb_tracks: from fetch_mb_tracks_for_release(). When None, tracklist
+            signals are not computed and we fall back to title+artist alone
+            (lenient: keeps matching working when MB is unreachable).
+        spotify_tracks: from client.get_album_tracks(). When None, ditto.
+        min_album_similarity, min_artist_similarity: thresholds. Defaults
+            mirror the strict-mode worker config.
+    """
+    # ------------------------------------------------------------------
+    # Title signal
+    # ------------------------------------------------------------------
+    title_score = calculate_similarity(mb_album_title, spotify_album_name)
+
+    def _strip_articles(text: str) -> str:
+        return re.sub(r'\b(the|a|an)\b', '', text, flags=re.IGNORECASE).strip()
+
+    norm_expected = ' '.join(_strip_articles(
+        normalize_for_comparison(mb_album_title)).split())
+    norm_spotify = ' '.join(_strip_articles(
+        normalize_for_comparison(spotify_album_name)).split())
+    title_substring = bool(
+        norm_expected and norm_spotify and (
+            norm_expected in norm_spotify or norm_spotify in norm_expected))
+
+    # ------------------------------------------------------------------
+    # Artist signal
+    # ------------------------------------------------------------------
+    artist_names = [
+        a['name'] if isinstance(a, dict) else a
+        for a in (spotify_artists or [])
+    ]
+    artists_str = ', '.join(artist_names)
+
+    individual_scores = [
+        calculate_similarity(mb_artist_credit, a) for a in artist_names
+    ] if mb_artist_credit else []
+    best_individual = max(individual_scores) if individual_scores else 0
+    full_score = (
+        calculate_similarity(mb_artist_credit, artists_str)
+        if mb_artist_credit else 0
+    )
+    artist_score = max(best_individual, full_score)
+
+    # Substring direction (issue #184): the "Spotify drops a credit" case
+    # is the false-positive trigger; the "Spotify is the ensemble" case
+    # is the legitimate ensemble-suffix scenario.
+    norm_expected_artist = normalize_for_comparison(mb_artist_credit or '')
+    expected_in_spotify = any(
+        norm_expected_artist
+        and norm_expected_artist in normalize_for_comparison(a)
+        for a in artist_names
+    )
+    spotify_in_expected = any(
+        norm_expected_artist
+        and normalize_for_comparison(a) in norm_expected_artist
+        and normalize_for_comparison(a)  # don't count empty
+        for a in artist_names
+    )
+    if expected_in_spotify:
+        artist_dir: ArtistSubstringDir = 'expected_in_spotify'
+    elif spotify_in_expected:
+        artist_dir = 'spotify_in_expected'
+    else:
+        artist_dir = 'none'
+
+    # ------------------------------------------------------------------
+    # Tracklist signals
+    # ------------------------------------------------------------------
+    coverage: Optional[float] = None
+    ordering: Optional[float] = None
+    matched_count = 0
+    matched_pairs: list = []
+    mb_track_count = len(mb_tracks) if mb_tracks else 0
+    spotify_track_count = len(spotify_tracks) if spotify_tracks else 0
+
+    if mb_tracks and spotify_tracks:
+        info = compare_mb_to_spotify_tracks(mb_tracks, spotify_tracks)
+        coverage = info['match_ratio']
+        ordering = info['ordering_ratio']
+        matched_count = info['matched_count']
+        matched_pairs = info['matched_pairs']
+        mb_track_count = info['mb_track_count']
+        spotify_track_count = info['spotify_track_count']
+
+    # ------------------------------------------------------------------
+    # Decision rules
+    # ------------------------------------------------------------------
+    title_meets_floor = title_score >= min_album_similarity or title_substring
+    artist_meets_floor = (
+        artist_score >= min_artist_similarity
+        or artist_dir == 'expected_in_spotify'
+        or (artist_dir == 'spotify_in_expected' and artist_score >= 50)
+    )
+    coverage_meets_floor = coverage is None or coverage >= COVERAGE_ACCEPT_AT_LEAST
+    coverage_blocking = coverage is not None and coverage < COVERAGE_REJECT_BELOW
+    ordering_blocking = (
+        ordering is not None
+        and ordering < ORDERING_REJECT_BELOW
+        and (coverage or 0) < COVERAGE_RELAX_ORDERING_AT_LEAST
+    )
+
+    # Reject path (highest-priority signal wins the message).
+    if coverage_blocking:
+        return _make_assessment(
+            'reject',
+            f"tracklist coverage too low ({coverage:.0%} of MB tracks "
+            f"matched — needs ≥ {int(COVERAGE_REJECT_BELOW * 100)}%)",
+            title_score, title_substring, artist_score, artist_dir,
+            best_individual, full_score, coverage, ordering,
+            mb_track_count, spotify_track_count, matched_count, matched_pairs,
+            spotify_album_name, artists_str,
+        )
+    if ordering_blocking:
+        return _make_assessment(
+            'reject',
+            f"tracks shuffled (ordering {ordering:.0%}) and coverage "
+            f"({coverage:.0%}) below the relaxation cutoff — likely a compilation",
+            title_score, title_substring, artist_score, artist_dir,
+            best_individual, full_score, coverage, ordering,
+            mb_track_count, spotify_track_count, matched_count, matched_pairs,
+            spotify_album_name, artists_str,
+        )
+    if not title_meets_floor:
+        return _make_assessment(
+            'reject',
+            f"album title too different ({title_score:.0f}% < "
+            f"{min_album_similarity}%, no substring containment)",
+            title_score, title_substring, artist_score, artist_dir,
+            best_individual, full_score, coverage, ordering,
+            mb_track_count, spotify_track_count, matched_count, matched_pairs,
+            spotify_album_name, artists_str,
+        )
+
+    # Accept path.
+    if title_meets_floor and artist_meets_floor and coverage_meets_floor and not ordering_blocking:
+        if coverage is None:
+            reason = (
+                f"title ({title_score:.0f}%) and artist ({artist_score:.0f}%) "
+                f"both clear; tracklist data unavailable"
+            )
+        elif ordering is None:
+            reason = (
+                f"title {title_score:.0f}%, artist {artist_score:.0f}%, "
+                f"coverage {coverage:.0%} (matched {matched_count}/{mb_track_count}; "
+                f"too few matches to score ordering)"
+            )
+        else:
+            reason = (
+                f"title {title_score:.0f}%, artist {artist_score:.0f}%, "
+                f"coverage {coverage:.0%}, ordering {ordering:.0%}"
+            )
+        return _make_assessment(
+            'accept', reason,
+            title_score, title_substring, artist_score, artist_dir,
+            best_individual, full_score, coverage, ordering,
+            mb_track_count, spotify_track_count, matched_count, matched_pairs,
+            spotify_album_name, artists_str,
+        )
+
+    # Borderline — title/artist not strong enough but tracklist isn't
+    # decisively wrong (or vice versa). Caller policy decides whether
+    # to write or skip.
+    bits = []
+    if not artist_meets_floor:
+        bits.append(f"artist {artist_score:.0f}%")
+    if coverage is not None and not coverage_meets_floor:
+        bits.append(f"coverage {coverage:.0%}")
+    if ordering is not None and ordering_blocking:
+        bits.append(f"ordering {ordering:.0%}")
+    if not bits:
+        bits.append("mixed signals")
+    return _make_assessment(
+        'borderline',
+        "borderline: " + ", ".join(bits),
+        title_score, title_substring, artist_score, artist_dir,
+        best_individual, full_score, coverage, ordering,
+        mb_track_count, spotify_track_count, matched_count, matched_pairs,
+        spotify_album_name, artists_str,
+    )
+
+
+def _make_assessment(verdict, reason, title, title_sub, artist, artist_dir,
+                     artist_best_indiv, artist_full, coverage, ordering,
+                     mb_count, sp_count, matched, pairs, sp_album, sp_artist):
+    return AlbumMatchAssessment(
+        verdict=verdict, reason=reason,
+        title=title, title_substring=title_sub,
+        artist=artist, artist_substring_dir=artist_dir,
+        artist_best_individual=artist_best_indiv,
+        artist_full_string=artist_full,
+        coverage=coverage, ordering=ordering,
+        mb_track_count=mb_count, spotify_track_count=sp_count,
+        matched_count=matched, matched_pairs=pairs,
+        spotify_album=sp_album, spotify_artist=sp_artist,
+    )
+
+
 def validate_album_match(spotify_album: dict, expected_album: str,
                          expected_artist: str, min_album_similarity: int,
                          min_artist_similarity: int,
                          song_title: str = None,
-                         verify_track_callback=None,
-                         verify_tracklist_callback=None) -> tuple:
+                         verify_track_callback=None) -> tuple:
     """
     Validate that a Spotify album result actually matches what we're looking for
+
+    This is the title+artist-only first pass. The unified album-identity
+    judgment (which also weighs tracklist coverage and ordering) lives in
+    assess_album_match — search_spotify_album runs both and treats both as
+    must-pass gates.
 
     Args:
         spotify_album: Spotify album dict from search results
@@ -845,16 +1151,6 @@ def validate_album_match(spotify_album: dict, expected_album: str,
                    a track matching this title.
         verify_track_callback: Optional callback function(album_id, song_title) -> bool
                               for verifying track presence
-        verify_tracklist_callback: Optional callback function(album_id) -> bool|None
-                              that compares the full MB tracklist against
-                              this Spotify album's tracklist. Consulted only
-                              when artist similarity is below threshold —
-                              the case where the substring/track-presence
-                              fallbacks below tend to admit compilations
-                              that share an album title and one track but
-                              are otherwise unrelated (issue #184). True
-                              forces accept, False forces reject, None
-                              falls through to the existing fallback logic.
 
     Returns:
         tuple: (is_valid, reason, scores_dict)
@@ -948,37 +1244,6 @@ def validate_album_match(spotify_album: dict, expected_album: str,
         logger.debug(f"      Album accepted via substring containment ({album_similarity}%)")
     
     if expected_artist and artist_similarity < min_artist_similarity:
-        # Tracklist verification first — when the artist signal is weak,
-        # the substring/track-presence fallbacks below will happily admit
-        # a compilation that shares the album title and contains the song
-        # but is otherwise unrelated (issue #184: MB "Djangology" by Django
-        # Reinhardt & Stéphane Grappelli matched to a Spotify compilation
-        # by Django Reinhardt + Quintette du Hot Club de France because
-        # one credited Spotify artist is a substring of the MB credit).
-        # Comparing the full MB tracklist against the candidate's Spotify
-        # tracklist is the strongest signal we have for "is this actually
-        # the same album."
-        if verify_tracklist_callback:
-            tl_album_id = spotify_album.get('id')
-            tracklist_result = (
-                verify_tracklist_callback(tl_album_id) if tl_album_id else None
-            )
-            if tracklist_result is False:
-                return (
-                    False,
-                    "Tracklist mismatch (Spotify album appears to be a different release)",
-                    scores,
-                )
-            if tracklist_result is True:
-                scores['verified_by_tracklist'] = True
-                logger.debug(
-                    f"      Album accepted via tracklist verification (artist {artist_similarity}%)")
-                return True, "Valid match (verified by tracklist)", scores
-            # tracklist_result is None — couldn't verify (no MB ID,
-            # MB unreachable, etc.). Fall through to the existing
-            # substring / track-presence fallback so an outage in MB
-            # doesn't block all weak-artist matches.
-
         # Check if artist is accepted via substring containment
         # (e.g., "Lynne Arriale" contained in "Lynne Arriale Trio")
         artist_valid_by_substring = artist_is_substring and artist_similarity >= 50
@@ -1161,13 +1426,40 @@ def fetch_mb_tracks_for_release(conn, release_id: str) -> list:
     return mb_tracks
 
 
-def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
-    """Match MB tracks to Spotify tracks by title similarity (with a small
-    same-position bonus) and report coverage stats.
+def _longest_increasing_subsequence_length(values: list) -> int:
+    """O(n log n) LIS over a sequence (strict <). Used to score how
+    monotonically MB-track positions line up with Spotify-track positions
+    among matched pairs — the ordering signal in assess_album_match.
 
-    Returns a dict with mb_track_count, spotify_track_count, matched_count,
-    match_ratio (0.0-1.0), and matched_titles (list of (mb_title, sp_title,
-    similarity) tuples). The match-acceptance threshold is 75 (token-sort).
+    A reissue with bonus tracks scattered through preserves order
+    (LIS == matched_count); a compilation that pulls the same songs in
+    a different sequence does not.
+    """
+    import bisect
+    tails: list = []
+    for v in values:
+        i = bisect.bisect_left(tails, v)
+        if i == len(tails):
+            tails.append(v)
+        else:
+            tails[i] = v
+    return len(tails)
+
+
+def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
+    """Match MB tracks to Spotify tracks by title similarity and report
+    coverage + ordering stats.
+
+    Returns a dict with:
+      - mb_track_count / spotify_track_count
+      - matched_count, match_ratio (0.0-1.0)
+      - matched_titles: list of (mb_title, sp_title, score)            (legacy 3-tuple)
+      - matched_pairs:  list of (mb_title, mb_pos, sp_title, sp_pos, score)  (new)
+      - ordering_ratio: float in [0,1] — LIS of Spotify positions when
+        matched pairs are walked in MB-position order, divided by
+        matched_count. None when matched_count < 3 (too noisy to score).
+
+    The match-acceptance threshold is 75 (token_sort_ratio).
     """
     from rapidfuzz import fuzz
 
@@ -1177,6 +1469,8 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
         'matched_count': 0,
         'match_ratio': 0.0,
         'matched_titles': [],
+        'matched_pairs': [],
+        'ordering_ratio': None,
     }
 
     if not mb_tracks or not spotify_tracks:
@@ -1206,6 +1500,9 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
         if best_score >= 75:
             result['matched_titles'].append(
                 (mb_track['title'], best_sp_title, best_score))
+            result['matched_pairs'].append(
+                (mb_track['title'], mb_track['position'],
+                 best_sp_title, best_idx + 1, best_score))
             used_sp_indices.add(best_idx)
 
     result['matched_count'] = len(result['matched_titles'])
@@ -1213,6 +1510,19 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
         result['matched_count'] / result['mb_track_count']
         if result['mb_track_count'] > 0 else 0.0
     )
+
+    # Ordering: LIS over Spotify positions when matched pairs are walked
+    # in MB-position order. We sort the matched pairs by mb_pos so that
+    # whatever order the matcher emitted them in doesn't affect the LIS.
+    if result['matched_count'] >= 3:
+        sp_positions_in_mb_order = [
+            sp_pos for (_, _, _, sp_pos, _) in
+            sorted(result['matched_pairs'], key=lambda p: p[1])
+        ]
+        lis_len = _longest_increasing_subsequence_length(
+            sp_positions_in_mb_order)
+        result['ordering_ratio'] = lis_len / result['matched_count']
+
     return result
 
 

@@ -18,7 +18,9 @@ from types import SimpleNamespace
 import pytest
 
 from integrations.spotify.matching import (
+    assess_album_match,
     calculate_similarity,
+    compare_mb_to_spotify_tracks,
     duration_adjusted_score,
     duration_confidence,
     extract_primary_artist,
@@ -570,100 +572,210 @@ class TestValidateAlbumMatch:
         assert ok is False
         assert "Album similarity" in reason
 
-    def test_tracklist_gate_rejects_when_callback_returns_false(self):
-        # Issue #184: Spotify "Djangology (feat. Stéphane Grappelli)" by
-        # Django Reinhardt + Quintette du Hot Club de France would pass
-        # today (album sim ~100%, artist via the spotify-subset substring
-        # path). With a tracklist-verify callback that reports a mismatch
-        # we must reject before the substring path admits the candidate.
-        album = {
-            'id': 'sp-djangology-compilation',
-            'name': 'Djangology (feat. Stéphane Grappelli)',
-            'artists': [
-                {'name': 'Django Reinhardt'},
-                {'name': 'Quintette du Hot Club de France'},
-            ],
-        }
-        calls = []
 
-        def reject_tracklist(album_id):
-            calls.append(album_id)
-            return False
+# ---------------------------------------------------------------------------
+# assess_album_match — unified album-identity scorer (issue #184)
+# ---------------------------------------------------------------------------
 
-        ok, reason, _ = validate_album_match(
-            album, "Djangology", "Django Reinhardt & Stéphane Grappelli",
-            min_album_similarity=65, min_artist_similarity=75,
-            verify_tracklist_callback=reject_tracklist,
+def _mb(title, position):
+    return {
+        'title': title,
+        'position': position,
+        'normalized': normalize_for_comparison(title),
+    }
+
+
+def _sp(name):
+    return {'name': name}
+
+
+class TestAssessAlbumMatch:
+    def test_strong_all_signals_accept(self):
+        mb = [_mb(f'Track {i}', i) for i in range(1, 6)]
+        sp = [_sp(f'Track {i}') for i in range(1, 6)]
+        a = assess_album_match(
+            mb_album_title="Kind of Blue",
+            mb_artist_credit="Miles Davis",
+            spotify_album_name="Kind of Blue",
+            spotify_artists=[{'name': 'Miles Davis'}],
+            mb_tracks=mb, spotify_tracks=sp,
         )
-        assert ok is False
-        assert "Tracklist mismatch" in reason
-        assert calls == ['sp-djangology-compilation']
+        assert a.verdict == 'accept'
+        assert a.coverage == 1.0
+        assert a.ordering == 1.0
 
-    def test_tracklist_gate_accepts_when_callback_returns_true(self):
-        # Same shape as the false-positive case — but this time the
-        # tracklists actually agree, so the gate accepts immediately
-        # without falling into the substring or track-presence paths.
-        album = {
-            'id': 'sp-real-album',
-            'name': 'Djangology',
-            'artists': [{'name': 'Django Reinhardt'}],
-        }
-
-        def verify_tracklist(album_id):
-            return True
-
-        ok, reason, scores = validate_album_match(
-            album, "Djangology", "Django Reinhardt & Stéphane Grappelli",
-            min_album_similarity=65, min_artist_similarity=75,
-            verify_tracklist_callback=verify_tracklist,
+    def test_django_compilation_rejected_on_coverage(self):
+        # Issue #184: MB "Djangology" (12 distinct tracks) vs a Spotify
+        # compilation that shares the album title and one credited artist
+        # but is a different release. Tracklist coverage is far below
+        # threshold → reject. This is the case the gate must catch even
+        # though title==100% and artist substring matches.
+        mb = [_mb(f'MB Track {i}', i) for i in range(1, 13)]
+        sp = [_sp('MB Track 1'), _sp('Different Track 1'),
+              _sp('Different Track 2')]
+        a = assess_album_match(
+            mb_album_title="Djangology",
+            mb_artist_credit="Django Reinhardt & Stéphane Grappelli",
+            spotify_album_name="Djangology (feat. Stéphane Grappelli)",
+            spotify_artists=[{'name': 'Django Reinhardt'},
+                             {'name': 'Quintette du Hot Club de France'}],
+            mb_tracks=mb, spotify_tracks=sp,
         )
-        assert ok is True
-        assert "tracklist" in reason
-        assert scores.get('verified_by_tracklist') is True
+        assert a.verdict == 'reject'
+        assert 'coverage' in a.reason.lower()
+        assert a.artist_substring_dir == 'spotify_in_expected'
 
-    def test_tracklist_gate_none_falls_back_to_existing_logic(self):
-        # When the tracklist callback can't decide (returns None — e.g.,
-        # MB unreachable, no MB ID on the release) we must preserve the
-        # prior substring fallback. This is the legitimate ensemble case
-        # where Spotify's "Bill Evans Trio" is a superset of the expected
-        # "Bill Evans" — the substring path should accept on its own.
-        album = {
-            'id': 'sp-waltz-debby',
-            'name': 'Waltz for Debby',
-            'artists': [{'name': 'Bill Evans Trio'}],
-        }
-
-        def cant_verify(album_id):
-            return None
-
-        ok, _, _ = validate_album_match(
-            album, "Waltz for Debby", "Bill Evans",
-            min_album_similarity=65, min_artist_similarity=75,
-            verify_tracklist_callback=cant_verify,
+    def test_bye_bye_blackbird_live_two_track_rejected(self):
+        # The case from this thread: MB has 2 distinct tracks
+        # (Bye-Bye Blackbird, Impressions). Spotify has a 2-track LIVE
+        # release titled "Bye Bye Blackbird" with [Bye Bye Blackbird -
+        # Live, Traneing In - Live]. Coverage = 1/2 = 50%. With the
+        # COVERAGE_REJECT_BELOW=0.4 floor, 50% is above the floor —
+        # but coverage_meets_floor wants >= 60%, so accept is blocked.
+        # Borderline expected.
+        mb = [_mb('Bye-Bye Blackbird', 1), _mb('Impressions', 2)]
+        sp = [_sp('Bye Bye Blackbird - Live'), _sp('Traneing In - Live')]
+        a = assess_album_match(
+            mb_album_title="Bye Bye Blackbird",
+            mb_artist_credit="John Coltrane",
+            spotify_album_name="Bye Bye Blackbird",
+            spotify_artists=[{'name': 'John Coltrane'}],
+            mb_tracks=mb, spotify_tracks=sp,
         )
-        assert ok is True
+        assert a.verdict in ('borderline', 'reject')
+        # Whether borderline or reject, the policy in search_spotify_album
+        # is "skip borderline" — so this album would not be persisted.
 
-    def test_tracklist_gate_only_consulted_when_artist_is_weak(self):
-        # If the artist already meets the threshold the gate is irrelevant
-        # — we shouldn't fire it (one less MB API call per matcher run).
-        album = {
-            'id': 'sp-strong-match',
-            'name': 'Kind of Blue',
-            'artists': [{'name': 'Miles Davis'}],
-        }
-        calls = []
-
-        def tracklist_callback(album_id):
-            calls.append(album_id)
-            return False  # if invoked, it would reject — assert it isn't
-
-        ok, _, _ = validate_album_match(
-            album, "Kind of Blue", "Miles Davis",
-            min_album_similarity=65, min_artist_similarity=75,
-            verify_tracklist_callback=tracklist_callback,
+    def test_compilation_reshuffle_caught_by_ordering(self):
+        # Coverage 100% (same content), but tracks reshuffled — typical
+        # of a compilation that re-orders the originals. With LIS
+        # ordering well below the floor and coverage below the
+        # ordering-relaxation threshold, reject.
+        mb_titles = [f'Song {i}' for i in range(1, 6)]
+        mb = [_mb(t, i) for i, t in enumerate(mb_titles, 1)]
+        # Reverse Spotify order
+        sp = [_sp(t) for t in reversed(mb_titles)]
+        a = assess_album_match(
+            mb_album_title="Greatest Hits",
+            mb_artist_credit="The Band",
+            spotify_album_name="Greatest Hits Reordered",
+            spotify_artists=[{'name': 'The Band'}],
+            mb_tracks=mb, spotify_tracks=sp,
         )
-        assert ok is True
-        assert calls == []
+        # Coverage 100%, ordering low (LIS=1 / 5 matched = 20%).
+        # ordering_blocking applies when coverage < 0.8 — at 100%
+        # coverage, the ordering rule relaxes. So this should accept.
+        assert a.verdict == 'accept'
+        assert a.coverage == 1.0
+        assert a.ordering is not None and a.ordering < 0.4
+
+    def test_compilation_partial_with_bad_ordering_rejects(self):
+        # Coverage between the reject floor (0.4) and the ordering
+        # relaxation cutoff (0.8), with low ordering — the two together
+        # signal a compilation pulling tracks from another release.
+        # Six of ten MB tracks, reversed on Spotify → coverage 0.6,
+        # ordering 1/6 ≈ 17%.
+        mb = [_mb(f'Song {i}', i) for i in range(1, 11)]
+        sp = [_sp(f'Song {i}') for i in [10, 8, 6, 4, 2, 1]]
+        a = assess_album_match(
+            mb_album_title="Album X",
+            mb_artist_credit="Artist X",
+            spotify_album_name="Album X",
+            spotify_artists=[{'name': 'Artist X'}],
+            mb_tracks=mb, spotify_tracks=sp,
+        )
+        assert a.verdict == 'reject'
+        assert 'shuffled' in a.reason or 'ordering' in a.reason.lower()
+
+    def test_reissue_with_bonus_tracks_accepts(self):
+        # Reissue: same MB tracks all present, plus 3 bonus tracks
+        # appended on Spotify. Coverage from MB perspective = 100%,
+        # ordering = 100% (LIS over [1..N]). Accept.
+        mb = [_mb(f'Track {i}', i) for i in range(1, 11)]
+        sp = [_sp(f'Track {i}') for i in range(1, 14)]   # 10 + 3 bonus
+        a = assess_album_match(
+            mb_album_title="Album Y",
+            mb_artist_credit="Artist Y",
+            spotify_album_name="Album Y (Deluxe Edition)",
+            spotify_artists=[{'name': 'Artist Y'}],
+            mb_tracks=mb, spotify_tracks=sp,
+        )
+        assert a.verdict == 'accept'
+        assert a.coverage == 1.0
+        assert a.ordering == 1.0
+
+    def test_no_tracklist_falls_back_to_title_artist(self):
+        # MB or Spotify tracklist unavailable — assess title+artist
+        # alone. Strong title+artist must still accept (preserves
+        # operations during MB/Spotify outages).
+        a = assess_album_match(
+            mb_album_title="Kind of Blue",
+            mb_artist_credit="Miles Davis",
+            spotify_album_name="Kind of Blue",
+            spotify_artists=[{'name': 'Miles Davis'}],
+            mb_tracks=None, spotify_tracks=None,
+        )
+        assert a.verdict == 'accept'
+        assert a.coverage is None
+        assert a.ordering is None
+
+    def test_substring_artist_ensemble_legitimate(self):
+        # "Bill Evans" → "Bill Evans Trio" — expected_in_spotify direction.
+        # No tracklist data; the title+artist gate must still accept.
+        a = assess_album_match(
+            mb_album_title="Waltz for Debby",
+            mb_artist_credit="Bill Evans",
+            spotify_album_name="Waltz for Debby",
+            spotify_artists=[{'name': 'Bill Evans Trio'}],
+            mb_tracks=None, spotify_tracks=None,
+        )
+        assert a.verdict == 'accept'
+        assert a.artist_substring_dir == 'expected_in_spotify'
+
+    def test_low_artist_no_tracklist_borderline_or_reject(self):
+        # Low artist similarity + no tracklist data + no substring direction
+        # → can't decisively call it. Expect borderline/reject (NOT accept).
+        a = assess_album_match(
+            mb_album_title="Some Album",
+            mb_artist_credit="Artist A",
+            spotify_album_name="Some Album",
+            spotify_artists=[{'name': 'Completely Unrelated Performer'}],
+            mb_tracks=None, spotify_tracks=None,
+        )
+        assert a.verdict in ('borderline', 'reject')
+
+
+class TestCompareMbToSpotifyTracks:
+    def test_ordering_full_when_in_order(self):
+        mb = [_mb(f'T{i}', i) for i in range(1, 6)]
+        sp = [_sp(f'T{i}') for i in range(1, 6)]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 5
+        assert info['ordering_ratio'] == 1.0
+
+    def test_ordering_low_when_reversed(self):
+        mb = [_mb(f'T{i}', i) for i in range(1, 6)]
+        sp = [_sp(f'T{i}') for i in range(5, 0, -1)]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 5
+        # LIS of reversed = 1, divided by 5 = 0.2.
+        assert info['ordering_ratio'] == pytest.approx(0.2)
+
+    def test_ordering_none_when_too_few_matches(self):
+        mb = [_mb('A', 1), _mb('B', 2)]
+        sp = [_sp('A'), _sp('B')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 2
+        assert info['ordering_ratio'] is None
+
+    def test_matched_pairs_carry_positions(self):
+        mb = [_mb('A', 1), _mb('B', 2), _mb('C', 3)]
+        sp = [_sp('A'), _sp('B'), _sp('C')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert len(info['matched_pairs']) == 3
+        for (mb_title, mb_pos, sp_title, sp_pos, score) in info['matched_pairs']:
+            assert mb_title == sp_title
+            assert mb_pos == sp_pos
 
 
 # ---------------------------------------------------------------------------

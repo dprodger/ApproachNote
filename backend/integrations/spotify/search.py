@@ -26,7 +26,8 @@ import requests
 
 from integrations.spotify.client import SpotifyRateLimitError, _CACHE_MISS
 from integrations.spotify.matching import (
-    compare_mb_to_spotify_tracks,
+    AlbumMatchAssessment,
+    assess_album_match,
     fetch_mb_tracks_for_release,
     strip_ensemble_suffix,
     strip_live_suffix,
@@ -36,16 +37,6 @@ from integrations.spotify.matching import (
     validate_album_match,
     verify_album_contains_track,
 )
-
-# Tracklist-verification thresholds for the issue-#184 weak-artist gate.
-# An MB release whose 60%+ of tracks line up with a candidate Spotify album
-# is treated as the same release (lenient enough to ride out reissues with
-# extra bonus tracks; strict enough to reject compilations that share only
-# a title and one or two tracks). MIN_TRACKLIST_MATCHED is enforced as
-# `min(MIN_TRACKLIST_MATCHED, mb_track_count)` so 1- or 2-track EPs aren't
-# automatically unverifiable.
-MIN_TRACKLIST_RATIO = 0.6
-MIN_TRACKLIST_MATCHED = 3
 
 logger = logging.getLogger(__name__)
 
@@ -288,44 +279,41 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
             client, log, matcher.min_track_similarity, album_id, st
         )
 
-    # Tracklist gate (issue #184). Returns True if MB and Spotify
-    # tracklists agree, False if they don't, None if we couldn't fetch
-    # one side. Closure-caches the MB tracklist so candidate fanout
-    # doesn't multiply the MB API call.
-    verify_tracklist = None
-    if release_id is not None:
-        from db_utils import get_db_connection as _default_conn_factory
-        _conn_factory = conn_factory or _default_conn_factory
-        _mb_cache = {}  # 'tracks' set on first lookup
+    # Lazy MB tracklist fetch for the unified album-identity assessment
+    # (assess_album_match). Cached on first call so candidate fanout
+    # multiplies neither the DB hit nor the MB API call.
+    _mb_cache: dict = {}  # 'tracks' set on first lookup
 
-        def _verify_tracklist(spotify_album_id: str):
-            if 'tracks' not in _mb_cache:
-                try:
-                    with _conn_factory() as _conn:
-                        _mb_cache['tracks'] = fetch_mb_tracks_for_release(
-                            _conn, release_id)
-                except Exception as e:
-                    log.debug(f"      Tracklist gate: MB fetch failed: {e}")
-                    _mb_cache['tracks'] = []
-            mb_tracks = _mb_cache['tracks']
-            if not mb_tracks:
-                return None  # unable to verify — fall back
-            sp_tracks = client.get_album_tracks(spotify_album_id)
-            if not sp_tracks:
-                return None
-            info = compare_mb_to_spotify_tracks(mb_tracks, sp_tracks)
-            min_required = min(MIN_TRACKLIST_MATCHED, info['mb_track_count'])
-            verified = (
-                info['match_ratio'] >= MIN_TRACKLIST_RATIO
-                and info['matched_count'] >= min_required
-            )
-            log.debug(
-                f"      Tracklist gate: {info['matched_count']}/{info['mb_track_count']} "
-                f"MB tracks match ({info['match_ratio']:.0%}) → "
-                f"{'verified' if verified else 'mismatch'}")
-            return verified
+    def _get_mb_tracks() -> list:
+        if release_id is None:
+            return []
+        if 'tracks' not in _mb_cache:
+            from db_utils import get_db_connection as _default_conn_factory
+            _conn_factory = conn_factory or _default_conn_factory
+            try:
+                with _conn_factory() as _conn:
+                    _mb_cache['tracks'] = fetch_mb_tracks_for_release(
+                        _conn, release_id)
+            except Exception as e:
+                log.debug(f"      assess: MB fetch failed: {e}")
+                _mb_cache['tracks'] = []
+        return _mb_cache['tracks']
 
-        verify_tracklist = _verify_tracklist
+    def _full_assess(album: dict) -> AlbumMatchAssessment:
+        """Run the unified scorer against `album`, fetching its Spotify
+        tracklist (cached on the client side). Returns an assessment that
+        the caller decides whether to accept."""
+        sp_tracks = client.get_album_tracks(album['id']) or []
+        return assess_album_match(
+            mb_album_title=album_title,
+            mb_artist_credit=artist_name or '',
+            spotify_album_name=album['name'],
+            spotify_artists=album.get('artists', []),
+            mb_tracks=_get_mb_tracks(),
+            spotify_tracks=sp_tracks,
+            min_album_similarity=matcher.min_album_similarity,
+            min_artist_similarity=matcher.min_artist_similarity,
+        )
 
     # Check cache first (reuse search cache with 'album' prefix)
     cache_path = client._get_search_cache_path('album', album_title, artist_name)
@@ -466,67 +454,73 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                 # Normalize expected album title for exact matching
                 expected_normalized = album_title.lower().strip()
 
-                # FIRST PASS: Look for exact album title matches
-                # This prioritizes "Julie" over "Julie Is Her Name" when searching for "Julie"
+                # Two passes for accept/reject. validate_album_match is the
+                # title+artist gate (preserves long-tail edge cases like
+                # the "Spotify prepended artist name" rule and the track-
+                # presence fallback for compilation artists). After it
+                # passes, assess_album_match is the unified album-identity
+                # scorer that adds tracklist coverage + ordering — same
+                # function the diagnose route surfaces, so verdicts agree.
+                # Both must accept; borderline assess verdicts skip per
+                # the policy decided in issue #184.
+
+                def _build_result(album, assessment, scores):
+                    album_art = {}
+                    for image in album.get('images', []) or []:
+                        h = image.get('height', 0)
+                        if h >= 600:
+                            album_art['large'] = image['url']
+                        elif h >= 300:
+                            album_art['medium'] = image['url']
+                        elif h >= 64:
+                            album_art['small'] = image['url']
+                    return {
+                        'url': album['external_urls']['spotify'],
+                        'id': album['id'],
+                        'artists': [a['name'] for a in album['artists']],
+                        'name': album['name'],
+                        'album_art': album_art,
+                        'similarity_scores': scores,
+                        'assessment': assessment.as_scores_dict() if assessment else None,
+                    }
+
+                expected_normalized = album_title.lower().strip()
+
+                # FIRST PASS: exact album-title matches.
                 exact_matches = []
                 for i, album in enumerate(albums):
-                    spotify_album_normalized = album['name'].lower().strip()
-                    if spotify_album_normalized == expected_normalized:
-                        # Validate artist match for this exact title match
-                        is_valid, reason, scores = validate_album_match(
-                            album, album_title, artist_name or '',
-                            matcher.min_album_similarity,
-                            matcher.min_artist_similarity,
-                            song_title=song_title,
-                            verify_track_callback=_verify_track,
-                            verify_tracklist_callback=verify_tracklist,
-                        )
-                        exact_matches.append({
-                            'index': i,
-                            'album': album,
-                            'is_valid': is_valid,
-                            'reason': reason,
-                            'scores': scores
-                        })
+                    if album['name'].lower().strip() != expected_normalized:
+                        continue
+                    is_valid, reason, scores = validate_album_match(
+                        album, album_title, artist_name or '',
+                        matcher.min_album_similarity,
+                        matcher.min_artist_similarity,
+                        song_title=song_title,
+                        verify_track_callback=_verify_track,
+                    )
+                    exact_matches.append({
+                        'index': i, 'album': album,
+                        'is_valid': is_valid, 'reason': reason, 'scores': scores,
+                    })
 
                 if exact_matches:
                     log.debug(f"    Found {len(exact_matches)} exact title match(es)")
-                    # Check if any exact match also passes artist validation
                     for em in exact_matches:
-                        if em['is_valid']:
+                        if not em['is_valid']:
+                            continue
+                        assessment = _full_assess(em['album'])
+                        log.debug(
+                            f"    Exact #{em['index']+1} '{em['album']['name']}' "
+                            f"→ {assessment.verdict}: {assessment.reason}")
+                        if assessment.verdict == 'accept':
                             log.debug(f"    ✓ Exact match found: '{em['album']['name']}' (#{em['index']+1})")
-                            album = em['album']
-                            scores = em['scores']
-
-                            # Extract album artwork
-                            album_art = {}
-                            images = album.get('images', [])
-                            for image in images:
-                                height = image.get('height', 0)
-                                if height >= 600:
-                                    album_art['large'] = image['url']
-                                elif height >= 300:
-                                    album_art['medium'] = image['url']
-                                elif height >= 64:
-                                    album_art['small'] = image['url']
-
-                            album_artists = [a['name'] for a in album['artists']]
-                            result = {
-                                'url': album['external_urls']['spotify'],
-                                'id': album['id'],
-                                'artists': album_artists,
-                                'name': album['name'],
-                                'album_art': album_art,
-                                'similarity_scores': scores
-                            }
+                            scores = assessment.as_scores_dict()
+                            result = _build_result(em['album'], assessment, scores)
                             client._save_to_cache(cache_path, result)
                             return result
+                    log.debug(f"    Exact matches did not pass full assessment, trying fuzzy matching...")
 
-                    # Exact title matches exist but failed artist validation
-                    log.debug(f"    Exact matches failed artist validation, trying fuzzy matching...")
-
-                # SECOND PASS: Fuzzy matching (original logic)
-                # Evaluate ALL candidates, collect results
+                # SECOND PASS: fuzzy matching across all candidates.
                 candidate_results = []
                 for i, album in enumerate(albums):
                     is_valid, reason, scores = validate_album_match(
@@ -535,65 +529,62 @@ def search_spotify_album(matcher, album_title: str, artist_name: str = None,
                         matcher.min_artist_similarity,
                         song_title=song_title,
                         verify_track_callback=_verify_track,
-                        verify_tracklist_callback=verify_tracklist,
                     )
                     candidate_results.append({
-                        'index': i,
-                        'album': album,
-                        'is_valid': is_valid,
-                        'reason': reason,
-                        'scores': scores
+                        'index': i, 'album': album,
+                        'is_valid': is_valid, 'reason': reason, 'scores': scores,
+                        'assessment': None,
                     })
 
-                # Log summary of ALL candidates
+                # Run the unified assessment for every title+artist pass —
+                # the result drives the verdict and is logged so diagnose
+                # users see why each candidate was kept or dropped.
+                for cr in candidate_results:
+                    if cr['is_valid']:
+                        cr['assessment'] = _full_assess(cr['album'])
+
                 log.debug(f"    --- Candidate Summary ---")
                 for cr in candidate_results:
-                    status = "✓" if cr['is_valid'] else "✗"
+                    a = cr['assessment']
+                    if not cr['is_valid']:
+                        verdict = '✗ title/artist'
+                    elif a is None:
+                        verdict = '?'
+                    else:
+                        verdict = {
+                            'accept': '✓',
+                            'borderline': '~',
+                            'reject': '✗',
+                        }[a.verdict]
                     album_sim = cr['scores'].get('album', 0)
                     artist_sim = cr['scores'].get('artist', 0)
                     spotify_album = cr['scores'].get('spotify_album', '')
-                    log.debug(f"    {status} #{cr['index']+1}: '{spotify_album}' "
-                              f"(album: {album_sim:.0f}%, artist: {artist_sim:.0f}%)")
+                    extra = ''
+                    if a is not None:
+                        cov = f"{a.coverage:.0%}" if a.coverage is not None else 'n/a'
+                        order = f"{a.ordering:.0%}" if a.ordering is not None else 'n/a'
+                        extra = f", cov: {cov}, ord: {order}"
+                    log.debug(f"    {verdict} #{cr['index']+1}: '{spotify_album}' "
+                              f"(album: {album_sim:.0f}%, artist: {artist_sim:.0f}%{extra})")
                 log.debug(f"    -------------------------")
 
-                # Select first valid match from fuzzy results
+                # First candidate that the unified assessment accepts wins.
+                # Borderline verdicts skip; the matcher does not write them
+                # (per the issue #184 policy decision).
                 for cr in candidate_results:
-                    if cr['is_valid']:
-                        album = cr['album']
-                        scores = cr['scores']
-
-                        # Log the match details
-                        log.debug(f"       Matched: '{scores.get('spotify_album', '')}' by {scores.get('spotify_artist', '')}")
-                        log.debug(f"       Album similarity: {scores.get('album', 0):.1f}% (substring: {scores.get('album_is_substring', False)})")
-                        log.debug(f"       Artist similarity: {scores.get('artist', 0):.1f}% (substring: {scores.get('artist_is_substring', False)})")
-
-                        # Extract album artwork
-                        album_art = {}
-                        images = album.get('images', [])
-
-                        for image in images:
-                            height = image.get('height', 0)
-                            if height >= 600:
-                                album_art['large'] = image['url']
-                            elif height >= 300:
-                                album_art['medium'] = image['url']
-                            elif height >= 64:
-                                album_art['small'] = image['url']
-
-                        album_artists = [a['name'] for a in album['artists']]
-
-                        result = {
-                            'url': album['external_urls']['spotify'],
-                            'id': album['id'],
-                            'artists': album_artists,
-                            'name': album['name'],
-                            'album_art': album_art,
-                            'similarity_scores': scores
-                        }
-
-                        client._save_to_cache(cache_path, result)
-                        log.debug(f"    ✓ Valid match found (candidate #{cr['index']+1})")
-                        return result
+                    a = cr['assessment']
+                    if a is None or a.verdict != 'accept':
+                        if a is not None and a.verdict == 'borderline':
+                            log.debug(
+                                f"    ~ Skipping borderline #{cr['index']+1} "
+                                f"'{cr['album']['name']}': {a.reason}")
+                        continue
+                    log.debug(
+                        f"       Matched: '{a.spotify_album}' by {a.spotify_artist} — {a.reason}")
+                    result = _build_result(cr['album'], a, a.as_scores_dict())
+                    client._save_to_cache(cache_path, result)
+                    log.debug(f"    ✓ Valid match found (candidate #{cr['index']+1})")
+                    return result
 
                 log.debug(f"    ✗ No valid matches with {strategy['description']}")
             else:

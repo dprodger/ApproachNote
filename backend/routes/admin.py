@@ -4195,6 +4195,10 @@ def rematch_release_spotify(release_id):
     import uuid as _uuid_mod
     from io import StringIO
     from integrations.spotify.matcher import SpotifyMatcher
+    from integrations.spotify.matching import (
+        compare_mb_to_spotify_tracks,
+        fetch_mb_tracks_for_release,
+    )
 
     def _snapshot(cur):
         cur.execute(
@@ -4298,6 +4302,76 @@ def rematch_release_spotify(release_id):
         if b.get('service_id') != a.get('service_id') or b.get('match_method') != a.get('match_method'):
             changed.append({'before': b, 'after': a})
 
+    # Side-by-side tracklist payload — same shape as the diagnose route,
+    # using whichever Spotify album is linked to this release post-rematch
+    # (or the matcher's last evaluated candidate if none was persisted).
+    tracklist_payload = None
+    if matcher and not error:
+        try:
+            with get_db_connection() as conn:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT rel.title, rel.artist_credit,
+                               rsl.service_id AS spotify_album_id
+                        FROM releases rel
+                        LEFT JOIN release_streaming_links rsl
+                            ON rsl.release_id = rel.id AND rsl.service = 'spotify'
+                        WHERE rel.id = %s
+                        """,
+                        (release_id,),
+                    )
+                    rel_row = cur.fetchone()
+                mb_tracks = fetch_mb_tracks_for_release(conn, release_id)
+            sp_album_id = rel_row.get('spotify_album_id') if rel_row else None
+            if sp_album_id:
+                sp_tracks = matcher.client.get_album_tracks(sp_album_id) or []
+                comp = compare_mb_to_spotify_tracks(mb_tracks, sp_tracks)
+                # Album metadata for the right-hand header.
+                album_details = matcher.client.get_album_details(sp_album_id) or {}
+                tracklist_payload = {
+                    'mb_release_title': rel_row['title'],
+                    'mb_artist_credit': rel_row['artist_credit'],
+                    'spotify_album_name': album_details.get('name'),
+                    'spotify_artists': [
+                        a.get('name') for a in album_details.get('artists', [])
+                        if a.get('name')
+                    ],
+                    'mb_tracks': [
+                        {'position': t['position'], 'title': t['title']}
+                        for t in mb_tracks
+                    ],
+                    'spotify_tracks': [
+                        {
+                            'position': i + 1,
+                            'name': t.get('name'),
+                            'duration_ms': t.get('duration_ms'),
+                        }
+                        for i, t in enumerate(sp_tracks)
+                    ],
+                    'matched_pairs': [
+                        {
+                            'mb_title': mb_title,
+                            'mb_position': mb_pos,
+                            'sp_title': sp_title,
+                            'sp_position': sp_pos,
+                            'similarity': score,
+                        }
+                        for (mb_title, mb_pos, sp_title, sp_pos, score)
+                        in comp['matched_pairs']
+                    ],
+                    'mb_track_count': comp['mb_track_count'],
+                    'spotify_track_count': comp['spotify_track_count'],
+                    'matched_count': comp['matched_count'],
+                    'match_ratio': comp['match_ratio'],
+                    'ordering_ratio': comp['ordering_ratio'],
+                }
+        except Exception:
+            logger.exception(
+                "rematch tracklist payload assembly failed for release %s",
+                release_id,
+            )
+
     stats = matcher.stats if matcher else {}
     return jsonify({
         'songs_processed': per_song_results,
@@ -4315,6 +4389,7 @@ def rematch_release_spotify(release_id):
             'removed': removed,
             'changed': changed,
         },
+        'tracklist': tracklist_payload,
         'log': log_buffer.getvalue(),
         'error': error,
     }), (500 if error else 200)
@@ -4340,6 +4415,10 @@ def diagnose_release_spotify(release_id):
     import uuid
     from io import StringIO
     from integrations.spotify.matcher import SpotifyMatcher
+    from integrations.spotify.matching import (
+        compare_mb_to_spotify_tracks,
+        fetch_mb_tracks_for_release,
+    )
     from integrations.spotify.search import search_spotify_album
 
     body = request.get_json(silent=True) or {}
@@ -4413,6 +4492,55 @@ def diagnose_release_spotify(release_id):
     # Strip ANSI / non-essentials, keep raw text.
     log_text = log_buffer.getvalue()
 
+    # Side-by-side tracklist data: when we have a match, fetch the MB
+    # tracklist and the Spotify album's tracklist so the front end can
+    # render them in the same shape as the duration-mismatches admin
+    # page (one MB column, one Spotify column, matched rows highlighted).
+    tracklist_payload = None
+    if result and not error:
+        try:
+            with get_db_connection() as conn:
+                mb_tracks = fetch_mb_tracks_for_release(conn, release_id)
+            sp_tracks = matcher.client.get_album_tracks(result['id']) or []
+            comp = compare_mb_to_spotify_tracks(mb_tracks, sp_tracks)
+            tracklist_payload = {
+                'mb_release_title': release['title'],
+                'mb_artist_credit': release['artist_credit'],
+                'spotify_album_name': result.get('name'),
+                'spotify_artists': result.get('artists') or [],
+                'mb_tracks': [
+                    {'position': t['position'], 'title': t['title']}
+                    for t in mb_tracks
+                ],
+                'spotify_tracks': [
+                    {
+                        'position': i + 1,
+                        'name': t.get('name'),
+                        'duration_ms': t.get('duration_ms'),
+                    }
+                    for i, t in enumerate(sp_tracks)
+                ],
+                'matched_pairs': [
+                    {
+                        'mb_title': mb_title,
+                        'mb_position': mb_pos,
+                        'sp_title': sp_title,
+                        'sp_position': sp_pos,
+                        'similarity': score,
+                    }
+                    for (mb_title, mb_pos, sp_title, sp_pos, score)
+                    in comp['matched_pairs']
+                ],
+                'mb_track_count': comp['mb_track_count'],
+                'spotify_track_count': comp['spotify_track_count'],
+                'matched_count': comp['matched_count'],
+                'match_ratio': comp['match_ratio'],
+                'ordering_ratio': comp['ordering_ratio'],
+            }
+        except Exception:
+            logger.exception("Tracklist payload assembly failed for release %s", release_id)
+            # Don't fail the diagnose request — the breakdown is supplemental.
+
     return jsonify({
         'input': {
             'album_title': release['title'],
@@ -4428,6 +4556,7 @@ def diagnose_release_spotify(release_id):
         },
         'matched': result is not None,
         'result': result,
+        'tracklist': tracklist_payload,
         'log': log_text,
         'error': error,
     }), (500 if error else 200)

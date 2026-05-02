@@ -116,6 +116,75 @@
         .diag-log .arrow { color: #569cd6; }
         .diag-log .dim   { color: #808080; }
 
+        /* Side-by-side MB vs Spotify tracklist panel inside the diagnose
+           result. Mirrors the duration-mismatches admin page styling. */
+        .tl-panel { background: #fff; padding: 10px 0; margin-top: 10px; }
+        .tl-panel-headers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 10px;
+        }
+        .tl-side-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .tl-side-title { font-size: 14px; font-weight: 600; color: #222; }
+        .tl-side-artist { font-size: 12px; color: #666; margin-top: 2px; }
+        .tl-table {
+            font-size: 12px;
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: auto;
+        }
+        .tl-table th {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        .tl-table th.pos { text-align: center; width: 1%; }
+        .tl-table th.dur { text-align: right; width: 1%; }
+        .tl-table td {
+            padding: 4px 8px;
+            border-bottom: 1px dashed #eee;
+            vertical-align: top;
+        }
+        .tl-table td.pos {
+            color: #888;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .tl-table td.dur {
+            color: #555;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: right;
+        }
+        .tl-table td.divider, .tl-table th.divider {
+            border-right: 2px solid #e0e0e0;
+            padding: 0;
+            width: 1%;
+        }
+        .tl-table tr.matched { background: #fff8dc; }
+        .tl-table .missing { color: #ccc; }
+        .tl-summary {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+        }
+        .tl-summary .strong { color: #155724; font-weight: 600; }
+        .tl-summary .weak   { color: #721c24; font-weight: 600; }
+
         /* Imagery gallery */
         .imagery-grid {
             display: grid;
@@ -624,6 +693,114 @@
             }
         });
 
+        function fmtMs(ms) {
+            if (ms == null || isNaN(ms)) return '';
+            const total = Math.round(ms / 1000);
+            const m = Math.floor(total / 60);
+            const s = total % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+
+        // Build a side-by-side MB vs Spotify tracklist panel from the
+        // diagnose response's `tracklist` payload. Each row aligns an MB
+        // track to its matched Spotify track (if any). Spotify-only
+        // tracks (bonus tracks, etc.) appear at the end with em-dash on
+        // the MB side. Matched rows are highlighted.
+        function renderTracklistPanel(tl) {
+            if (!tl) return '';
+
+            const matchByMbPos = new Map();
+            (tl.matched_pairs || []).forEach(p => {
+                matchByMbPos.set(p.mb_position, p);
+            });
+            const matchedSpPositions = new Set(
+                (tl.matched_pairs || []).map(p => p.sp_position)
+            );
+
+            const mbTracks = tl.mb_tracks || [];
+            const spTracks = tl.spotify_tracks || [];
+
+            const rows = [];
+            mbTracks.forEach(mb => {
+                const m = matchByMbPos.get(mb.position);
+                let sp = null;
+                if (m) {
+                    sp = spTracks.find(s => s.position === m.sp_position) || null;
+                }
+                rows.push({ mb, sp, matched: !!m });
+            });
+            // Spotify-only tracks (not matched to any MB track) at the end.
+            spTracks
+                .filter(s => !matchedSpPositions.has(s.position))
+                .forEach(s => rows.push({ mb: null, sp: s, matched: false }));
+
+            const cov = tl.match_ratio != null
+                ? `${Math.round(tl.match_ratio * 100)}%` : 'n/a';
+            const ord = tl.ordering_ratio != null
+                ? `${Math.round(tl.ordering_ratio * 100)}%` : 'n/a';
+            const covClass = tl.match_ratio != null && tl.match_ratio >= 0.6
+                ? 'strong' : 'weak';
+            const summary = `
+                <div class="tl-summary">
+                    Coverage: <span class="${covClass}">${tl.matched_count}/${tl.mb_track_count} (${cov})</span>
+                    · Ordering: ${ord}
+                    · Spotify tracks: ${tl.spotify_track_count}
+                </div>
+            `;
+
+            const headers = `
+                <div class="tl-panel-headers">
+                    <div>
+                        <div class="tl-side-label">MusicBrainz Release</div>
+                        <div class="tl-side-title">${escapeHtml(tl.mb_release_title || '')}</div>
+                        <div class="tl-side-artist">${escapeHtml(tl.mb_artist_credit || '')}</div>
+                    </div>
+                    <div>
+                        <div class="tl-side-label">Spotify Album</div>
+                        <div class="tl-side-title">${escapeHtml(tl.spotify_album_name || '')}</div>
+                        <div class="tl-side-artist">${escapeHtml((tl.spotify_artists || []).join(', '))}</div>
+                    </div>
+                </div>
+            `;
+
+            const tbody = rows.map(r => {
+                const mbCells = r.mb
+                    ? `<td class="pos">${r.mb.position}</td>
+                       <td>${escapeHtml(r.mb.title || '')}</td>`
+                    : `<td class="pos missing">—</td><td class="missing">—</td>`;
+                const spCells = r.sp
+                    ? `<td class="pos">${r.sp.position}</td>
+                       <td>${escapeHtml(r.sp.name || '')}</td>
+                       <td class="dur">${escapeHtml(fmtMs(r.sp.duration_ms))}</td>`
+                    : `<td class="pos missing">—</td><td class="missing">—</td><td class="dur missing">—</td>`;
+                return `<tr class="${r.matched ? 'matched' : ''}">
+                    ${mbCells}
+                    <td class="divider"></td>
+                    ${spCells}
+                </tr>`;
+            }).join('');
+
+            return `
+                <div class="tl-panel">
+                    ${summary}
+                    ${headers}
+                    <table class="tl-table">
+                        <thead>
+                            <tr>
+                                <th class="pos">Pos</th>
+                                <th>MusicBrainz Title</th>
+                                <th class="divider"></th>
+                                <th class="pos">Pos</th>
+                                <th>Spotify Title</th>
+                                <th class="dur">Dur</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tbody}</tbody>
+                    </table>
+                </div>
+            `;
+        }
+
         function renderResult(data) {
             const status = data.error
                 ? `<span class="diag-status error">Error</span>`
@@ -637,6 +814,12 @@
 
             let resultBlock = '';
             if (data.matched) {
+                const cov = scores.coverage != null
+                    ? `${Math.round(scores.coverage * 100)}%`
+                    : '—';
+                const ord = scores.ordering != null
+                    ? `${Math.round(scores.ordering * 100)}%`
+                    : 'n/a';
                 resultBlock = `
                     <strong>Match found:</strong>
                     <dl>
@@ -645,9 +828,13 @@
                         <dt>Album ID</dt><dd><a href="https://open.spotify.com/album/${escapeHtml(result.id)}" target="_blank" rel="noopener">${escapeHtml(result.id)}</a></dd>
                         <dt>Album similarity</dt><dd>${scores.album != null ? scores.album.toFixed(1) + '%' : '—'} (substring: ${scores.album_is_substring ? 'yes' : 'no'})</dd>
                         <dt>Artist similarity</dt><dd>${scores.artist != null ? scores.artist.toFixed(1) + '%' : '—'} (substring: ${scores.artist_is_substring ? 'yes' : 'no'})</dd>
+                        <dt>Tracklist coverage</dt><dd>${cov}</dd>
+                        <dt>Tracklist ordering</dt><dd>${ord}</dd>
                     </dl>
                 `;
             }
+
+            const tracklistBlock = renderTracklistPanel(data.tracklist);
 
             const inputBlock = `
                 <details>
@@ -671,6 +858,7 @@
                 ${status}
                 ${data.error ? `<div style="color: #c00; font-size: 12px; margin-bottom: 8px;">${escapeHtml(data.error)}</div>` : ''}
                 ${resultBlock}
+                ${tracklistBlock}
                 ${inputBlock}
                 <div style="font-size: 11px; color: #888; margin-top: 10px; margin-bottom: 4px;">Matcher log:</div>
                 ${logBlock}
@@ -736,11 +924,14 @@
                 ? `<div style="margin-top: 8px; font-size: 12px; color: #155724;">Reload the page to see the updated Imagery / Streaming Links sections above.</div>`
                 : '';
 
+            const tracklistBlock = renderTracklistPanel(data.tracklist);
+
             out.innerHTML = `
                 ${status}
                 ${data.error ? `<div style="color: #c00; font-size: 12px; margin-bottom: 8px;">${escapeHtml(data.error)}</div>` : ''}
                 ${addedBlock}${removedBlock}${changedBlock}
                 ${reloadHint}
+                ${tracklistBlock}
                 ${songsBlock}
                 ${statsBlock}
                 <div style="font-size: 11px; color: #888; margin-top: 10px; margin-bottom: 4px;">Matcher log:</div>
