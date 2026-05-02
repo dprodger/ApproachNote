@@ -445,10 +445,17 @@ def mismatched_link_with_release_metadata(db):
         )
         cur.execute(
             "INSERT INTO releases "
-            "(id, title, artist_credit, musicbrainz_release_id, spotify_album_id) "
-            "VALUES (%s, %s, %s, %s, %s)",
+            "(id, title, artist_credit, musicbrainz_release_id) "
+            "VALUES (%s, %s, %s, %s)",
             (RELEASE_ID, "Tracklist Test Album", "Tracklist Test Artist",
-             'mb-release-uuid', 'sp-album-uuid'),
+             'mb-release-uuid'),
+        )
+        cur.execute(
+            "INSERT INTO release_streaming_links "
+            "(release_id, service, service_id, service_url, match_method) "
+            "VALUES (%s, 'spotify', %s, %s, 'fuzzy_search')",
+            (RELEASE_ID, 'sp-album-uuid',
+             'https://open.spotify.com/album/sp-album-uuid'),
         )
         cur.execute(
             "INSERT INTO recordings (id, song_id, title, duration_ms) "

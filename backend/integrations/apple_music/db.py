@@ -206,12 +206,9 @@ def get_releases_without_apple_music() -> List[dict]:
                     rel.release_year
                 FROM releases rel
                 -- Has Spotify
-                WHERE (
-                    rel.spotify_album_id IS NOT NULL
-                    OR EXISTS (
-                        SELECT 1 FROM release_streaming_links rsl
-                        WHERE rsl.release_id = rel.id AND rsl.service = 'spotify'
-                    )
+                WHERE EXISTS (
+                    SELECT 1 FROM release_streaming_links rsl
+                    WHERE rsl.release_id = rel.id AND rsl.service = 'spotify'
                 )
                 -- But no Apple Music
                 AND NOT EXISTS (

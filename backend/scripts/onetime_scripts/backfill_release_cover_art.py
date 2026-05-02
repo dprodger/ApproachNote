@@ -150,13 +150,16 @@ class ReleaseArtworkBackfill:
         """Find releases that have Spotify track IDs but no cover art"""
         limit_clause = f"LIMIT {self.limit}" if self.limit else ""
 
+        # Note: this is a historical one-time backfill that depends on the
+        # cover_art_small/medium/large columns (since dropped). It is not
+        # runnable against the current schema.
         cur.execute(f"""
             SELECT DISTINCT
                 rel.id,
                 rel.title,
                 rel.release_year,
                 rel.cover_art_small,
-                rel.spotify_album_id,
+                rsl.service_id as spotify_album_id,
                 (SELECT rr.spotify_track_id
                  FROM recording_releases rr
                  WHERE rr.release_id = rel.id
@@ -169,6 +172,8 @@ class ReleaseArtworkBackfill:
                    AND rr.spotify_track_id IS NOT NULL
                  LIMIT 1) as spotify_track_url
             FROM releases rel
+            LEFT JOIN release_streaming_links rsl
+                ON rsl.release_id = rel.id AND rsl.service = 'spotify'
             WHERE rel.cover_art_small IS NULL
               AND EXISTS (
                   SELECT 1 FROM recording_releases rr
@@ -187,16 +192,24 @@ class ReleaseArtworkBackfill:
             SET cover_art_small = %s,
                 cover_art_medium = %s,
                 cover_art_large = %s,
-                spotify_album_id = COALESCE(spotify_album_id, %s),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = %s
         """, (
             album_art.get('small'),
             album_art.get('medium'),
             album_art.get('large'),
-            album_art.get('album_id'),
             release_id
         ))
+        if album_art.get('album_id'):
+            service_url = f"https://open.spotify.com/album/{album_art['album_id']}"
+            cur.execute("""
+                INSERT INTO release_streaming_links (
+                    release_id, service, service_id, service_url,
+                    match_method, matched_at
+                )
+                VALUES (%s, 'spotify', %s, %s, 'fuzzy_search', CURRENT_TIMESTAMP)
+                ON CONFLICT (release_id, service) DO NOTHING
+            """, (release_id, album_art['album_id'], service_url))
 
     def run(self):
         """Main method to backfill cover art"""

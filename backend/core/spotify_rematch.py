@@ -28,16 +28,16 @@ def _snapshot_spotify_state(song_id: str) -> dict:
     """
     Capture Spotify-related state for every release/recording tied to this song.
 
-    Captured tables: releases.spotify_album_id, recording_release_streaming_links,
-    release_streaming_links, release_imagery. These are the four places
-    SpotifyMatcher may add, update, or clear data during rematch_tracks.
+    Captured tables: recording_release_streaming_links, release_streaming_links,
+    release_imagery. These are the three places SpotifyMatcher may add, update,
+    or clear data during rematch_tracks.
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
             # Releases associated with this song
             cur.execute("""
                 SELECT DISTINCT r.id, r.title, r.release_year,
-                       r.musicbrainz_release_id, r.spotify_album_id
+                       r.musicbrainz_release_id
                 FROM releases r
                 JOIN recording_releases rr ON rr.release_id = r.id
                 JOIN recordings rec ON rec.id = rr.recording_id
@@ -128,24 +128,6 @@ def _release_info(release_id: Optional[str], before: dict, after: dict) -> dict:
 def _diff_snapshots(before: dict, after: dict) -> list:
     """Produce a list of change records by diffing two snapshots."""
     changes = []
-
-    # --- Album-level (releases.spotify_album_id) ---
-    for rid in set(before['releases']) | set(after['releases']):
-        b = before['releases'].get(rid, {}).get('spotify_album_id')
-        a = after['releases'].get(rid, {}).get('spotify_album_id')
-        if b == a:
-            continue
-        if b is None:
-            action = 'album_set'
-        elif a is None:
-            action = 'album_cleared'
-        else:
-            action = 'album_updated'
-        changes.append({
-            'action': action,
-            'release': _release_info(rid, before, after),
-            'spotify_album_id': {'before': b, 'after': a},
-        })
 
     # --- Track-level (recording_release_streaming_links, service='spotify') ---
     for rr_id in set(before['tracks']) | set(after['tracks']):
@@ -241,7 +223,8 @@ def _compute_post_run_buckets(after: dict) -> dict:
 
     unresolved_releases = []
     for rid, rel in after['releases'].items():
-        if not rel.get('spotify_album_id'):
+        album_id = after['release_links'].get(rid, {}).get('service_id')
+        if not album_id:
             continue  # matcher skipped these (nothing to rematch)
         if release_has_any_track.get(rid, False):
             continue
@@ -261,7 +244,7 @@ def _compute_post_run_buckets(after: dict) -> dict:
                 'year': rel.get('release_year'),
                 'musicbrainz_id': rel.get('musicbrainz_release_id'),
             },
-            'spotify_album_id': rel.get('spotify_album_id'),
+            'spotify_album_id': album_id,
             'recordings': recordings,
         })
 
@@ -271,7 +254,8 @@ def _compute_post_run_buckets(after: dict) -> dict:
         if not rid:
             continue
         rel = after['releases'].get(rid, {})
-        if not rel.get('spotify_album_id'):
+        album_id = after['release_links'].get(rid, {}).get('service_id')
+        if not album_id:
             continue  # release has no album ID, so no track-level rematch was attempted
         if rr_id in after['tracks']:
             continue
@@ -288,7 +272,7 @@ def _compute_post_run_buckets(after: dict) -> dict:
                 'year': rel.get('release_year'),
                 'musicbrainz_id': rel.get('musicbrainz_release_id'),
             },
-            'spotify_album_id': rel.get('spotify_album_id'),
+            'spotify_album_id': album_id,
         })
 
     return {

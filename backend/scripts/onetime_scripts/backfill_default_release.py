@@ -64,16 +64,18 @@ def find_best_release_for_recording(cur, recording_id):
             rel.release_year,
             (
                 CASE WHEN rr.spotify_track_id IS NOT NULL AND rel.cover_art_small IS NOT NULL THEN 100
-                     WHEN rel.spotify_album_id IS NOT NULL AND rel.cover_art_small IS NOT NULL THEN 90
+                     WHEN rsl_sp.service_id IS NOT NULL AND rel.cover_art_small IS NOT NULL THEN 90
                      WHEN EXISTS (SELECT 1 FROM release_imagery ri WHERE ri.release_id = rel.id AND ri.type = 'Front') THEN 80
                      WHEN rel.cover_art_small IS NOT NULL THEN 70
                      WHEN rr.spotify_track_id IS NOT NULL THEN 60
-                     WHEN rel.spotify_album_id IS NOT NULL THEN 50
+                     WHEN rsl_sp.service_id IS NOT NULL THEN 50
                      ELSE 10
                 END
             ) as score
         FROM recording_releases rr
         JOIN releases rel ON rr.release_id = rel.id
+        LEFT JOIN release_streaming_links rsl_sp
+            ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
         WHERE rr.recording_id = %s
         ORDER BY score DESC, rel.release_year ASC NULLS LAST
         LIMIT 1

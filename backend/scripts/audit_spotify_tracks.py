@@ -98,9 +98,8 @@ def get_existing_spotify_data(song_id: str) -> list:
                              THEN 'https://open.spotify.com/track/' || rr.spotify_track_id END
                     ) as spotify_track_url,
                     rel.title as release_title,
-                    rel.spotify_album_id,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL
-                         THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
                     rel.artist_credit,
                     -- Get leader/primary performer
                     (
@@ -116,6 +115,8 @@ def get_existing_spotify_data(song_id: str) -> list:
                 JOIN releases rel ON rr.release_id = rel.id
                 LEFT JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE r.song_id = %s
                   AND (rrsl.service_id IS NOT NULL OR rr.spotify_track_id IS NOT NULL)
                 ORDER BY r.recording_year DESC NULLS LAST, rel.title
@@ -136,13 +137,14 @@ def get_releases_for_audit(song_id: str) -> list:
                         rel.id as release_id,
                         rel.title as release_title,
                         rel.release_year,
-                        rel.spotify_album_id,
-                        CASE WHEN rel.spotify_album_id IS NOT NULL
-                             THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                        rsl_sp.service_id as spotify_album_id,
+                        rsl_sp.service_url as spotify_album_url,
                         rel.artist_credit
                     FROM releases rel
                     JOIN recording_releases rr ON rel.id = rr.release_id
                     JOIN recordings r ON rr.recording_id = r.id
+                    LEFT JOIN release_streaming_links rsl_sp
+                        ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                     WHERE r.song_id = %s
                     ORDER BY rel.id, rel.release_year DESC NULLS LAST
                 )
@@ -572,9 +574,8 @@ def get_tracks_with_albums(song_id: str) -> list:
                     ) as spotify_track_url,
                     rel.title as release_title,
                     rel.release_year,
-                    rel.spotify_album_id,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL
-                         THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
                     rel.artist_credit,
                     (
                         SELECT p.name
@@ -589,9 +590,11 @@ def get_tracks_with_albums(song_id: str) -> list:
                 JOIN releases rel ON rr.release_id = rel.id
                 LEFT JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE r.song_id = %s
                   AND (rrsl.service_id IS NOT NULL OR rr.spotify_track_id IS NOT NULL)
-                  AND rel.spotify_album_id IS NOT NULL
+                  AND rsl_sp.service_id IS NOT NULL
                 ORDER BY rel.release_year DESC NULLS LAST, rel.title
             """, (song_id,))
             return cur.fetchall()
@@ -761,9 +764,8 @@ def get_orphaned_albums(song_id: str) -> list:
                     rel.title as release_title,
                     rel.release_year,
                     rel.musicbrainz_release_id,
-                    rel.spotify_album_id,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL
-                         THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
                     rel.artist_credit,
                     (
                         SELECT p.name
@@ -781,8 +783,10 @@ def get_orphaned_albums(song_id: str) -> list:
                 JOIN recordings r ON rr.recording_id = r.id
                 LEFT JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE r.song_id = %s
-                  AND rel.spotify_album_id IS NOT NULL
+                  AND rsl_sp.service_id IS NOT NULL
                   AND rrsl.service_id IS NULL
                   AND (rr.spotify_track_id IS NULL OR rr.spotify_track_id = '')
                 ORDER BY rel.release_year DESC NULLS LAST, rel.title
@@ -792,11 +796,20 @@ def get_orphaned_albums(song_id: str) -> list:
 
 def clear_spotify_album_from_release(release_id: str) -> bool:
     """
-    Clear spotify_album_id from a release.
-    Returns True if successful.
+    Clear the Spotify album link from a release.
+    Returns True if a row was removed (or the legacy column cleared).
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # Remove from normalized streaming links table.
+            cur.execute("""
+                DELETE FROM release_streaming_links
+                WHERE release_id = %s AND service = 'spotify'
+            """, (release_id,))
+            removed = cur.rowcount
+            # Phase B transition: also clear the legacy column so the
+            # streaming-mismatches admin page doesn't keep reporting drift.
+            # The legacy write goes away in Phase C.
             cur.execute("""
                 UPDATE releases
                 SET spotify_album_id = NULL,
@@ -804,7 +817,7 @@ def clear_spotify_album_from_release(release_id: str) -> bool:
                 WHERE id = %s
             """, (release_id,))
             conn.commit()
-            return cur.rowcount > 0
+            return (removed > 0) or (cur.rowcount > 0)
 
 
 def find_orphaned_albums(song_name: str, matcher: SpotifyMatcher, fix: bool = False) -> dict:

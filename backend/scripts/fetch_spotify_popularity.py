@@ -59,15 +59,16 @@ def get_recordings_with_spotify_tracks(song_id: str) -> list:
                                  THEN 'https://open.spotify.com/track/' || rr.spotify_track_id END
                         ) as spotify_track_url,
                         rel.title as release_title,
-                        rel.spotify_album_id,
-                        CASE WHEN rel.spotify_album_id IS NOT NULL
-                             THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url
+                        rsl_sp.service_id as spotify_album_id,
+                        rsl_sp.service_url as spotify_album_url
                     FROM recordings r
                     LEFT JOIN releases def_rel ON r.default_release_id = def_rel.id
                     JOIN recording_releases rr ON r.id = rr.recording_id
                     JOIN releases rel ON rr.release_id = rel.id
                     LEFT JOIN recording_release_streaming_links rrsl
                         ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                    LEFT JOIN release_streaming_links rsl_sp
+                        ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                     WHERE r.song_id = %s
                       AND (rrsl.service_id IS NOT NULL OR rr.spotify_track_id IS NOT NULL)
                     ORDER BY COALESCE(rrsl.service_id, rr.spotify_track_id), r.recording_year DESC NULLS LAST

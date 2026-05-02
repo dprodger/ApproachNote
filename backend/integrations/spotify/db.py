@@ -76,10 +76,11 @@ def get_recordings_for_song(song_id: str, artist_filter: str = None) -> List[dic
                          WHERE rr.release_id = r.default_release_id AND rr.recording_id = r.id
                         ),
                         -- Default release: album-level fallback
-                        (SELECT 'https://open.spotify.com/album/' || rel.spotify_album_id
-                         FROM releases rel
-                         WHERE rel.id = r.default_release_id
-                           AND rel.spotify_album_id IS NOT NULL
+                        (SELECT rsl.service_url
+                         FROM release_streaming_links rsl
+                         WHERE rsl.release_id = r.default_release_id
+                           AND rsl.service = 'spotify'
+                           AND rsl.service_id IS NOT NULL
                         ),
                         -- Any release: check streaming links table
                         (SELECT rrsl.service_url
@@ -90,11 +91,13 @@ def get_recordings_for_song(song_id: str, artist_filter: str = None) -> List[dic
                          LIMIT 1
                         ),
                         -- Any release: album-level fallback
-                        (SELECT 'https://open.spotify.com/album/' || rel.spotify_album_id
+                        (SELECT rsl.service_url
                          FROM recording_releases rr
+                         JOIN release_streaming_links rsl
+                             ON rsl.release_id = rr.release_id AND rsl.service = 'spotify'
                          JOIN releases rel ON rr.release_id = rel.id
                          WHERE rr.recording_id = r.id
-                           AND rel.spotify_album_id IS NOT NULL
+                           AND rsl.service_id IS NOT NULL
                          ORDER BY rel.release_year DESC NULLS LAST
                          LIMIT 1
                         )
@@ -164,20 +167,19 @@ def get_releases_for_song(song_id: str, artist_filter: str = None) -> List[dict]
                     rel.title,
                     rel.artist_credit,
                     rel.release_year,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL
-                         THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
-                    rel.spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
                     -- Get performers from the linked recording (not from release)
                     (SELECT json_agg(
                         json_build_object(
                             'name', p.name,
                             'role', rp.role,
                             'instrument', i.name
-                        ) ORDER BY 
-                            CASE rp.role 
-                                WHEN 'leader' THEN 1 
-                                WHEN 'sideman' THEN 2 
-                                ELSE 3 
+                        ) ORDER BY
+                            CASE rp.role
+                                WHEN 'leader' THEN 1
+                                WHEN 'sideman' THEN 2
+                                ELSE 3
                             END,
                             p.name
                     )
@@ -189,6 +191,8 @@ def get_releases_for_song(song_id: str, artist_filter: str = None) -> List[dict]
                 FROM releases rel
                 JOIN recording_releases rr ON rel.id = rr.release_id
                 JOIN recordings rec ON rr.recording_id = rec.id
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE rec.song_id = %s
             """
             
@@ -206,10 +210,10 @@ def get_releases_for_song(song_id: str, artist_filter: str = None) -> List[dict]
                 params.append(artist_filter)
             
             query += """
-                GROUP BY rel.id, rel.title, rel.artist_credit, rel.release_year, rel.spotify_album_id, rr.recording_id
+                GROUP BY rel.id, rel.title, rel.artist_credit, rel.release_year, rsl_sp.service_id, rsl_sp.service_url, rr.recording_id
                 ORDER BY rel.release_year
             """
-            
+
             cur.execute(query, params)
             return cur.fetchall()
 
@@ -231,9 +235,8 @@ def get_releases_with_duration_mismatches(song_id: str, threshold_ms: int = 6000
                     rel.title,
                     rel.artist_credit,
                     rel.release_year,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL
-                         THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
-                    rel.spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
                     (SELECT json_agg(
                         json_build_object(
                             'name', p.name,
@@ -257,6 +260,8 @@ def get_releases_with_duration_mismatches(song_id: str, threshold_ms: int = 6000
                 JOIN recordings rec ON rr.recording_id = rec.id
                 JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE rec.song_id = %s
                   -- Prefer the per-release track_length_ms (set by the MB
                   -- importer when MB has it), fall back to the recording's
@@ -286,7 +291,7 @@ def get_releases_with_duration_mismatches(song_id: str, threshold_ms: int = 6000
                 params.append(artist_filter)
 
             query += """
-                GROUP BY rel.id, rel.title, rel.artist_credit, rel.release_year, rel.spotify_album_id, rr.recording_id
+                GROUP BY rel.id, rel.title, rel.artist_credit, rel.release_year, rsl_sp.service_id, rsl_sp.service_url, rr.recording_id
                 ORDER BY rel.release_year
             """
 
@@ -327,11 +332,12 @@ def get_releases_without_artwork() -> List[dict]:
         with conn.cursor() as cur:
             cur.execute("""
                 SELECT r.id, r.title,
-                       CASE WHEN r.spotify_album_id IS NOT NULL
-                            THEN 'https://open.spotify.com/album/' || r.spotify_album_id END as spotify_album_url,
-                       r.spotify_album_id
+                       rsl.service_url as spotify_album_url,
+                       rsl.service_id as spotify_album_id
                 FROM releases r
-                WHERE r.spotify_album_id IS NOT NULL
+                JOIN release_streaming_links rsl
+                    ON rsl.release_id = r.id AND rsl.service = 'spotify'
+                WHERE rsl.service_id IS NOT NULL
                   AND NOT EXISTS (
                       SELECT 1 FROM release_imagery ri
                       WHERE ri.release_id = r.id
@@ -454,7 +460,9 @@ def update_release_spotify_data(conn, release_id: str, spotify_data: dict,
     if album_art:
         upsert_release_imagery(conn, release_id, album_art, source_id=album_id, log=log)
 
-    # Update releases table with spotify_album_id
+    # Phase B transition: dual-write the legacy releases.spotify_album_id
+    # column AND the normalized release_streaming_links row. Phase C will
+    # remove the legacy write once readers have been live for a few days.
     with conn.cursor() as cur:
         cur.execute("""
             UPDATE releases
@@ -463,7 +471,7 @@ def update_release_spotify_data(conn, release_id: str, spotify_data: dict,
             WHERE id = %s
         """, (album_id, release_id))
 
-        # Also insert into normalized streaming links table
+        # Normalized streaming links table — the source of truth for readers.
         service_url = f'https://open.spotify.com/album/{album_id}'
         cur.execute("""
             INSERT INTO release_streaming_links (
@@ -544,13 +552,19 @@ def update_release_artwork(conn, release_id: str, album_art: dict,
         log.info(f"    [DRY RUN] Would update with cover artwork")
         return
 
-    # Look up existing spotify_album_id for source_id
+    # Look up existing Spotify album ID for source_id
     spotify_album_id = None
     with conn.cursor() as cur:
-        cur.execute("SELECT spotify_album_id FROM releases WHERE id = %s", (release_id,))
+        cur.execute(
+            """
+            SELECT service_id FROM release_streaming_links
+            WHERE release_id = %s AND service = 'spotify'
+            """,
+            (release_id,),
+        )
         row = cur.fetchone()
         if row:
-            spotify_album_id = row.get('spotify_album_id')
+            spotify_album_id = row.get('service_id')
 
     # Store in release_imagery table
     upsert_release_imagery(conn, release_id, album_art, source_id=spotify_album_id, log=log)
@@ -911,9 +925,10 @@ def update_recording_default_release(conn, song_id: str, release_id: str,
               AND (
                   r.default_release_id IS NULL
                   OR NOT EXISTS (
-                      SELECT 1 FROM releases rel 
-                      WHERE rel.id = r.default_release_id 
-                        AND rel.spotify_album_id IS NOT NULL
+                      SELECT 1 FROM release_streaming_links rsl
+                      WHERE rsl.release_id = r.default_release_id
+                        AND rsl.service = 'spotify'
+                        AND rsl.service_id IS NOT NULL
                   )
               )
         """, (release_id, song_id, release_id))

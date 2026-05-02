@@ -273,8 +273,9 @@ def get_song_summary(song_id):
                     ) OR EXISTS(
                         SELECT 1 FROM recordings r2
                         JOIN recording_releases rr2 ON rr2.recording_id = r2.id
-                        JOIN releases rel2 ON rr2.release_id = rel2.id
-                        WHERE r2.song_id = s.id AND rel2.spotify_album_id IS NOT NULL
+                        JOIN release_streaming_links rsl2
+                            ON rsl2.release_id = rr2.release_id AND rsl2.service = 'spotify'
+                        WHERE r2.song_id = s.id
                     ) as has_any_streaming
                 FROM songs s
                 WHERE s.id = %s
@@ -337,8 +338,9 @@ def get_song_summary(song_id):
                                JOIN recording_release_streaming_links rrsl ON rrsl.recording_release_id = rr2.id
                                WHERE rr2.recording_id = r.id)
                         OR EXISTS(SELECT 1 FROM recording_releases rr2
-                                  JOIN releases rel2 ON rr2.release_id = rel2.id
-                                  WHERE rr2.recording_id = r.id AND rel2.spotify_album_id IS NOT NULL)
+                                  JOIN release_streaming_links rsl2
+                                      ON rsl2.release_id = rr2.release_id AND rsl2.service = 'spotify'
+                                  WHERE rr2.recording_id = r.id)
                     ) as has_streaming,
                     -- Get available streaming services as array
                     COALESCE(

@@ -489,8 +489,8 @@ def get_recording_detail(recording_id):
                     rel.country,
                     rel.label,
                     rel.catalog_number,
-                    rel.spotify_album_id,
-                    CASE WHEN rel.spotify_album_id IS NOT NULL THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                    rsl_sp.service_id as spotify_album_id,
+                    rsl_sp.service_url as spotify_album_url,
                     -- Release-level cover art with imagery priority
                     {RELEASE_ART_SMALL_SQL},
                     {RELEASE_ART_MEDIUM_SQL},
@@ -517,6 +517,8 @@ def get_recording_detail(recording_id):
                 JOIN releases rel ON rr.release_id = rel.id
                 LEFT JOIN recording_release_streaming_links rrsl
                     ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 LEFT JOIN release_formats rf ON rel.format_id = rf.id
                 LEFT JOIN release_statuses rs ON rel.status_id = rs.id
                 WHERE rr.recording_id = %s
@@ -1006,8 +1008,8 @@ def get_recording_releases(recording_id):
                 rel.country,
                 rel.label,
                 rel.catalog_number,
-                rel.spotify_album_id,
-                CASE WHEN rel.spotify_album_id IS NOT NULL THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END as spotify_album_url,
+                rsl_sp.service_id as spotify_album_id,
+                rsl_sp.service_url as spotify_album_url,
                 -- Cover art with release_imagery priority
                 {RELEASE_ART_SMALL_SQL},
                 {RELEASE_ART_MEDIUM_SQL},
@@ -1073,6 +1075,8 @@ def get_recording_releases(recording_id):
             JOIN releases rel ON rr.release_id = rel.id
             LEFT JOIN recording_release_streaming_links rrsl
                 ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+            LEFT JOIN release_streaming_links rsl_sp
+                ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
             LEFT JOIN release_formats rf ON rel.format_id = rf.id
             LEFT JOIN release_statuses rs ON rel.status_id = rs.id
             WHERE rr.recording_id = %s

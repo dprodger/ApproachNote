@@ -71,7 +71,9 @@ Examples:
             cur.execute("""
                 SELECT COUNT(*) as count
                 FROM releases r
-                WHERE r.spotify_album_id IS NOT NULL
+                JOIN release_streaming_links rsl
+                    ON rsl.release_id = r.id AND rsl.service = 'spotify'
+                WHERE rsl.service_id IS NOT NULL
                   AND (r.cover_art_small IS NOT NULL
                        OR r.cover_art_medium IS NOT NULL
                        OR r.cover_art_large IS NOT NULL)

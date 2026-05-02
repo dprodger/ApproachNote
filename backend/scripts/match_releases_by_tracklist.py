@@ -140,7 +140,10 @@ class TrackListMatcher:
                     JOIN recordings rec ON rr.recording_id = rec.id
                     JOIN recording_performers rp ON rec.id = rp.recording_id
                     JOIN performers p ON rp.performer_id = p.id
-                    WHERE rel.spotify_album_id IS NULL
+                    WHERE NOT EXISTS (
+                        SELECT 1 FROM release_streaming_links rsl
+                        WHERE rsl.release_id = rel.id AND rsl.service = 'spotify'
+                    )
                       AND LOWER(p.name) = LOWER(%s)
                     ORDER BY rel.title
                 """, (artist_name,))

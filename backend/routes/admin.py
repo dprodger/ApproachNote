@@ -716,9 +716,8 @@ def get_existing_recordings_for_song(song_id):
                             'title', rel.title,
                             'year', rel.release_year,
                             'mb_release_id', rel.musicbrainz_release_id,
-                            'spotify_album_id', rel.spotify_album_id,
-                            'spotify_album_url', CASE WHEN rel.spotify_album_id IS NOT NULL
-                                THEN 'https://open.spotify.com/album/' || rel.spotify_album_id END,
+                            'spotify_album_id', rsl_sp.service_id,
+                            'spotify_album_url', rsl_sp.service_url,
                             'spotify_track_id', rrsl.service_id,
                             'spotify_track_url', rrsl.service_url,
                             'album_art_small', (SELECT ri.image_url_small FROM release_imagery ri
@@ -728,6 +727,8 @@ def get_existing_recordings_for_song(song_id):
                         JOIN releases rel ON rr.release_id = rel.id
                         LEFT JOIN recording_release_streaming_links rrsl
                             ON rrsl.recording_release_id = rr.id AND rrsl.service = 'spotify'
+                        LEFT JOIN release_streaming_links rsl_sp
+                            ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                         WHERE rr.recording_id = rec.id
                     ) as releases
                 FROM recordings rec
@@ -878,9 +879,10 @@ def link_orphan_to_existing_recording(orphan_id):
                       AND (
                           default_release_id IS NULL
                           OR (%s AND NOT EXISTS (
-                              SELECT 1 FROM releases rel
-                              WHERE rel.id = default_release_id
-                                AND rel.spotify_album_id IS NOT NULL
+                              SELECT 1 FROM release_streaming_links rsl
+                              WHERE rsl.release_id = default_release_id
+                                AND rsl.service = 'spotify'
+                                AND rsl.service_id IS NOT NULL
                           ))
                       )
                 """, (release_id, recording_id, has_spotify))
@@ -1107,7 +1109,7 @@ def get_potential_matches(song_id, rec_id):
                     rel.artist_credit,
                     rel.release_year,
                     rel.musicbrainz_release_id,
-                    rel.spotify_album_id,
+                    rsl_sp.service_id AS spotify_album_id,
                     (SELECT ri.image_url_small FROM release_imagery ri
                      WHERE ri.release_id = rel.id AND ri.type = 'Front' LIMIT 1) AS cover_art,
                     r.id AS recording_id,
@@ -1116,6 +1118,8 @@ def get_potential_matches(song_id, rec_id):
                 LEFT JOIN recording_releases rr ON rel.id = rr.release_id
                 LEFT JOIN recordings r ON rr.recording_id = r.id AND r.song_id = %s
                 LEFT JOIN releases def_rel ON r.default_release_id = def_rel.id
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE (
                     rel.artist_credit ILIKE %s
                     OR rel.title ILIKE %s
@@ -2407,8 +2411,8 @@ def streaming_diagnostics(song_id):
                         rel.artist_credit,
                         rel.release_year,
                         rel.musicbrainz_release_id as release_mb_id,
-                        -- Spotify album (on release)
-                        rel.spotify_album_id,
+                        -- Spotify album (from release_streaming_links)
+                        rsl_spotify.service_id as spotify_album_id,
                         -- Spotify track from streaming links table
                         rrsl_spotify.service_id as spotify_track_id,
                         rrsl_spotify.service_url as spotify_track_url,
@@ -2425,6 +2429,8 @@ def streaming_diagnostics(song_id):
                     JOIN releases rel ON rr.release_id = rel.id
                     LEFT JOIN recording_release_streaming_links rrsl_spotify
                         ON rrsl_spotify.recording_release_id = rr.id AND rrsl_spotify.service = 'spotify'
+                    LEFT JOIN release_streaming_links rsl_spotify
+                        ON rsl_spotify.release_id = rel.id AND rsl_spotify.service = 'spotify'
                     LEFT JOIN release_streaming_links rsl_apple
                         ON rsl_apple.release_id = rel.id AND rsl_apple.service = 'apple_music'
                     LEFT JOIN recording_release_streaming_links rrsl_apple
@@ -2961,7 +2967,7 @@ def duration_mismatches_review(song_id):
                     rel.title AS release_title,
                     rel.artist_credit,
                     rel.musicbrainz_release_id AS release_mb_id,
-                    rel.spotify_album_id,
+                    rsl_sp.service_id AS spotify_album_id,
                     rel.release_year,
                     ABS(COALESCE(rr.track_length_ms, r.duration_ms) - rrsl.duration_ms) AS diff_ms
                 FROM recordings r
@@ -2970,6 +2976,8 @@ def duration_mismatches_review(song_id):
                     ON rrsl.recording_release_id = rr.id
                     AND rrsl.service = 'spotify'
                 JOIN releases rel ON rel.id = rr.release_id
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                 WHERE r.song_id = %s
                   AND COALESCE(rr.track_length_ms, r.duration_ms) IS NOT NULL
                   AND rrsl.duration_ms IS NOT NULL
@@ -3235,10 +3243,12 @@ def duration_mismatches_link_tracklists(link_id):
                         rel.title        AS release_title,
                         rel.artist_credit,
                         rel.musicbrainz_release_id,
-                        rel.spotify_album_id
+                        rsl_sp.service_id AS spotify_album_id
                     FROM recording_release_streaming_links rrsl
                     JOIN recording_releases rr ON rr.id = rrsl.recording_release_id
                     JOIN releases rel ON rel.id = rr.release_id
+                    LEFT JOIN release_streaming_links rsl_sp
+                        ON rsl_sp.release_id = rel.id AND rsl_sp.service = 'spotify'
                     WHERE rrsl.id = %s
                       AND rrsl.service = 'spotify'
                     """,
@@ -3490,7 +3500,10 @@ def spotify_rematch_list():
                         s.title,
                         s.composer,
                         COUNT(DISTINCT r.id) FILTER (
-                            WHERE r.spotify_album_id IS NOT NULL
+                            WHERE EXISTS (
+                                      SELECT 1 FROM release_streaming_links rsl
+                                      WHERE rsl.release_id = r.id AND rsl.service = 'spotify'
+                                  )
                               AND NOT EXISTS (
                                   SELECT 1 FROM recording_release_streaming_links rrsl
                                   WHERE rrsl.recording_release_id = rr.id
@@ -3516,8 +3529,9 @@ def spotify_rematch_list():
                     JOIN recordings rec ON rec.song_id = s.id
                     JOIN recording_releases rr ON rr.recording_id = rec.id
                     JOIN releases r ON r.id = rr.release_id
-                    WHERE r.spotify_album_id IS NOT NULL
-                      AND NOT EXISTS (
+                    JOIN release_streaming_links rsl
+                        ON rsl.release_id = r.id AND rsl.service = 'spotify'
+                    WHERE NOT EXISTS (
                           SELECT 1 FROM recording_release_streaming_links rrsl
                           WHERE rrsl.recording_release_id = rr.id
                             AND rrsl.service = 'spotify'
@@ -3562,10 +3576,10 @@ def spotify_rematch_detail(song_id):
                 SELECT
                     COUNT(DISTINCT r.id) AS total_releases,
                     COUNT(DISTINCT r.id) FILTER (
-                        WHERE r.spotify_album_id IS NOT NULL
+                        WHERE rsl_sp.service_id IS NOT NULL
                     ) AS releases_with_album_id,
                     COUNT(DISTINCT r.id) FILTER (
-                        WHERE r.spotify_album_id IS NOT NULL
+                        WHERE rsl_sp.service_id IS NOT NULL
                           AND NOT EXISTS (
                               SELECT 1 FROM recording_release_streaming_links rrsl
                               WHERE rrsl.recording_release_id = rr.id
@@ -3583,6 +3597,8 @@ def spotify_rematch_detail(song_id):
                 FROM recordings rec
                 JOIN recording_releases rr ON rr.recording_id = rec.id
                 JOIN releases r ON r.id = rr.release_id
+                LEFT JOIN release_streaming_links rsl_sp
+                    ON rsl_sp.release_id = r.id AND rsl_sp.service = 'spotify'
                 WHERE rec.song_id = %s
             """, (song_id,))
             summary = dict(cur.fetchone() or {})
@@ -3792,6 +3808,11 @@ def release_streaming_mismatches():
             rel.artist_credit,
             rel.release_year,
             rel.musicbrainz_release_id AS mb_release_id,
+            -- Phase B exception: this admin page exists to expose drift between
+            -- the legacy releases.spotify_album_id column and the normalized
+            -- release_streaming_links table. The legacy_spotify_album_id read
+            -- here is intentionally kept until Phase C drops the column and
+            -- the hide_legacy filter alongside it.
             rel.spotify_album_id AS legacy_spotify_album_id,
             pr.service_orphans,
             pr.total_orphan_tracks,
@@ -4735,7 +4756,8 @@ def recordings_browse_detail(recording_id):
                        rel.artist_credit,
                        rel.release_year,
                        rel.musicbrainz_release_id AS mb_release_id,
-                       rel.spotify_album_id,
+                       (SELECT service_id FROM release_streaming_links rsl
+                          WHERE rsl.release_id = rel.id AND rsl.service = 'spotify') AS spotify_album_id,
                        (SELECT service_id FROM release_streaming_links rsl
                           WHERE rsl.release_id = rel.id AND rsl.service = 'apple_music') AS apple_music_album_id
                 FROM recording_releases rr

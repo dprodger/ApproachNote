@@ -75,8 +75,9 @@ def get_affected_songs() -> list:
                 JOIN recordings rec ON rec.song_id = s.id
                 JOIN recording_releases rr ON rr.recording_id = rec.id
                 JOIN releases r ON r.id = rr.release_id
-                WHERE r.spotify_album_id IS NOT NULL
-                  AND NOT EXISTS (
+                JOIN release_streaming_links rsl
+                    ON rsl.release_id = r.id AND rsl.service = 'spotify'
+                WHERE NOT EXISTS (
                       SELECT 1 FROM recording_release_streaming_links rrsl
                       WHERE rrsl.recording_release_id = rr.id
                         AND rrsl.service = 'spotify'
