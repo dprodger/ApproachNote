@@ -3800,9 +3800,11 @@ def release_streaming_mismatches():
     if hide_legacy:
         # Hide Spotify migration artifacts: don't show rows whose only
         # missing service is spotify AND the legacy column is populated.
+        # Cast to varchar[] — services_missing comes back as the column's
+        # native varchar[] (PG doesn't auto-cast text[] vs varchar[]).
         base_sql += """
             AND NOT (
-                pr.services_missing = ARRAY['spotify']
+                pr.services_missing = ARRAY['spotify']::varchar[]
                 AND rel.spotify_album_id IS NOT NULL
             )
         """
