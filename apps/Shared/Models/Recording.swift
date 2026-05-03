@@ -400,6 +400,17 @@ enum StreamingService: String, CaseIterable, Identifiable {
         }
     }
 
+    /// Asset-catalog image name for the official brand mark, when the service
+    /// requires one for attribution (Spotify, YouTube). Apple Music falls back
+    /// to its SF Symbol.
+    var brandAssetName: String? {
+        switch self {
+        case .spotify: return "SpotifyIcon"
+        case .youtube: return "YouTubeIcon"
+        case .appleMusic: return nil
+        }
+    }
+
     var brandColor: Color {
         switch self {
         case .spotify: return Color(red: 30/255, green: 215/255, blue: 96/255)

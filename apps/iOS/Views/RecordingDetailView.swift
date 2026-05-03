@@ -806,12 +806,11 @@ struct RecordingDetailView: View {
                     }
                 } label: {
                     HStack(spacing: 4) {
-                        Image(systemName: source.icon)
-                            .font(.system(size: 14))
+                        StreamingIcon(service: source.service, size: 14)
                         Text(source.name)
                             .font(ApproachNoteTheme.caption())
+                            .foregroundColor(source.color)
                     }
-                    .foregroundColor(source.color)
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
                     .background(source.color.opacity(0.15))

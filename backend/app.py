@@ -78,6 +78,14 @@ def landing_page():
     """Serve the main landing page"""
     return render_template('index.html')
 
+@app.route('/terms')
+def terms_page():
+    return render_template('terms.html')
+
+@app.route('/privacy')
+def privacy_page():
+    return render_template('privacy.html')
+
 # ============================================================================
 # HOST-BASED ROUTING
 # ============================================================================
@@ -88,7 +96,7 @@ ADMIN_HOSTS = ['admin.approachnote.com']
 WEB_HOSTS = ['approachnote.com', 'www.approachnote.com']
 
 # Routes that should only be served from the website (not API subdomain)
-WEB_ONLY_PATHS = ['/']
+WEB_ONLY_PATHS = ['/', '/terms', '/privacy']
 
 # Routes that should only be served from the API subdomain
 # (everything except web-only paths and static files)

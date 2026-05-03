@@ -32,9 +32,7 @@ struct StreamingButtons: View {
         HStack(spacing: 8) {
             if let urlString = spotifyUrl, let url = URL(string: urlString) {
                 Link(destination: url) {
-                    Image(systemName: "play.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(.green)
+                    StreamingIcon(service: .spotify, size: 22)
                 }
                 .buttonStyle(.plain)
                 .help("Open in Spotify")
@@ -42,9 +40,7 @@ struct StreamingButtons: View {
 
             if let urlString = appleMusicUrl, let url = URL(string: urlString) {
                 Link(destination: url) {
-                    Image(systemName: "music.note")
-                        .font(.title2)
-                        .foregroundColor(Color(red: 252/255, green: 60/255, blue: 68/255))
+                    StreamingIcon(service: .appleMusic, size: 22)
                 }
                 .buttonStyle(.plain)
                 .help("Open in Apple Music")
@@ -52,9 +48,7 @@ struct StreamingButtons: View {
 
             if let urlString = youtubeUrl, let url = URL(string: urlString) {
                 Link(destination: url) {
-                    Image(systemName: "play.rectangle.fill")
-                        .font(.title2)
-                        .foregroundColor(.red)
+                    StreamingIcon(service: .youtube, size: 22)
                 }
                 .buttonStyle(.plain)
                 .help("Open in YouTube")

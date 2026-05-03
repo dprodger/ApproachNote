@@ -159,6 +159,11 @@ struct SettingsView: View {
                     Label("Community", systemImage: "person.3.fill")
                 }
                 .tag(2)
+            AboutSettingsView()
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+                .tag(3)
         }
         .frame(width: 500, height: settingsHeight)
         .animation(.easeInOut, value: authManager.isAuthenticated)
@@ -169,8 +174,50 @@ struct SettingsView: View {
         case 0: return 380  // General tab
         case 1: return authManager.isAuthenticated ? 400 : 550  // Account tab
         case 2: return authManager.isAuthenticated ? 420 : 350  // Community tab
+        case 3: return 260  // About tab
         default: return 400
         }
+    }
+}
+
+// MARK: - About Settings
+
+struct AboutSettingsView: View {
+    var body: some View {
+        Form {
+            Section("Legal") {
+                Link(destination: URL(string: "https://approachnote.com/terms")!) {
+                    HStack {
+                        Image(systemName: "doc.plaintext")
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .frame(width: 20)
+                        Text("Terms of Service")
+                            .foregroundColor(ApproachNoteTheme.charcoal)
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+
+                Link(destination: URL(string: "https://approachnote.com/privacy")!) {
+                    HStack {
+                        Image(systemName: "lock.shield")
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .frame(width: 20)
+                        Text("Privacy Policy")
+                            .foregroundColor(ApproachNoteTheme.charcoal)
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .formStyle(.grouped)
     }
 }
 
