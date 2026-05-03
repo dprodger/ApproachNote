@@ -1409,7 +1409,7 @@ def fetch_mb_tracks_for_release(conn, release_id: str) -> list:
         return []
 
     mb_searcher = MusicBrainzSearcher()
-    release_data = mb_searcher.get_release_details(row['musicbrainz_release_id'])
+    release_data = mb_searcher.get_release_tracklist(row['musicbrainz_release_id'])
     if not release_data:
         return []
 

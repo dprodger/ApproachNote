@@ -218,14 +218,18 @@ class MusicBrainzSearcher:
     def _get_release_detail_cache_path(self, release_id):
         """
         Get the cache file path for a release detail lookup
-        
+
         Args:
             release_id: MusicBrainz release ID
-            
+
         Returns:
             Path object for the cache file
         """
         filename = f"release_{release_id}.json"
+        return self.release_cache_dir / filename
+
+    def _get_release_tracklist_cache_path(self, release_id):
+        filename = f"release_{release_id}_tracklist.json"
         return self.release_cache_dir / filename
     
     def _get_wikidata_cache_path(self, wikidata_id):
@@ -1016,9 +1020,95 @@ class MusicBrainzSearcher:
                     logger.warning(f"BACKOFF: Retrying after unexpected error...")
                     continue
                 return None
-        
+
         return None
-    
+
+    def get_release_tracklist(self, release_id, max_retries=3):
+        """Fetch a release's tracklist only — `inc=recordings`, no `artist-rels`.
+
+        For tracklist-comparison callers (the matcher gate, the audit
+        script). The full `get_release_details` fetch with artist-rels
+        can balloon to hundreds of MB on box-set releases and OOM the
+        process; this slim variant returns ~50× less data on big ones.
+
+        Returns the parsed JSON (same shape as get_release_details for
+        the `media[].tracks[].title` path) or None on failure.
+        """
+        cache_path = self._get_release_tracklist_cache_path(release_id)
+        if not self.force_refresh:
+            cached = self._load_from_cache(cache_path)
+            if cached:
+                logger.debug(f"  Using cached release tracklist (cached: {cached['cached_at'][:10]})")
+                self.last_made_api_call = False
+                return cached.get('data')
+
+        for attempt in range(max_retries):
+            try:
+                if attempt > 0:
+                    backoff_time = 2 ** (attempt + 1)
+                    logger.warning(f"BACKOFF: MusicBrainz tracklist fetch retry {attempt + 1}/{max_retries}, "
+                                   f"waiting {backoff_time}s before retry (release_id={release_id})")
+                    time.sleep(backoff_time)
+
+                if attempt == 0:
+                    self.last_made_api_call = True
+                    self.rate_limit()
+
+                url = f"https://musicbrainz.org/ws/2/release/{release_id}"
+                params = {'inc': 'recordings', 'fmt': 'json'}
+
+                logger.info(f"Fetching MusicBrainz release tracklist: {release_id}")
+
+                response = self.session.get(url, params=params, timeout=(10, 30))
+
+                if response.status_code == 200:
+                    data = response.json()
+                    self._save_to_cache(cache_path, data)
+                    return data
+                elif response.status_code == 404:
+                    self._save_to_cache(cache_path, None)
+                    logger.warning(f"Release not found in MusicBrainz: {release_id}")
+                    return None
+                elif response.status_code == 503:
+                    logger.warning(f"MusicBrainz service unavailable (503), will retry...")
+                    if attempt < max_retries - 1:
+                        continue
+                    logger.error("All retry attempts failed (503)")
+                    return None
+                elif response.status_code == 429:
+                    logger.warning(f"BACKOFF: MusicBrainz rate limit (429), will retry with longer delay...")
+                    if attempt < max_retries - 1:
+                        time.sleep(5)
+                        continue
+                    logger.error("All retry attempts failed (429 rate limit)")
+                    return None
+                else:
+                    logger.error(f"MusicBrainz API error {response.status_code}")
+                    if attempt < max_retries - 1:
+                        continue
+                    return None
+
+            except requests.exceptions.ConnectionError as e:
+                logger.warning(f"BACKOFF: Connection error on tracklist fetch (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    continue
+                logger.error(f"All retry attempts failed - connection error (release_id={release_id})")
+                return None
+            except requests.exceptions.Timeout as e:
+                logger.warning(f"BACKOFF: Timeout on tracklist fetch (attempt {attempt + 1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    continue
+                logger.error(f"All retry attempts failed - timeout (release_id={release_id})")
+                return None
+            except Exception as e:
+                logger.error(f"Error fetching release tracklist from MusicBrainz: {e}")
+                if attempt < max_retries - 1:
+                    logger.warning(f"BACKOFF: Retrying after unexpected error...")
+                    continue
+                return None
+
+        return None
+
     def clear_cache(self, search_only=False):
         """
         Clear the MusicBrainz cache
