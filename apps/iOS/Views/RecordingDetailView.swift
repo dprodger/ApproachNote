@@ -805,18 +805,13 @@ struct RecordingDetailView: View {
                         openURL(url)
                     }
                 } label: {
-                    HStack(spacing: 4) {
-                        StreamingIcon(service: source.service, size: 14)
-                        Text(source.name)
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(source.color)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(source.color.opacity(0.15))
-                    .cornerRadius(16)
+                    StreamingIcon(service: source.service, size: 18)
+                        .padding(12)
+                        .background(source.color.opacity(0.15))
+                        .clipShape(Circle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(source.name)
             }
 
             Spacer()

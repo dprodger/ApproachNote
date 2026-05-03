@@ -536,56 +536,41 @@ struct RecordingDetailView: View {
                 .font(ApproachNoteTheme.headline())
                 .foregroundColor(ApproachNoteTheme.charcoal)
 
-            HStack(spacing: 16) {
+            HStack(spacing: 12) {
                 if let spotifyUrlString = spotifyUrl(for: recording),
                    let url = URL(string: spotifyUrlString) {
                     Link(destination: url) {
-                        HStack {
-                            Image(systemName: "play.circle.fill")
-                                .font(.title2)
-                            Text("Spotify")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.green)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                        StreamingIcon(service: .spotify, size: 24)
+                            .padding(12)
+                            .background(StreamingService.spotify.brandColor.opacity(0.15))
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .help("Open in Spotify")
                 }
 
                 if let appleMusicUrlString = appleMusicUrl(for: recording),
                    let url = URL(string: appleMusicUrlString) {
                     Link(destination: url) {
-                        HStack {
-                            Image(systemName: "applelogo")
-                                .font(.title2)
-                            Text("Apple Music")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color(red: 252/255, green: 60/255, blue: 68/255))
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                        StreamingIcon(service: .appleMusic, size: 24)
+                            .padding(12)
+                            .background(StreamingService.appleMusic.brandColor.opacity(0.15))
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .help("Open in Apple Music")
                 }
 
                 if let youtubeUrlString = youtubeUrl(for: recording),
                    let url = URL(string: youtubeUrlString) {
                     Link(destination: url) {
-                        HStack {
-                            Image(systemName: "play.rectangle.fill")
-                                .font(.title2)
-                            Text("YouTube")
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
-                        .background(Color.red)
-                        .foregroundColor(.white)
-                        .cornerRadius(8)
+                        StreamingIcon(service: .youtube, size: 24)
+                            .padding(12)
+                            .background(StreamingService.youtube.brandColor.opacity(0.15))
+                            .clipShape(Circle())
                     }
                     .buttonStyle(.plain)
+                    .help("Open in YouTube")
                 }
             }
         }
