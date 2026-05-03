@@ -276,41 +276,6 @@ struct SettingsView: View {
                     Divider()
                         .padding(.horizontal)
 
-                    // About & Legal Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "doc.text")
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                            Text("About & Legal")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                        }
-                        .padding(.horizontal)
-
-                        VStack(spacing: 0) {
-                            LegalLinkRow(
-                                icon: "doc.plaintext",
-                                label: "Terms of Service",
-                                url: URL(string: "https://approachnote.com/terms")!
-                            )
-
-                            Divider()
-                                .padding(.leading, 48)
-
-                            LegalLinkRow(
-                                icon: "lock.shield",
-                                label: "Privacy Policy",
-                                url: URL(string: "https://approachnote.com/privacy")!
-                            )
-                        }
-                        .background(ApproachNoteTheme.cardBackground)
-                        .cornerRadius(8)
-                        .padding(.horizontal)
-                    }
-
-                    Divider()
-                        .padding(.horizontal)
-
                     // Account Actions
                     VStack(spacing: 0) {
                         // Log Out Button
@@ -391,39 +356,6 @@ private struct ContributionStatRow: View {
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 12)
-    }
-}
-
-// MARK: - Legal Link Row
-
-private struct LegalLinkRow: View {
-    let icon: String
-    let label: String
-    let url: URL
-
-    var body: some View {
-        Link(destination: url) {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
-                    .frame(width: 24)
-
-                Text(label)
-                    .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
-
-                Spacer()
-
-                Image(systemName: "arrow.up.right.square")
-                    .font(.system(size: 13))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
-            }
-            .padding(.vertical, 14)
-            .padding(.horizontal, 12)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
     }
 }
 

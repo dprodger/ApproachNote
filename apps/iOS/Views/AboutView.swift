@@ -214,10 +214,17 @@ struct AboutView: View {
                     .foregroundColor(.white.opacity(0.8))
                     .padding(.bottom, 10)
 
-                Link("www.approachnote.com", destination: URL(string: "https://www.approachnote.com")!)
-                    .font(ApproachNoteTheme.caption())
-                    .tint(.white.opacity(0.8))
-                    .padding(.bottom, 40)
+                HStack(spacing: 10) {
+                    Link("Terms", destination: URL(string: "https://approachnote.com/terms")!)
+                    Text("·")
+                    Link("Privacy", destination: URL(string: "https://approachnote.com/privacy")!)
+                    Text("·")
+                    Link("approachnote.com", destination: URL(string: "https://www.approachnote.com")!)
+                }
+                .font(ApproachNoteTheme.caption())
+                .foregroundColor(.white.opacity(0.8))
+                .tint(.white.opacity(0.8))
+                .padding(.bottom, 40)
             }
             .dynamicTypeSize(...DynamicTypeSize.large)
         }
