@@ -290,7 +290,7 @@ struct RecordingDetailView: View {
                     }
                 }
                 .frame(maxWidth: .infinity)
-                .cornerRadius(12)
+                .cornerRadius(8)
                 .rotation3DEffect(
                     .degrees(showingBackCover ? 180 : 0),
                     axis: (x: 0, y: 1, z: 0)
@@ -317,31 +317,11 @@ struct RecordingDetailView: View {
                     .help(showingBackCover ? "Show front cover" : "Show back cover")
                 }
 
-                // Source badge (shows front or back cover source)
-                VStack {
-                    Spacer()
-                    HStack {
-                        if showingBackCover {
-                            AlbumArtSourceBadge(
-                                source: displayBackCoverSource,
-                                sourceUrl: displayBackCoverSourceUrl
-                            )
-                            .padding(8)
-                        } else {
-                            AlbumArtSourceBadge(
-                                source: displayAlbumArtSource,
-                                sourceUrl: displayAlbumArtSourceUrl
-                            )
-                            .padding(8)
-                        }
-                        Spacer()
-                    }
-                }
             }
 
             // Song title, album title, and artist below the image
             VStack(alignment: .leading, spacing: 8) {
-                // Recording Name (Year)
+                // Recording Name (Year) + image-source ⓘ button
                 HStack {
                     if recording.isCanonical == true {
                         Image(systemName: "star.fill")
@@ -352,6 +332,18 @@ struct RecordingDetailView: View {
                         Text("\(songTitle)\(yearSuffix)")
                             .font(ApproachNoteTheme.largeTitle())
                             .foregroundColor(ApproachNoteTheme.charcoal)
+                    }
+                    Spacer()
+                    if showingBackCover {
+                        AlbumArtSourceBadge(
+                            source: displayBackCoverSource,
+                            sourceUrl: displayBackCoverSourceUrl
+                        )
+                    } else {
+                        AlbumArtSourceBadge(
+                            source: displayAlbumArtSource,
+                            sourceUrl: displayAlbumArtSourceUrl
+                        )
                     }
                 }
 
@@ -540,10 +532,7 @@ struct RecordingDetailView: View {
                 if let spotifyUrlString = spotifyUrl(for: recording),
                    let url = URL(string: spotifyUrlString) {
                     Link(destination: url) {
-                        StreamingIcon(service: .spotify, size: 24)
-                            .padding(12)
-                            .background(StreamingService.spotify.brandColor.opacity(0.15))
-                            .clipShape(Circle())
+                        StreamingIcon(service: .spotify, size: 48)
                     }
                     .buttonStyle(.plain)
                     .help("Open in Spotify")
@@ -552,10 +541,7 @@ struct RecordingDetailView: View {
                 if let appleMusicUrlString = appleMusicUrl(for: recording),
                    let url = URL(string: appleMusicUrlString) {
                     Link(destination: url) {
-                        StreamingIcon(service: .appleMusic, size: 24)
-                            .padding(12)
-                            .background(StreamingService.appleMusic.brandColor.opacity(0.15))
-                            .clipShape(Circle())
+                        StreamingIcon(service: .appleMusic, size: 48)
                     }
                     .buttonStyle(.plain)
                     .help("Open in Apple Music")
@@ -564,10 +550,7 @@ struct RecordingDetailView: View {
                 if let youtubeUrlString = youtubeUrl(for: recording),
                    let url = URL(string: youtubeUrlString) {
                     Link(destination: url) {
-                        StreamingIcon(service: .youtube, size: 24)
-                            .padding(12)
-                            .background(StreamingService.youtube.brandColor.opacity(0.15))
-                            .clipShape(Circle())
+                        StreamingIcon(service: .youtube, size: 48)
                     }
                     .buttonStyle(.plain)
                     .help("Open in YouTube")

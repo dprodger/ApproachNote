@@ -2,7 +2,10 @@
 //  ArtistImageCarousel.swift
 //  Approach Note
 //
-//  Simple horizontal scrolling image carousel with source watermarks
+//  Horizontal scrolling carousel of artist images. Tapping an image
+//  opens a detail sheet that surfaces the source attribution; nothing
+//  is overlaid on the image itself, to comply with partner-branding
+//  rules (e.g. Spotify forbids its mark from appearing on artwork).
 //
 
 import SwiftUI
@@ -68,61 +71,30 @@ private struct ImageThumbnail: View {
         return 280 * aspectRatio
     }
     
-    private var sourceName: String {
-        switch image.source.lowercased() {
-        case "wikimedia": return "Wikimedia Commons"
-        case "musicbrainz": return "MusicBrainz"
-        case "lastfm": return "Last.fm"
-        case "spotify": return "Spotify"
-        default: return image.source.capitalized
-        }
-    }
-    
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
-            // Main image
-            Group {
-                if let uiImage = uiImage {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: cardWidth, height: 280)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                } else if isLoading {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.gray.opacity(0.2))
-                        .frame(width: cardWidth, height: 280)
-                        .overlay(ProgressView().tint(ApproachNoteTheme.amber))
-                } else {
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: cardWidth, height: 280)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(ApproachNoteTheme.largeTitle())
-                                .foregroundColor(.gray)
-                        )
-                }
-            }
-            
-            // Source watermark overlay
-            if uiImage != nil {
-                HStack(spacing: 4) {
-                    Image(systemName: "photo.badge.checkmark")
-                        .font(.caption2)
-                    Text(sourceName)
-                        .font(.caption2)
-                        .fontWeight(.medium)
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 6)
-                        .fill(Color.black.opacity(0.6))
-                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                )
-                .padding(8)
+        // Image only — source attribution lives in ImageDetailSheet (tap to open)
+        // so no partner-branded watermark sits on top of the artwork.
+        Group {
+            if let uiImage = uiImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: cardWidth, height: 280)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else if isLoading {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(width: cardWidth, height: 280)
+                    .overlay(ProgressView().tint(ApproachNoteTheme.amber))
+            } else {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: cardWidth, height: 280)
+                    .overlay(
+                        Image(systemName: "photo")
+                            .font(ApproachNoteTheme.largeTitle())
+                            .foregroundColor(.gray)
+                    )
             }
         }
         .frame(width: cardWidth, height: 280)

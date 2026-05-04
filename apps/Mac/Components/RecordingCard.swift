@@ -142,35 +142,6 @@ struct RecordingCard: View {
                     .help(showingBackCover ? "Show front cover" : "Show back cover")
                 }
 
-                // Source badge (bottom-left, shows front or back cover source)
-                VStack {
-                    Spacer()
-                    HStack {
-                        if showingBackCover {
-                            AlbumArtSourceBadge(
-                                source: recording.backCoverSource,
-                                sourceUrl: recording.backCoverSourceUrl
-                            )
-                        } else {
-                            AlbumArtSourceBadge(
-                                source: recording.displayAlbumArtSource,
-                                sourceUrl: recording.displayAlbumArtSourceUrl
-                            )
-                        }
-                        Spacer()
-                    }
-                }
-                .padding(6)
-
-                // Streaming button overlay (bottom-right)
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        StreamingButtons(recording: recording)
-                    }
-                }
-                .padding(8)
             }
             .frame(width: artworkSize, height: artworkSize)
 
@@ -184,7 +155,7 @@ struct RecordingCard: View {
                         .lineLimit(1)
                 }
 
-                // Album title with optional canonical star
+                // Album title with optional canonical star + image-source ⓘ button
                 HStack(spacing: 4) {
                     if recording.isCanonical == true {
                         Image(systemName: "star.fill")
@@ -196,6 +167,18 @@ struct RecordingCard: View {
                         .font(ApproachNoteTheme.body(weight: .medium))
                         .foregroundColor(ApproachNoteTheme.charcoal)
                         .lineLimit(2)
+
+                    if showingBackCover {
+                        AlbumArtSourceBadge(
+                            source: recording.backCoverSource,
+                            sourceUrl: recording.backCoverSourceUrl
+                        )
+                    } else {
+                        AlbumArtSourceBadge(
+                            source: recording.displayAlbumArtSource,
+                            sourceUrl: recording.displayAlbumArtSourceUrl
+                        )
+                    }
                 }
 
                 // Recording title (when different from song title)
@@ -213,6 +196,10 @@ struct RecordingCard: View {
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(ApproachNoteTheme.smokeGray)
                 }
+
+                // Streaming buttons row (off the artwork — partner-branding rules)
+                StreamingButtons(recording: recording)
+                    .padding(.top, 4)
             }
             .frame(width: artworkSize, alignment: .leading)
         }

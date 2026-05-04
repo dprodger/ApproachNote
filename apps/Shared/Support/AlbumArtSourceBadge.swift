@@ -2,14 +2,19 @@
 //  AlbumArtSourceBadge.swift
 //  Approach Note
 //
-//  Watermark badge overlay for album art showing the image source
-//  with tap-to-view source details and attribution link.
+//  Generic info button for album art attribution. Renders a small
+//  ⓘ icon (no service name visible) so it can sit alongside artwork
+//  without violating partner-branding rules — Spotify in particular
+//  forbids the Spotify mark from appearing over album artwork.
+//  Tapping the button opens a sheet that shows the source name,
+//  usage info, and a link to the source page.
 //
 
 import SwiftUI
 
-/// A small badge overlay showing the source of album artwork
-/// Tap to see source details and visit the source page
+/// Tiny "ⓘ" button surfacing the source of an album-art image. Designed
+/// to be placed near (not on) the artwork — typically alongside the
+/// album title or beneath the image.
 struct AlbumArtSourceBadge: View {
     let source: String?
     let sourceUrl: String?
@@ -34,45 +39,19 @@ struct AlbumArtSourceBadge: View {
         }
     }
 
-    private var sourceIcon: String {
-        guard let source = source else { return "photo" }
-        switch source.lowercased() {
-        case "musicbrainz":
-            return "archivebox"  // CAA icon
-        case "spotify":
-            return "waveform"    // Music streaming icon
-        case "apple":
-            return "applelogo"
-        case "wikipedia":
-            return "book"
-        case "amazon":
-            return "cart"
-        default:
-            return "photo"
-        }
-    }
-
     var body: some View {
         if source != nil {
             Button {
                 showingDetails = true
             } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: sourceIcon)
-                        .font(.system(size: 10, weight: .medium))
-                    Text(displaySource)
-                        .font(.system(size: 10, weight: .medium))
-                }
-                .foregroundColor(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 3)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.black.opacity(0.65))
-                        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-                )
+                Image(systemName: "info.circle")
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel("Image source: \(displaySource)")
+            .help("Image source: \(displaySource)")
             .sheet(isPresented: $showingDetails) {
                 AlbumArtSourceSheet(source: displaySource, sourceUrl: sourceUrl)
             }
@@ -154,75 +133,26 @@ private struct AlbumArtSourceSheet: View {
     }
 }
 
-// MARK: - Convenience View Modifier
-
-/// View modifier to add album art source badge to any image view
-struct AlbumArtSourceBadgeModifier: ViewModifier {
-    let source: String?
-    let sourceUrl: String?
-    let alignment: Alignment
-
-    func body(content: Content) -> some View {
-        content
-            .overlay(alignment: alignment) {
-                AlbumArtSourceBadge(source: source, sourceUrl: sourceUrl)
-                    .padding(6)
-            }
-    }
-}
-
-extension View {
-    /// Adds an album art source badge overlay to the view
-    /// - Parameters:
-    ///   - source: The source name (e.g., "Spotify", "MusicBrainz")
-    ///   - sourceUrl: Optional URL to the source page
-    ///   - alignment: Where to position the badge (default: bottomLeading)
-    func albumArtSourceBadge(
-        source: String?,
-        sourceUrl: String? = nil,
-        alignment: Alignment = .bottomLeading
-    ) -> some View {
-        modifier(AlbumArtSourceBadgeModifier(
-            source: source,
-            sourceUrl: sourceUrl,
-            alignment: alignment
-        ))
-    }
-}
-
 // MARK: - Preview
 
-#Preview("Badge on Image") {
-    VStack(spacing: 20) {
-        // Spotify source
+#Preview("Source button beside artwork") {
+    VStack(alignment: .leading, spacing: 16) {
         AsyncImage(url: URL(string: "https://picsum.photos/300")) { image in
             image.resizable().aspectRatio(contentMode: .fill)
         } placeholder: {
             Color.gray.opacity(0.3)
         }
         .frame(width: 200, height: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .albumArtSourceBadge(source: "Spotify", sourceUrl: "https://open.spotify.com/album/example")
+        .clipShape(RoundedRectangle(cornerRadius: 8))
 
-        // Cover Art Archive source
-        AsyncImage(url: URL(string: "https://picsum.photos/301")) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Color.gray.opacity(0.3)
+        HStack(spacing: 6) {
+            Text("Album Title")
+                .font(.headline)
+            AlbumArtSourceBadge(
+                source: "Spotify",
+                sourceUrl: "https://open.spotify.com/album/example"
+            )
         }
-        .frame(width: 200, height: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .albumArtSourceBadge(source: "MusicBrainz", sourceUrl: "https://coverartarchive.org/release/example")
-
-        // Apple Music source
-        AsyncImage(url: URL(string: "https://picsum.photos/302")) { image in
-            image.resizable().aspectRatio(contentMode: .fill)
-        } placeholder: {
-            Color.gray.opacity(0.3)
-        }
-        .frame(width: 200, height: 200)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .albumArtSourceBadge(source: "Apple", sourceUrl: nil)
     }
     .padding()
 }

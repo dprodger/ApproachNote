@@ -153,27 +153,6 @@ struct RecordingRowView: View {
                 }
                 .padding(6)
 
-                // Source badge (bottom-left, shows front or back cover source)
-                VStack {
-                    Spacer()
-                    HStack {
-                        if showingBackCover {
-                            AlbumArtSourceBadge(
-                                source: recording.backCoverSource,
-                                sourceUrl: recording.backCoverSourceUrl
-                            )
-                            .padding(4)
-                        } else {
-                            AlbumArtSourceBadge(
-                                source: recording.displayAlbumArtSource,
-                                sourceUrl: recording.displayAlbumArtSourceUrl
-                            )
-                            .padding(4)
-                        }
-                        Spacer()
-                    }
-                }
-                .frame(width: 150, height: 150)
             }
             .cornerRadius(8)
             .frame(width: 150)
@@ -188,13 +167,26 @@ struct RecordingRowView: View {
                     .frame(width: 150, alignment: .leading)
             }
 
-            // Album title
-            Text(recording.albumTitle ?? "Unknown Album")
-                .font(ApproachNoteTheme.subheadline())
-                .fontWeight(.medium)
-                .foregroundColor(ApproachNoteTheme.charcoal)
-                .lineLimit(2)
-                .frame(width: 150, alignment: .leading)
+            // Album title + image-source ⓘ button
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(recording.albumTitle ?? "Unknown Album")
+                    .font(ApproachNoteTheme.subheadline())
+                    .fontWeight(.medium)
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .lineLimit(2)
+                if showingBackCover {
+                    AlbumArtSourceBadge(
+                        source: recording.backCoverSource,
+                        sourceUrl: recording.backCoverSourceUrl
+                    )
+                } else {
+                    AlbumArtSourceBadge(
+                        source: recording.displayAlbumArtSource,
+                        sourceUrl: recording.displayAlbumArtSourceUrl
+                    )
+                }
+            }
+            .frame(width: 150, alignment: .leading)
 
             // Recording title (when different from song title)
             if let recordingTitle = recording.displayTitle {

@@ -29,7 +29,6 @@ struct RecordingDetailView: View {
     @State private var submissionAlertMessage = ""
     @State private var showingAuthoritySheet = false
     @State private var showAllReleases = false
-    @State private var showingStreamingPicker = false
     @State private var isLearnMoreExpanded = false
     @State private var showingBackCover = false
     @State private var showingContributionEditor = false
@@ -42,7 +41,6 @@ struct RecordingDetailView: View {
     private var selectedReleaseId: String? { viewModel.selectedReleaseId }
     private var localFavoriteCount: Int? { viewModel.localFavoriteCount }
     @Environment(\.openURL) var openURL
-    @AppStorage("preferredStreamingService") private var preferredStreamingService: String = StreamingService.spotify.rawValue
     
     // MARK: - Computed Properties for Selected Release
     
@@ -229,13 +227,13 @@ struct RecordingDetailView: View {
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxWidth: .infinity)
-                                                    .cornerRadius(12)
+                                                    .cornerRadius(8)
                                             },
                                             placeholder: {
                                                 Rectangle()
                                                     .fill(ApproachNoteTheme.cardBackground)
                                                     .aspectRatio(1, contentMode: .fit)
-                                                    .cornerRadius(12)
+                                                    .cornerRadius(8)
                                                     .overlay(
                                                         ProgressView()
                                                             .tint(ApproachNoteTheme.brass)
@@ -257,13 +255,13 @@ struct RecordingDetailView: View {
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxWidth: .infinity)
-                                                    .cornerRadius(12)
+                                                    .cornerRadius(8)
                                             },
                                             placeholder: {
                                                 Rectangle()
                                                     .fill(ApproachNoteTheme.cardBackground)
                                                     .aspectRatio(1, contentMode: .fit)
-                                                    .cornerRadius(12)
+                                                    .cornerRadius(8)
                                                     .overlay(
                                                         ProgressView()
                                                             .tint(ApproachNoteTheme.brass)
@@ -278,11 +276,6 @@ struct RecordingDetailView: View {
                                     .degrees(showingBackCover ? 180 : 0),
                                     axis: (x: 0, y: 1, z: 0)
                                 )
-
-                                // Play button overlay (only on front)
-                                if hasStreamingSource && !showingBackCover {
-                                    playButtonOverlay
-                                }
 
                                 // Flip button badge (shown when back cover available)
                                 if canFlipToBackCover {
@@ -302,31 +295,11 @@ struct RecordingDetailView: View {
                                     .padding(12)
                                 }
 
-                                // Source badge (shows front or back cover source)
-                                VStack {
-                                    Spacer()
-                                    HStack {
-                                        if showingBackCover {
-                                            AlbumArtSourceBadge(
-                                                source: displayBackCoverSource,
-                                                sourceUrl: displayBackCoverSourceUrl
-                                            )
-                                            .padding(8)
-                                        } else {
-                                            AlbumArtSourceBadge(
-                                                source: displayAlbumArtSource,
-                                                sourceUrl: displayAlbumArtSourceUrl
-                                            )
-                                            .padding(8)
-                                        }
-                                        Spacer()
-                                    }
-                                }
                             }
                             .shadow(radius: 8)
                             .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
-                            
-                            // Recording Name (Year)
+
+                            // Recording Name (Year) + image-source ⓘ button
                             HStack {
                                 if recording.isCanonical == true {
                                     Image(systemName: "star.fill")
@@ -339,6 +312,18 @@ struct RecordingDetailView: View {
                                         .font(ApproachNoteTheme.largeTitle())
                                         .bold()
                                         .foregroundColor(ApproachNoteTheme.charcoal)
+                                }
+                                Spacer()
+                                if showingBackCover {
+                                    AlbumArtSourceBadge(
+                                        source: displayBackCoverSource,
+                                        sourceUrl: displayBackCoverSourceUrl
+                                    )
+                                } else {
+                                    AlbumArtSourceBadge(
+                                        source: displayAlbumArtSource,
+                                        sourceUrl: displayAlbumArtSourceUrl
+                                    )
                                 }
                             }
 
@@ -622,19 +607,6 @@ struct RecordingDetailView: View {
                     .foregroundColor(ApproachNoteTheme.charcoal)
                 
                 Spacer()
-                
-                // Spotify count badge
-                let spotifyCount = releases.filter { $0.hasSpotify }.count
-                if spotifyCount > 0 {
-                    HStack(spacing: 4) {
-                        Image(systemName: "music.note")
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.teal)
-                        Text("\(spotifyCount)")
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                    }
-                }
             }
             
             let displayedReleases = showAllReleases ? releases : Array(releases.prefix(maxReleasesToShow))
@@ -805,10 +777,7 @@ struct RecordingDetailView: View {
                         openURL(url)
                     }
                 } label: {
-                    StreamingIcon(service: source.service, size: 18)
-                        .padding(12)
-                        .background(source.color.opacity(0.15))
-                        .clipShape(Circle())
+                    StreamingIcon(service: source.service, size: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(source.name)
@@ -826,81 +795,12 @@ struct RecordingDetailView: View {
             .fill(ApproachNoteTheme.cardBackground)
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
-            .cornerRadius(12)
+            .cornerRadius(8)
             .overlay(
                 Image(systemName: "music.note")
                     .font(.system(size: 80))
                     .foregroundColor(ApproachNoteTheme.smokeGray)
             )
-    }
-    
-    // MARK: - Play Button Overlay
-    
-    private var playButtonOverlay: some View {
-        VStack {
-            Spacer()
-            HStack {
-                Spacer()
-                
-                Button {
-                    handlePlayButtonTap()
-                } label: {
-                    ZStack {
-                        Circle()
-                            .fill(.ultraThinMaterial)
-                            .frame(width: 70, height: 70)
-                        
-                        Circle()
-                            .fill(ApproachNoteTheme.burgundy)
-                            .frame(width: 60, height: 60)
-                        
-                        Image(systemName: "play.fill")
-                            .font(ApproachNoteTheme.title())
-                            .foregroundColor(.white)
-                            .offset(x: 2) // Slight offset for visual centering
-                    }
-                    .shadow(color: .black.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                
-                Spacer()
-            }
-            Spacer()
-        }
-        .confirmationDialog(
-            "Listen on",
-            isPresented: $showingStreamingPicker,
-            titleVisibility: .visible
-        ) {
-            ForEach(availableStreamingSources, id: \.url) { source in
-                Button {
-                    if let url = URL(string: source.url) {
-                        openURL(url)
-                    }
-                } label: {
-                    Label(source.name, systemImage: source.icon)
-                }
-            }
-            Button("Cancel", role: .cancel) { }
-        }
-    }
-    
-    private func handlePlayButtonTap() {
-        let sources = availableStreamingSources
-
-        if sources.count == 1, let firstSource = sources.first, let url = URL(string: firstSource.url) {
-            // Single source - open directly
-            openURL(url)
-        } else if sources.count > 1 {
-            // Check if preferred service is available
-            if let preferredSource = sources.first(where: { $0.service.rawValue == preferredStreamingService }),
-               let url = URL(string: preferredSource.url) {
-                // Preferred service available - open directly
-                openURL(url)
-            } else {
-                // Preferred service not available - show picker
-                showingStreamingPicker = true
-            }
-        }
     }
     
     // MARK: - Recording Details Section (Collapsible)

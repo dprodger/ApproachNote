@@ -735,25 +735,6 @@ struct AuthoritativeRecordingCard: View {
                     .padding(6)
                 }
 
-                // Source badge (bottom-left, shows front or back cover source)
-                VStack {
-                    Spacer()
-                    HStack {
-                        if showingBackCover {
-                            AlbumArtSourceBadge(
-                                source: recording.backCoverSource,
-                                sourceUrl: recording.backCoverSourceUrl
-                            )
-                        } else {
-                            AlbumArtSourceBadge(
-                                source: recording.displayAlbumArtSource,
-                                sourceUrl: recording.displayAlbumArtSourceUrl
-                            )
-                        }
-                        Spacer()
-                    }
-                }
-                .padding(6)
             }
             .frame(width: artworkSize, height: artworkSize)
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
@@ -767,12 +748,25 @@ struct AuthoritativeRecordingCard: View {
                     .foregroundColor(ApproachNoteTheme.brass)
                     .lineLimit(1)
 
-                // Album Title
-                Text(recording.albumTitle ?? "Unknown Album")
-                    .font(ApproachNoteTheme.body())
-                    .fontWeight(.medium)
-                    .foregroundColor(ApproachNoteTheme.charcoal)
-                    .lineLimit(2)
+                // Album Title + image-source ⓘ button
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(recording.albumTitle ?? "Unknown Album")
+                        .font(ApproachNoteTheme.body())
+                        .fontWeight(.medium)
+                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .lineLimit(2)
+                    if showingBackCover {
+                        AlbumArtSourceBadge(
+                            source: recording.backCoverSource,
+                            sourceUrl: recording.backCoverSourceUrl
+                        )
+                    } else {
+                        AlbumArtSourceBadge(
+                            source: recording.displayAlbumArtSource,
+                            sourceUrl: recording.displayAlbumArtSourceUrl
+                        )
+                    }
+                }
 
                 // Recording title (when different from song title)
                 if let recordingTitle = recording.displayTitle {
