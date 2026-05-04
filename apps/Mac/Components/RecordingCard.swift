@@ -196,10 +196,6 @@ struct RecordingCard: View {
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(ApproachNoteTheme.smokeGray)
                 }
-
-                // Streaming buttons row (off the artwork — partner-branding rules)
-                StreamingButtons(recording: recording)
-                    .padding(.top, 4)
             }
             .frame(width: artworkSize, alignment: .leading)
         }
