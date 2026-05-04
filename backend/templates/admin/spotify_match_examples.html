@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pinned Match Examples — Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .breadcrumb { font-size: 13px; margin-bottom: 12px; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+
+        .header { margin-bottom: 18px; }
+        .header h1 { font-size: 22px; color: #1d1d1f; margin-bottom: 4px; }
+        .header-subtitle { color: #666; font-size: 14px; }
+
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .stat-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 14px 16px;
+        }
+        .stat-card .v {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1d1d1f;
+        }
+        .stat-card .l {
+            font-size: 11px;
+            color: #666;
+            text-transform: uppercase;
+            margin-top: 2px;
+        }
+        .stat-card .v.same      { color: #2e7d32; }
+        .stat-card .v.different { color: #c0392b; }
+        .stat-card .v.unsure    { color: #b8860b; }
+
+        .example {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            margin-bottom: 14px;
+            overflow: hidden;
+        }
+        .example-head {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 16px;
+            padding: 14px 16px;
+            border-bottom: 1px solid #eee;
+        }
+        .example-head .side-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .example-head .title { font-size: 14px; font-weight: 600; color: #1d1d1f; }
+        .example-head .artist { font-size: 12px; color: #666; margin-top: 2px; }
+        .example-head .ids {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        .example-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-end; }
+        .example-actions a, .example-actions button {
+            display: inline-block;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            text-decoration: none;
+            border: 1px solid transparent;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        a.ext-link.spotify { background: #1db954; color: #fff; }
+        a.ext-link.mb      { background: #ba478f; color: #fff; }
+        a.ext-link.admin   { background: #fff; color: #0066cc; border-color: #0066cc; }
+        button.delete-btn  { background: #fff; color: #c0392b; border: 1px solid #c0392b; }
+        button.delete-btn:hover { background: #fdecea; }
+
+        .controls {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            align-items: start;
+            padding: 12px 16px;
+            border-bottom: 1px solid #eee;
+            background: #fafafa;
+        }
+        .controls label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .controls select, .controls textarea {
+            font-family: inherit;
+            font-size: 13px;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            background: #fff;
+            width: 100%;
+        }
+        .controls textarea { min-height: 60px; resize: vertical; }
+        .controls .save-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+        .controls .save-status { font-size: 11px; color: #2e7d32; min-height: 14px; }
+        .controls .save-status.error { color: #c0392b; }
+        button.save-btn {
+            background: #0066cc;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        button.save-btn:disabled { opacity: 0.6; cursor: wait; }
+
+        .verdict-pill {
+            display: inline-block;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 2px 8px;
+            border-radius: 8px;
+            font-weight: 700;
+            margin-bottom: 6px;
+        }
+        .verdict-pill.same      { background: #e8f5e9; color: #2e7d32; }
+        .verdict-pill.different { background: #fdecea; color: #c0392b; }
+        .verdict-pill.unsure    { background: #fff8e1; color: #b8860b; }
+
+        details.tracklist-details { padding: 0; }
+        details.tracklist-details > summary {
+            list-style: none;
+            cursor: pointer;
+            font-size: 13px;
+            color: #0066cc;
+            padding: 8px 16px;
+            user-select: none;
+        }
+        details.tracklist-details > summary::-webkit-details-marker { display: none; }
+        details.tracklist-details > summary::before { content: '▸  '; color: #999; }
+        details[open].tracklist-details > summary::before { content: '▾  '; color: #999; }
+
+        /* Side-by-side panel CSS — kept in sync with spotify_link_audit.html. */
+        .tl-panel { background: #fafafa; padding: 14px 18px; border-top: 1px solid #eee; }
+        .tl-panel-headers {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 10px;
+        }
+        .tl-side-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            margin-bottom: 4px;
+        }
+        .tl-side-title { font-size: 14px; font-weight: 600; color: #222; }
+        .tl-side-artist { font-size: 12px; color: #666; margin-top: 2px; }
+        .tl-table {
+            font-size: 12px;
+            border-collapse: collapse;
+            width: 100%;
+            table-layout: auto;
+        }
+        .tl-table th {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+            font-weight: 600;
+            padding: 4px 8px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        .tl-table th.pos { text-align: center; width: 1%; }
+        .tl-table th.dur { text-align: right; width: 1%; }
+        .tl-table td {
+            padding: 4px 8px;
+            border-bottom: 1px dashed #eee;
+            vertical-align: top;
+        }
+        .tl-table td.pos {
+            color: #888;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: center;
+        }
+        .tl-table td.dur {
+            color: #555;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+            white-space: nowrap;
+            text-align: right;
+        }
+        .tl-table td.divider, .tl-table th.divider {
+            border-right: 2px solid #e0e0e0;
+            padding: 0;
+            width: 1%;
+        }
+        .tl-table tr.matched { background: #fff8dc; }
+        .tl-table .missing { color: #ccc; }
+        .tl-summary {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 8px;
+            font-family: 'SF Mono', Monaco, Consolas, monospace;
+        }
+        .tl-summary .strong { color: #155724; font-weight: 600; }
+        .tl-summary .weak   { color: #721c24; font-weight: 600; }
+
+        .empty {
+            color: #888;
+            padding: 24px;
+            text-align: center;
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/') }}">Admin</a>
+            &nbsp;/&nbsp;
+            <a href="{{ admin_url('/admin/spotify-link-audit') }}">Spotify Link Audit</a>
+            &nbsp;/&nbsp;
+            Pinned Examples
+        </div>
+
+        <div class="header">
+            <h1>Pinned Match Examples</h1>
+            <p class="header-subtitle">
+                Curated (MusicBrainz release, Spotify album) pairs for offline analysis of the
+                <span style="font-family: 'SF Mono', Monaco, monospace;">assess_album_match</span> scorer.
+                Each example is a snapshot of both tracklists at pin time, plus your verdict — feed these
+                into matcher tightening or use them as test fixtures.
+                Files live in <span style="font-family: 'SF Mono', Monaco, monospace;">backend/data/spotify_match_examples/</span>.
+            </p>
+        </div>
+
+        <div class="summary-stats">
+            <div class="stat-card">
+                <div class="v">{{ '{:,}'.format(total) }}</div>
+                <div class="l">Total Pinned</div>
+            </div>
+            <div class="stat-card">
+                <div class="v same">{{ '{:,}'.format(counts.same_album) }}</div>
+                <div class="l">Same Album (matcher missed)</div>
+            </div>
+            <div class="stat-card">
+                <div class="v different">{{ '{:,}'.format(counts.different_album) }}</div>
+                <div class="l">Different (audit was right)</div>
+            </div>
+            <div class="stat-card">
+                <div class="v unsure">{{ '{:,}'.format(counts.unsure) }}</div>
+                <div class="l">Unsure</div>
+            </div>
+        </div>
+
+        {% if not examples %}
+        <div class="empty">
+            No examples pinned yet. Visit
+            <a href="{{ admin_url('/admin/spotify-link-audit') }}">Spotify Link Audit</a>
+            and click <strong>📌 Pin example</strong> on rows where you can confirm the matcher's verdict.
+        </div>
+        {% endif %}
+
+        {% for ex in examples %}
+        {% set tl = ex.tracklist or {} %}
+        {% set verdict_class = 'same' if ex.verdict == 'same_album' else ('different' if ex.verdict == 'different_album' else 'unsure') %}
+        <div class="example" id="ex-{{ ex.id }}" data-example-id="{{ ex.id }}">
+            <div class="example-head">
+                <div>
+                    <div class="side-label">MusicBrainz Release</div>
+                    <div class="verdict-pill {{ verdict_class }}">
+                        {% if ex.verdict == 'same_album' %}same album
+                        {% elif ex.verdict == 'different_album' %}different album
+                        {% else %}unsure
+                        {% endif %}
+                    </div>
+                    <div class="title">{{ tl.mb_release_title or '(untitled)' }}</div>
+                    <div class="artist">{{ tl.mb_artist_credit or '' }}</div>
+                    <div class="ids">release_id: {{ ex.release_id }}</div>
+                    {% if tl.mb_release_id %}
+                    <div class="ids">mb_release_id: {{ tl.mb_release_id }}</div>
+                    {% endif %}
+                </div>
+                <div>
+                    <div class="side-label">Spotify Album</div>
+                    <div class="title">{{ tl.spotify_album_name or '(name missing)' }}</div>
+                    <div class="artist">{{ (tl.spotify_artists or []) | join(', ') }}</div>
+                    <div class="ids">album_id: {{ ex.spotify_album_id }}</div>
+                    <div class="ids" style="color: #aaa;">
+                        Pinned {{ ex.pinned_at }}{% if ex.updated_at and ex.updated_at != ex.pinned_at %} · updated {{ ex.updated_at }}{% endif %}
+                    </div>
+                </div>
+                <div class="example-actions">
+                    {% if tl.mb_release_id %}
+                    <a class="ext-link mb"
+                       href="https://musicbrainz.org/release/{{ tl.mb_release_id }}"
+                       target="_blank" rel="noopener">MusicBrainz ↗</a>
+                    {% endif %}
+                    <a class="ext-link spotify"
+                       href="https://open.spotify.com/album/{{ ex.spotify_album_id }}"
+                       target="_blank" rel="noopener">Spotify ↗</a>
+                    <a class="ext-link admin"
+                       href="{{ admin_url('/admin/releases/') }}{{ ex.release_id }}">Admin release</a>
+                    <button type="button" class="delete-btn">Unpin</button>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div>
+                    <label for="verdict-{{ ex.id }}">Verdict</label>
+                    <select id="verdict-{{ ex.id }}" class="verdict-select">
+                        <option value="same_album"      {% if ex.verdict == 'same_album'      %}selected{% endif %}>Same album (matcher missed)</option>
+                        <option value="different_album" {% if ex.verdict == 'different_album' %}selected{% endif %}>Different album (audit correct)</option>
+                        <option value="unsure"          {% if ex.verdict == 'unsure'          %}selected{% endif %}>Unsure</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="notes-{{ ex.id }}">Notes (why you think so, signals to consider)</label>
+                    <textarea id="notes-{{ ex.id }}" class="notes-input"
+                              placeholder="e.g. MB credits Bill Evans Trio but Spotify drops the trio suffix; tracklist matches 12/12. Should pass on substring direction.">{{ ex.notes or '' }}</textarea>
+                </div>
+                <div class="save-row">
+                    <button type="button" class="save-btn">Save</button>
+                    <span class="save-status"></span>
+                </div>
+            </div>
+
+            <details class="tracklist-details">
+                <summary>Show side-by-side tracklists ({{ tl.matched_count or 0 }}/{{ tl.mb_track_count or 0 }} MB tracks matched)</summary>
+                <div class="tl-mount" data-payload='{{ tl | tojson }}'></div>
+            </details>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        // Render helper kept in sync with spotify_link_audit.html and
+        // browse_release_detail.html. See #184 for the original.
+        function escapeHtml(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+        function fmtMs(ms) {
+            if (ms == null || isNaN(ms)) return '';
+            const total = Math.round(ms / 1000);
+            const m = Math.floor(total / 60);
+            const s = total % 60;
+            return `${m}:${s.toString().padStart(2, '0')}`;
+        }
+        function renderTracklistPanel(tl) {
+            if (!tl || !tl.mb_tracks) return '<div style="padding: 12px 18px; color: #888;">No tracklist data.</div>';
+
+            const matchByMbPos = new Map();
+            (tl.matched_pairs || []).forEach(p => matchByMbPos.set(p.mb_position, p));
+            const matchedSpPositions = new Set(
+                (tl.matched_pairs || []).map(p => p.sp_position)
+            );
+
+            const mbTracks = tl.mb_tracks || [];
+            const spTracks = tl.spotify_tracks || [];
+
+            const rows = [];
+            mbTracks.forEach(mb => {
+                const m = matchByMbPos.get(mb.position);
+                let sp = null;
+                if (m) sp = spTracks.find(s => s.position === m.sp_position) || null;
+                rows.push({ mb, sp, matched: !!m });
+            });
+            spTracks
+                .filter(s => !matchedSpPositions.has(s.position))
+                .forEach(s => rows.push({ mb: null, sp: s, matched: false }));
+
+            const cov = tl.match_ratio != null ? `${Math.round(tl.match_ratio * 100)}%` : 'n/a';
+            const ord = tl.ordering_ratio != null ? `${Math.round(tl.ordering_ratio * 100)}%` : 'n/a';
+            const covClass = tl.match_ratio != null && tl.match_ratio >= 0.6 ? 'strong' : 'weak';
+
+            const summary = `
+                <div class="tl-summary">
+                    Coverage: <span class="${covClass}">${tl.matched_count}/${tl.mb_track_count} (${cov})</span>
+                    · Ordering: ${ord}
+                    · Spotify tracks: ${tl.spotify_track_count}
+                </div>`;
+            const headers = `
+                <div class="tl-panel-headers">
+                    <div>
+                        <div class="tl-side-label">MusicBrainz Release</div>
+                        <div class="tl-side-title">${escapeHtml(tl.mb_release_title || '')}</div>
+                        <div class="tl-side-artist">${escapeHtml(tl.mb_artist_credit || '')}</div>
+                    </div>
+                    <div>
+                        <div class="tl-side-label">Spotify Album</div>
+                        <div class="tl-side-title">${escapeHtml(tl.spotify_album_name || '')}</div>
+                        <div class="tl-side-artist">${escapeHtml((tl.spotify_artists || []).join(', '))}</div>
+                    </div>
+                </div>`;
+            const tbody = rows.map(r => {
+                const mbCells = r.mb
+                    ? `<td class="pos">${r.mb.position}</td><td>${escapeHtml(r.mb.title || '')}</td>`
+                    : `<td class="pos missing">—</td><td class="missing">—</td>`;
+                const spCells = r.sp
+                    ? `<td class="pos">${r.sp.position}</td><td>${escapeHtml(r.sp.name || '')}</td><td class="dur">${escapeHtml(fmtMs(r.sp.duration_ms))}</td>`
+                    : `<td class="pos missing">—</td><td class="missing">—</td><td class="dur missing">—</td>`;
+                return `<tr class="${r.matched ? 'matched' : ''}">${mbCells}<td class="divider"></td>${spCells}</tr>`;
+            }).join('');
+            return `
+                <div class="tl-panel">
+                    ${summary}
+                    ${headers}
+                    <table class="tl-table">
+                        <thead>
+                            <tr>
+                                <th class="pos">Pos</th>
+                                <th>MusicBrainz Title</th>
+                                <th class="divider"></th>
+                                <th class="pos">Pos</th>
+                                <th>Spotify Title</th>
+                                <th class="dur">Dur</th>
+                            </tr>
+                        </thead>
+                        <tbody>${tbody}</tbody>
+                    </table>
+                </div>`;
+        }
+
+        // Lazily mount the side-by-side panel when the <details> opens —
+        // saves rendering hundreds of <tr>s if the user only opens a few.
+        document.querySelectorAll('details.tracklist-details').forEach(d => {
+            d.addEventListener('toggle', () => {
+                if (!d.open) return;
+                const mount = d.querySelector('.tl-mount');
+                if (!mount || mount.dataset.rendered === 'true') return;
+                try {
+                    const tl = JSON.parse(mount.dataset.payload);
+                    mount.innerHTML = renderTracklistPanel(tl);
+                    mount.dataset.rendered = 'true';
+                } catch (e) {
+                    mount.innerHTML = `<div style="padding: 12px 18px; color: #c0392b;">Failed to parse: ${escapeHtml(e.message)}</div>`;
+                }
+            });
+        });
+
+        document.querySelectorAll('.example').forEach(card => {
+            const id = card.dataset.exampleId;
+            const verdictSel = card.querySelector('.verdict-select');
+            const notesEl = card.querySelector('.notes-input');
+            const saveBtn = card.querySelector('.save-btn');
+            const status = card.querySelector('.save-status');
+            const deleteBtn = card.querySelector('.delete-btn');
+
+            saveBtn.addEventListener('click', async () => {
+                saveBtn.disabled = true;
+                status.classList.remove('error');
+                status.textContent = 'Saving…';
+                try {
+                    const resp = await fetch(`{{ admin_url('/admin/spotify-link-audit/examples/') }}${encodeURIComponent(id)}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            verdict: verdictSel.value,
+                            notes: notesEl.value,
+                        }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) {
+                        status.classList.add('error');
+                        status.textContent = data.error || `HTTP ${resp.status}`;
+                    } else {
+                        status.textContent = 'Saved';
+                        setTimeout(() => { status.textContent = ''; }, 2500);
+                    }
+                } catch (e) {
+                    status.classList.add('error');
+                    status.textContent = e.message || String(e);
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            });
+
+            deleteBtn.addEventListener('click', async () => {
+                if (!confirm('Unpin this example? The JSON file will be deleted.')) return;
+                deleteBtn.disabled = true;
+                try {
+                    const resp = await fetch(`{{ admin_url('/admin/spotify-link-audit/examples/') }}${encodeURIComponent(id)}`, {
+                        method: 'DELETE',
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || data.error) {
+                        alert(`Delete failed: ${data.error || `HTTP ${resp.status}`}`);
+                        deleteBtn.disabled = false;
+                    } else {
+                        card.remove();
+                    }
+                } catch (e) {
+                    alert(`Delete failed: ${e.message || e}`);
+                    deleteBtn.disabled = false;
+                }
+            });
+        });
+    </script>
+</body>
+</html>

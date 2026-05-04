@@ -224,6 +224,20 @@
                     <p>Run the Spotify track matcher for a single song and see a before/after diff of what was added, updated, or cleared.</p>
                     <span class="endpoint">{{ admin_url('/admin/spotify-rematch') }}</span>
                 </a>
+
+                <a href="{{ admin_url('/admin/spotify-link-audit') }}" class="card">
+                    <div class="card-icon">🔍</div>
+                    <h3>Spotify Link Audit</h3>
+                    <p>Review releases flagged by the audit script: their linked Spotify album fails the new tracklist gate. Side-by-side links to confirm before cleanup.</p>
+                    <span class="endpoint">{{ admin_url('/admin/spotify-link-audit') }}</span>
+                </a>
+
+                <a href="{{ admin_url('/admin/spotify-link-audit/examples') }}" class="card">
+                    <div class="card-icon">📌</div>
+                    <h3>Pinned Match Examples</h3>
+                    <p>Curated (MB release, Spotify album) pairs pinned from the audit page, with verdicts + notes. Used as fixtures when tightening the album-identity scorer.</p>
+                    <span class="endpoint">{{ admin_url('/admin/spotify-link-audit/examples') }}</span>
+                </a>
             </div>
         </div>
 

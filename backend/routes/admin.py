@@ -14,9 +14,12 @@ This ensures consistent behavior between:
 """
 
 from flask import Blueprint, render_template, request, jsonify, redirect, url_for, g
+import csv
 import json
 import logging
 import secrets
+from datetime import datetime
+from pathlib import Path
 
 from core.auth_utils import hash_password
 from db_utils import get_db_connection
@@ -3874,6 +3877,416 @@ def release_streaming_mismatches():
         service_filter=service_filter,
         limit=limit,
         truncated=len(rows) >= limit,
+    )
+
+
+SPOTIFY_LINK_AUDIT_DIR = (
+    Path(__file__).resolve().parent.parent / 'data' / 'spotify_link_audits'
+)
+
+
+def _list_spotify_link_audit_files():
+    """CSVs in the audit directory, newest mtime first."""
+    if not SPOTIFY_LINK_AUDIT_DIR.exists():
+        return []
+    files = [p for p in SPOTIFY_LINK_AUDIT_DIR.glob('*.csv') if p.is_file()]
+    files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return files
+
+
+def _parse_spotify_link_audit_csv(path: Path):
+    """Read the audit CSV into row dicts, coercing numeric/boolean columns."""
+    rows = []
+    with path.open(newline='') as f:
+        for raw in csv.DictReader(f):
+            try:
+                ratio = float(raw.get('match_ratio') or 0.0)
+            except ValueError:
+                ratio = 0.0
+            try:
+                matched = int(raw.get('matched_count') or 0)
+            except ValueError:
+                matched = 0
+            try:
+                mb_count = int(raw.get('mb_track_count') or 0)
+            except ValueError:
+                mb_count = 0
+            try:
+                sp_count = int(raw.get('spotify_track_count') or 0)
+            except ValueError:
+                sp_count = 0
+            rows.append({
+                'release_id': raw.get('release_id') or '',
+                'mb_release_id': raw.get('mb_release_id') or '',
+                'release_title': raw.get('release_title') or '',
+                'release_artist_credit': raw.get('release_artist_credit') or '',
+                'spotify_album_id': raw.get('spotify_album_id') or '',
+                'spotify_album_name': raw.get('spotify_album_name') or '',
+                'mb_track_count': mb_count,
+                'spotify_track_count': sp_count,
+                'matched_count': matched,
+                'match_ratio': ratio,
+                'is_stale': (raw.get('is_stale') or '').strip().upper() == 'TRUE',
+                'error': (raw.get('error') or '').strip(),
+            })
+    return rows
+
+
+@admin_bp.route('/spotify-link-audit')
+def spotify_link_audit():
+    """Render the latest CSV produced by scripts/audit_spotify_release_links.py.
+
+    The audit script flags `release_streaming_links` rows whose Spotify album
+    fails the new tracklist gate (#184) — i.e. the album we linked to probably
+    isn't the same album as the MB release. This page lets us eyeball each
+    flagged row by following the Spotify and MusicBrainz links side-by-side,
+    so we can confirm or dismiss each suspect match before bulk-cleaning.
+
+    Files live in `backend/data/spotify_link_audits/`. The newest CSV by
+    mtime is shown by default; pick a different one via `?file=<basename>`.
+
+    Filters:
+        ?show=stale|errors|ok|all   (default 'stale' — the actionable rows)
+    """
+    show = request.args.get('show') or 'stale'
+    if show not in ('stale', 'errors', 'ok', 'all'):
+        show = 'stale'
+
+    files = _list_spotify_link_audit_files()
+    available = [
+        {
+            'name': p.name,
+            'mtime': datetime.fromtimestamp(p.stat().st_mtime),
+        }
+        for p in files
+    ]
+
+    requested = request.args.get('file')
+    selected_path = None
+    if requested:
+        # Restrict to basenames inside the audit dir — never accept paths.
+        candidate = SPOTIFY_LINK_AUDIT_DIR / Path(requested).name
+        if candidate.exists() and candidate.is_file():
+            selected_path = candidate
+    if selected_path is None and files:
+        selected_path = files[0]
+
+    rows = []
+    counts = {'stale': 0, 'ok': 0, 'errors': 0, 'total': 0}
+    if selected_path is not None:
+        all_rows = _parse_spotify_link_audit_csv(selected_path)
+        counts['total'] = len(all_rows)
+        for r in all_rows:
+            if r['error']:
+                counts['errors'] += 1
+            elif r['is_stale']:
+                counts['stale'] += 1
+            else:
+                counts['ok'] += 1
+
+        if show == 'stale':
+            rows = [r for r in all_rows if r['is_stale'] and not r['error']]
+        elif show == 'errors':
+            rows = [r for r in all_rows if r['error']]
+        elif show == 'ok':
+            rows = [r for r in all_rows if not r['is_stale'] and not r['error']]
+        else:
+            rows = all_rows
+
+        # Worst-fitting matches first within the visible set, then by raw
+        # matched-track count. Keeps "obviously wrong" rows up top.
+        rows.sort(key=lambda r: (r['match_ratio'], r['matched_count'], r['release_title']))
+
+    # Already-pinned (release, album) pairs so the template can render the
+    # Pin button in its post-pin state on subsequent visits. Just basenames
+    # without `.json`.
+    pinned_ids = set()
+    if SPOTIFY_MATCH_EXAMPLES_DIR.exists():
+        pinned_ids = {p.stem for p in SPOTIFY_MATCH_EXAMPLES_DIR.glob('*.json')}
+
+    return render_template(
+        'admin/spotify_link_audit.html',
+        rows=rows,
+        counts=counts,
+        show=show,
+        available=available,
+        selected_name=selected_path.name if selected_path else None,
+        selected_mtime=(
+            datetime.fromtimestamp(selected_path.stat().st_mtime)
+            if selected_path else None
+        ),
+        pinned_ids=pinned_ids,
+        pinned_total=len(pinned_ids),
+    )
+
+
+class _TracklistPayloadError(Exception):
+    """Raised by _build_audit_tracklist_payload when the (release, album)
+    pair can't be assembled. .status is the HTTP status to surface."""
+    def __init__(self, message, status=502):
+        super().__init__(message)
+        self.status = status
+
+
+def _build_audit_tracklist_payload(release_id, spotify_album_id):
+    """Snapshot the side-by-side MB vs Spotify tracklist payload.
+
+    Same shape returned by /admin/releases/<id>/diagnose-spotify under the
+    `tracklist` key. Reused by the audit-page expand endpoint and the
+    pin-as-example endpoint so saved fixtures look identical to live ones.
+    """
+    from integrations.spotify.client import SpotifyClient
+    from integrations.spotify.matching import (
+        compare_mb_to_spotify_tracks,
+        fetch_mb_tracks_for_release,
+    )
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, artist_credit, musicbrainz_release_id
+                FROM releases WHERE id = %s
+                """,
+                (release_id,),
+            )
+            release = cur.fetchone()
+        if not release:
+            raise _TracklistPayloadError('Release not found', 404)
+        try:
+            mb_tracks = fetch_mb_tracks_for_release(conn, release_id)
+        except Exception as e:
+            logger.exception("MB tracklist fetch failed for release %s", release_id)
+            raise _TracklistPayloadError(f'MB fetch failed: {e}')
+
+    client = SpotifyClient(logger=logger)
+    if not client.get_spotify_auth_token():
+        raise _TracklistPayloadError('Spotify auth failed')
+    try:
+        sp_tracks = client.get_album_tracks(spotify_album_id) or []
+        album_details = client.get_album_details(spotify_album_id) or {}
+    except Exception as e:
+        logger.exception("Spotify fetch failed for album %s", spotify_album_id)
+        raise _TracklistPayloadError(f'Spotify fetch failed: {e}')
+
+    comp = compare_mb_to_spotify_tracks(mb_tracks, sp_tracks)
+    return {
+        'mb_release_title': release['title'],
+        'mb_artist_credit': release['artist_credit'],
+        'mb_release_id': release.get('musicbrainz_release_id'),
+        'spotify_album_id': spotify_album_id,
+        'spotify_album_name': album_details.get('name'),
+        'spotify_artists': [
+            a.get('name') for a in album_details.get('artists', [])
+            if a.get('name')
+        ],
+        'mb_tracks': [
+            {'position': t['position'], 'title': t['title']}
+            for t in mb_tracks
+        ],
+        'spotify_tracks': [
+            {
+                'position': i + 1,
+                'name': t.get('name'),
+                'duration_ms': t.get('duration_ms'),
+            }
+            for i, t in enumerate(sp_tracks)
+        ],
+        'matched_pairs': [
+            {
+                'mb_title': mb_title,
+                'mb_position': mb_pos,
+                'sp_title': sp_title,
+                'sp_position': sp_pos,
+                'similarity': score,
+            }
+            for (mb_title, mb_pos, sp_title, sp_pos, score)
+            in comp['matched_pairs']
+        ],
+        'mb_track_count': comp['mb_track_count'],
+        'spotify_track_count': comp['spotify_track_count'],
+        'matched_count': comp['matched_count'],
+        'match_ratio': comp['match_ratio'],
+        'ordering_ratio': comp['ordering_ratio'],
+    }
+
+
+@admin_bp.route('/spotify-link-audit/tracklist')
+def spotify_link_audit_tracklist():
+    """JSON: side-by-side MB-vs-Spotify tracklist for one (release, album) pair.
+
+    Powers the inline expansion on the audit page. Same payload shape as the
+    `tracklist` field returned by /admin/releases/<id>/diagnose-spotify, so
+    the front end can reuse the same render function.
+
+    Query params:
+        release_id          internal releases.id
+        spotify_album_id    Spotify album ID
+    """
+    release_id = (request.args.get('release_id') or '').strip()
+    spotify_album_id = (request.args.get('spotify_album_id') or '').strip()
+    if not release_id or not spotify_album_id:
+        return jsonify({'error': 'release_id and spotify_album_id are required'}), 400
+
+    try:
+        payload = _build_audit_tracklist_payload(release_id, spotify_album_id)
+    except _TracklistPayloadError as e:
+        return jsonify({'error': str(e)}), e.status
+    return jsonify({'tracklist': payload})
+
+
+# ---------------------------------------------------------------------------
+# Pinned-example store: hand-curated examples from the audit page that the
+# matcher *should* (or shouldn't) have matched. Used to drive analysis +
+# regression fixtures when we tighten the album-identity scorer.
+# ---------------------------------------------------------------------------
+
+SPOTIFY_MATCH_EXAMPLES_DIR = (
+    Path(__file__).resolve().parent.parent / 'data' / 'spotify_match_examples'
+)
+
+_VERDICT_VALUES = ('same_album', 'different_album', 'unsure')
+
+
+def _example_id(release_id, spotify_album_id):
+    """Stable filesystem-safe id for an (mb_release, spotify_album) pair."""
+    return f"{release_id}__{spotify_album_id}"
+
+
+def _example_path(example_id):
+    """Resolve an example id to its on-disk JSON file, with traversal guard."""
+    safe = Path(example_id).name
+    if not safe or safe != example_id:
+        return None
+    return SPOTIFY_MATCH_EXAMPLES_DIR / f"{safe}.json"
+
+
+def _load_example(example_id):
+    path = _example_path(example_id)
+    if path is None or not path.exists():
+        return None
+    return json.loads(path.read_text())
+
+
+def _list_examples():
+    if not SPOTIFY_MATCH_EXAMPLES_DIR.exists():
+        return []
+    out = []
+    for p in SPOTIFY_MATCH_EXAMPLES_DIR.glob('*.json'):
+        try:
+            out.append(json.loads(p.read_text()))
+        except Exception:
+            logger.exception("Skipping unreadable example file %s", p)
+    out.sort(key=lambda r: r.get('pinned_at') or '', reverse=True)
+    return out
+
+
+@admin_bp.route('/spotify-link-audit/examples', methods=['POST'])
+def spotify_match_example_pin():
+    """Pin an audit row as an example for offline matcher analysis.
+
+    Body (JSON):
+        release_id, spotify_album_id (required)
+        verdict: 'same_album' (default) | 'different_album' | 'unsure'
+        notes:   freeform user note (optional)
+
+    Re-pinning the same pair updates verdict/notes and refreshes the
+    tracklist snapshot but preserves the original pinned_at timestamp.
+    """
+    body = request.get_json(silent=True) or {}
+    release_id = (body.get('release_id') or '').strip()
+    spotify_album_id = (body.get('spotify_album_id') or '').strip()
+    if not release_id or not spotify_album_id:
+        return jsonify({'error': 'release_id and spotify_album_id required'}), 400
+
+    verdict = (body.get('verdict') or 'same_album').strip()
+    if verdict not in _VERDICT_VALUES:
+        return jsonify({'error': f'verdict must be one of {_VERDICT_VALUES}'}), 400
+    notes = (body.get('notes') or '').strip()
+
+    try:
+        tracklist = _build_audit_tracklist_payload(release_id, spotify_album_id)
+    except _TracklistPayloadError as e:
+        return jsonify({'error': str(e)}), e.status
+
+    SPOTIFY_MATCH_EXAMPLES_DIR.mkdir(parents=True, exist_ok=True)
+    example_id = _example_id(release_id, spotify_album_id)
+    path = _example_path(example_id)
+    if path is None:
+        return jsonify({'error': 'invalid example id'}), 400
+
+    pinned_at = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    if path.exists():
+        try:
+            prior = json.loads(path.read_text())
+            pinned_at = prior.get('pinned_at') or pinned_at
+        except Exception:
+            pass
+
+    record = {
+        'id': example_id,
+        'release_id': release_id,
+        'spotify_album_id': spotify_album_id,
+        'pinned_at': pinned_at,
+        'updated_at': datetime.utcnow().isoformat(timespec='seconds') + 'Z',
+        'verdict': verdict,
+        'notes': notes,
+        'tracklist': tracklist,
+    }
+    path.write_text(json.dumps(record, indent=2))
+    return jsonify({'example': record}), 201
+
+
+@admin_bp.route('/spotify-link-audit/examples/<example_id>', methods=['PATCH'])
+def spotify_match_example_update(example_id):
+    """Update verdict and/or notes on an existing pinned example.
+
+    Body (JSON): verdict and/or notes. Tracklist is untouched — re-pin via
+    POST if you want to refresh the tracklist snapshot.
+    """
+    record = _load_example(example_id)
+    if record is None:
+        return jsonify({'error': 'Example not found'}), 404
+
+    body = request.get_json(silent=True) or {}
+    if 'verdict' in body:
+        v = (body.get('verdict') or '').strip()
+        if v not in _VERDICT_VALUES:
+            return jsonify({'error': f'verdict must be one of {_VERDICT_VALUES}'}), 400
+        record['verdict'] = v
+    if 'notes' in body:
+        record['notes'] = (body.get('notes') or '').strip()
+
+    record['updated_at'] = datetime.utcnow().isoformat(timespec='seconds') + 'Z'
+    path = _example_path(example_id)
+    path.write_text(json.dumps(record, indent=2))
+    return jsonify({'example': record})
+
+
+@admin_bp.route('/spotify-link-audit/examples/<example_id>', methods=['DELETE'])
+def spotify_match_example_delete(example_id):
+    """Unpin a previously saved example."""
+    path = _example_path(example_id)
+    if path is None or not path.exists():
+        return jsonify({'error': 'Example not found'}), 404
+    path.unlink()
+    return jsonify({'deleted': example_id})
+
+
+@admin_bp.route('/spotify-link-audit/examples', methods=['GET'])
+def spotify_match_examples_list():
+    """Reviewer page: all pinned examples with side-by-side tracklists."""
+    examples = _list_examples()
+    counts = {v: 0 for v in _VERDICT_VALUES}
+    for r in examples:
+        v = r.get('verdict')
+        if v in counts:
+            counts[v] += 1
+    return render_template(
+        'admin/spotify_match_examples.html',
+        examples=examples,
+        counts=counts,
+        total=len(examples),
     )
 
 
