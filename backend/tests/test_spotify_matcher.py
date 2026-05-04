@@ -35,6 +35,7 @@ from integrations.spotify.matching import (
     strip_ensemble_suffix,
     strip_live_suffix,
     strip_mb_year_disambiguator,
+    strip_track_decorations,
     track_artist_matches_recording_leader,
     validate_album_match,
     validate_track_match,
@@ -776,6 +777,110 @@ class TestCompareMbToSpotifyTracks:
         for (mb_title, mb_pos, sp_title, sp_pos, score) in info['matched_pairs']:
             assert mb_title == sp_title
             assert mb_pos == sp_pos
+
+
+# ---------------------------------------------------------------------------
+# strip_track_decorations + the count-equal fallback inside
+# compare_mb_to_spotify_tracks. These cover the patterns surfaced by the
+# 6 pinned audit examples (#???-followup): Spotify-side track-title
+# decorations the strict normalize misses, plus MB-side parenthetical
+# alt-titles that the count-equal pass strips on both sides.
+# ---------------------------------------------------------------------------
+
+class TestStripTrackDecorations:
+    @pytest.mark.parametrize("raw,expected", [
+        # Trailing " - <suffix>" with mastering / version / live keywords.
+        ("Clouds - 24-Bit Mastering",                                  "Clouds"),
+        ("Clouds - Single Version/24-Bit Mastering",                   "Clouds"),
+        ("Corcovado - Alternate Take/24-Bit Mastering",                "Corcovado"),
+        ("O Amor Em Paz - Remastered 1999",                            "O Amor Em Paz"),
+        ("Take the A Train - Jazz Violin Version",                     "Take the A Train"),
+        ("Just In Time - Live at Carnegie Hall, NY - June 1962",       "Just In Time"),
+        ("Teach Me Tonight - Original Edited Concert - Live at Sunset",
+         "Teach Me Tonight"),
+        # (From "<show>") — no musical/film keyword required.
+        ('Just In Time (From "Bells Are Ringing")',                    "Just In Time"),
+        ("Pennies from Heaven (From 'Pennies from Heaven')",           "Pennies from Heaven"),
+        # (with <featured artist>) — trailing parenthetical strip.
+        ("(I Left My Heart) In San Francisco (with Ralph Sharon)",
+         "(I Left My Heart) In San Francisco"),
+        # Leading "Medley: " prefix.
+        ("Medley: Put On A Happy Face/Comes Once In A Lifetime",
+         "Put On A Happy Face/Comes Once In A Lifetime"),
+        # Trailing parenthetical (MB alt-title style).
+        ("Corcovado (Quiet Nights)",                                   "Corcovado"),
+        ("O Amor Em Paz (Once I Loved)",                               "O Amor Em Paz"),
+        # No decoration → unchanged.
+        ("Killer Joe",                                                 "Killer Joe"),
+        # Real-title hyphen but no keyword in suffix → unchanged.
+        ("Hello - Goodbye",                                            "Hello - Goodbye"),
+        # Risky words we deliberately did NOT add — must NOT strip.
+        ("Take Five",                                                  "Take Five"),
+        ("Single Ladies",                                              "Single Ladies"),
+        ("Original Sin",                                               "Original Sin"),
+    ])
+    def test_strips_decorations(self, raw, expected):
+        assert strip_track_decorations(raw) == expected
+
+    def test_empty_input(self):
+        assert strip_track_decorations("") == ""
+        assert strip_track_decorations(None) is None
+
+
+class TestCompareMbToSpotifyTracksCountEqualFallback:
+    """The fallback only fires when len(mb) == len(sp). Covers the
+    Spotify-decoration cases from the pinned audit examples."""
+
+    def test_count_equal_strips_mastering_suffix(self):
+        # Strict pass would score "Clouds" vs "Clouds - 24-Bit Mastering"
+        # at ~41 (well below 75). Count-equal fallback strips and matches.
+        mb = [_mb('Clouds', 1), _mb('Sambop', 2), _mb('Joyce\'s Sambas', 3)]
+        sp = [_sp('Clouds - 24-Bit Mastering'),
+              _sp('Sambop - 24-Bit Mastering'),
+              _sp("Joyce's Samba - 24-Bit Mastering")]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 3
+        assert info['match_ratio'] == 1.0
+
+    def test_count_equal_strips_live_venue_suffix(self):
+        mb = [_mb('Just In Time', 1), _mb('Stranger In Paradise', 2)]
+        sp = [_sp('Just In Time (From "Bells Are Ringing") - Live at Carnegie Hall, NY - June 1962'),
+              _sp('Stranger In Paradise (From "Kismet") - Live at Carnegie Hall, NY - June 1962')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 2
+
+    def test_count_equal_strips_mb_alt_title_parenthetical(self):
+        # MB has "(Quiet Nights)" alt-title; Spotify dropped it.
+        # Without count-equal stripping, score is ~55. With it, exact match.
+        mb = [_mb('Corcovado (Quiet Nights)', 1),
+              _mb('O Amor Em Paz (Once I Loved)', 2),
+              _mb('Batida Diferentes', 3)]
+        sp = [_sp('Corcovado - Remastered'),
+              _sp('O Amor Em Paz - Remastered 1999'),
+              _sp('Batida Diferente')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 3
+
+    def test_unequal_counts_fallback_does_not_fire(self):
+        # 2 MB tracks, 3 Spotify tracks → strict pass only. The decorations
+        # are heavy enough that strict won't match → matched_count stays 0.
+        # This guards against the fallback over-matching when we have no
+        # count-equal "same album" signal.
+        mb = [_mb('Clouds', 1), _mb('Sambop', 2)]
+        sp = [_sp('Clouds - 24-Bit Mastering'),
+              _sp('Sambop - 24-Bit Mastering'),
+              _sp('Bonus Track - 24-Bit Mastering')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        # Strict normalize doesn't strip "- 24-Bit Mastering", so neither
+        # of these matches → matched_count == 0.
+        assert info['matched_count'] == 0
+
+    def test_strict_pass_still_works_for_clean_pairs(self):
+        # No decorations → strict pass matches everything, fallback no-op.
+        mb = [_mb('Autumn Leaves', 1), _mb('Blue in Green', 2)]
+        sp = [_sp('Autumn Leaves'), _sp('Blue in Green')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 2
 
 
 # ---------------------------------------------------------------------------

@@ -1446,6 +1446,106 @@ def _longest_increasing_subsequence_length(values: list) -> int:
     return len(tails)
 
 
+# Trailing " - <suffix>" decorations the existing normalize_for_comparison
+# misses. Spotify catalogs love to append mastering, edition, version, and
+# venue tags to *track* titles ("Clouds - 24-Bit Mastering", "Just In Time -
+# Live at Carnegie Hall, NY - June 1962", "Take the A Train - Jazz Violin
+# Version"). The current strip is keyword-anchored ("- Remaster…", "- Live
+# at…") so anything where the keyword is mid-suffix slips through.
+#
+# We strip the trailing dash-separated chunk (from the first " - ") when ANY
+# of these tokens appears anywhere in it. Conservative on purpose — keywords
+# that could plausibly appear in real jazz titles ("take", "edit", "single",
+# "original") are deliberately excluded. The ones that survive are either
+# studio jargon ("mastering", "remaster", "mono", "stereo") or already get
+# subsumed by a safer phrase we DO match ("Single Version" → "version",
+# "Radio Edit" → "radio", "Original Edited Concert" → "edited").
+_TRACK_SUFFIX_DECO_KEYWORDS = (
+    r'(?:live|master|mastered|mastering|remaster|remastered|mono|stereo|'
+    r'mix|remix|version|edited|bonus|radio|extended|instrumental|'
+    r'concert|session|alternate|vinyl|deluxe|expanded|reissue|recording)'
+)
+# Greedy `.*` between the first " - " and the keyword so internal hyphens
+# (e.g. "24-Bit Mastering") don't break the match. Anchoring at end-of-string
+# means everything from the first " - " onward gets nuked once a keyword
+# appears anywhere in the suffix.
+_TRACK_SUFFIX_DECO_RE = re.compile(
+    rf'\s+-\s+.*\b{_TRACK_SUFFIX_DECO_KEYWORDS}\b.*$',
+    re.IGNORECASE,
+)
+_FROM_QUOTED_PARENS_RE = re.compile(
+    r'''\s*\(from\s+["'“”‘’][^)]*\)''',
+    re.IGNORECASE,
+)
+_TRAILING_PARENS_RE = re.compile(r'\s*\([^()]+\)\s*$')
+_LEADING_MEDLEY_RE = re.compile(r'^\s*medley:\s+', re.IGNORECASE)
+
+
+def strip_track_decorations(title: str) -> str:
+    """Strip well-known annotation patterns from a track title.
+
+    Used as a count-equal-mode fallback inside compare_mb_to_spotify_tracks
+    when the strict pass leaves rows unmatched. Only safe to apply when MB
+    and Spotify track counts are equal — that's a strong "this is the same
+    album" signal that justifies the more aggressive strip.
+
+    Strips:
+      - leading "Medley: "
+      - trailing " - <suffix>" containing any decoration keyword
+        (mastering, version, live, remix, mono, stereo, take, edit, …)
+      - (From "<show>") parentheticals (no musical/film keyword required)
+      - any trailing parenthetical (handles MB alt-titles like "(Quiet Nights)"
+        and Spotify (with <featured artist>) credits)
+    """
+    if not title:
+        return title
+    title = _LEADING_MEDLEY_RE.sub('', title)
+    title = _TRACK_SUFFIX_DECO_RE.sub('', title)
+    title = _FROM_QUOTED_PARENS_RE.sub('', title)
+    # Repeatedly strip trailing parens — Spotify chains them, e.g.
+    # "Foo (From "Bar") (with Baz)" needs both gone.
+    prev = None
+    while prev != title:
+        prev = title
+        title = _TRAILING_PARENS_RE.sub('', title)
+    return title.strip()
+
+
+def _match_pass(mb_tracks: list, spotify_tracks: list,
+                mb_normalized: list, sp_normalized: list,
+                used_sp_indices: set, skip_mb_positions: set):
+    """Single matching pass — returns the new pairs found, mutating
+    used_sp_indices as it goes. Shared between the strict pass and the
+    count-equal-mode decoration-stripped fallback.
+    """
+    from rapidfuzz import fuzz
+
+    new_titles = []
+    new_pairs = []
+    for i, mb_track in enumerate(mb_tracks):
+        if mb_track['position'] in skip_mb_positions:
+            continue
+        best_score = 0
+        best_idx = -1
+        best_sp_title = ''
+        for idx, sp_norm in enumerate(sp_normalized):
+            if idx in used_sp_indices:
+                continue
+            score = fuzz.token_sort_ratio(mb_normalized[i], sp_norm)
+            if abs(mb_track['position'] - (idx + 1)) <= 2 and score >= 70:
+                score = min(100, score + 5)
+            if score > best_score:
+                best_score = score
+                best_idx = idx
+                best_sp_title = spotify_tracks[idx]['name']
+        if best_score >= 75:
+            new_titles.append((mb_track['title'], best_sp_title, best_score))
+            new_pairs.append((mb_track['title'], mb_track['position'],
+                              best_sp_title, best_idx + 1, best_score))
+            used_sp_indices.add(best_idx)
+    return new_titles, new_pairs
+
+
 def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
     """Match MB tracks to Spotify tracks by title similarity and report
     coverage + ordering stats.
@@ -1459,10 +1559,16 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
         matched pairs are walked in MB-position order, divided by
         matched_count. None when matched_count < 3 (too noisy to score).
 
+    Two-pass design:
+      1. Strict pass — token_sort_ratio on existing normalized titles.
+      2. Count-equal fallback — when len(mb) == len(sp) and rows remain
+         unmatched, re-normalize via strip_track_decorations() and try
+         again. The count-equality is treated as strong evidence that the
+         tracks should align, so we accept more aggressive normalization.
+         Single-album lookups never hit this path.
+
     The match-acceptance threshold is 75 (token_sort_ratio).
     """
-    from rapidfuzz import fuzz
-
     result = {
         'mb_track_count': len(mb_tracks),
         'spotify_track_count': len(spotify_tracks),
@@ -1476,34 +1582,40 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
     if not mb_tracks or not spotify_tracks:
         return result
 
+    mb_normalized = [t['normalized'] for t in mb_tracks]
     sp_normalized = [
         normalize_for_comparison(t['name']) for t in spotify_tracks
     ]
 
     used_sp_indices = set()
-    for mb_track in mb_tracks:
-        best_score = 0
-        best_idx = -1
-        best_sp_title = ''
+    titles, pairs = _match_pass(
+        mb_tracks, spotify_tracks, mb_normalized, sp_normalized,
+        used_sp_indices, skip_mb_positions=set(),
+    )
+    result['matched_titles'].extend(titles)
+    result['matched_pairs'].extend(pairs)
 
-        for idx, sp_norm in enumerate(sp_normalized):
-            if idx in used_sp_indices:
-                continue
-            score = fuzz.token_sort_ratio(mb_track['normalized'], sp_norm)
-            if abs(mb_track['position'] - (idx + 1)) <= 2 and score >= 70:
-                score = min(100, score + 5)
-            if score > best_score:
-                best_score = score
-                best_idx = idx
-                best_sp_title = spotify_tracks[idx]['name']
-
-        if best_score >= 75:
-            result['matched_titles'].append(
-                (mb_track['title'], best_sp_title, best_score))
-            result['matched_pairs'].append(
-                (mb_track['title'], mb_track['position'],
-                 best_sp_title, best_idx + 1, best_score))
-            used_sp_indices.add(best_idx)
+    # Count-equal fallback: same album-shape signal, so re-try the leftover
+    # rows with decoration stripping. See strip_track_decorations() docstring.
+    if (
+        len(mb_tracks) == len(spotify_tracks)
+        and len(result['matched_pairs']) < len(mb_tracks)
+    ):
+        mb_norm_stripped = [
+            normalize_for_comparison(strip_track_decorations(t['title']))
+            for t in mb_tracks
+        ]
+        sp_norm_stripped = [
+            normalize_for_comparison(strip_track_decorations(t['name']))
+            for t in spotify_tracks
+        ]
+        matched_mb_positions = {p[1] for p in result['matched_pairs']}
+        titles2, pairs2 = _match_pass(
+            mb_tracks, spotify_tracks, mb_norm_stripped, sp_norm_stripped,
+            used_sp_indices, skip_mb_positions=matched_mb_positions,
+        )
+        result['matched_titles'].extend(titles2)
+        result['matched_pairs'].extend(pairs2)
 
     result['matched_count'] = len(result['matched_titles'])
     result['match_ratio'] = (
