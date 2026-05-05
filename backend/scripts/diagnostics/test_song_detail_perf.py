@@ -3,8 +3,8 @@
 Performance regression test for the SongDetailView API endpoints.
 
 Tests the two endpoints that back the SongDetailView:
-  - GET /api/songs/<id>/summary    (blocks UI, must be fast)
-  - GET /api/songs/<id>/recordings (background load, heavier but bounded)
+  - GET /v1/songs/<id>/summary    (blocks UI, must be fast)
+  - GET /v1/songs/<id>/recordings (background load, heavier but bounded)
 
 Measures per endpoint:
   - Number of DB round-trips (execute_query / get_db_connection calls)
@@ -258,10 +258,10 @@ def main():
 
     all_passed = True
 
-    # Test summary endpoint (routes are at /songs/..., not /api/songs/...)
+    # Test summary endpoint (routes live under /v1/ — see routes/__init__.py)
     passed = test_endpoint(
         client,
-        f'/songs/{song_id}/summary',
+        f'/v1/songs/{song_id}/summary',
         'summary',
         THRESHOLDS['summary'],
         verbose=args.verbose,
@@ -271,7 +271,7 @@ def main():
     # Test recordings endpoint
     passed = test_endpoint(
         client,
-        f'/songs/{song_id}/recordings',
+        f'/v1/songs/{song_id}/recordings',
         'recordings',
         THRESHOLDS['recordings'],
         verbose=args.verbose,
@@ -292,7 +292,7 @@ def main():
 
             passed = test_endpoint(
                 client,
-                f'/songs/{stress_id}/recordings',
+                f'/v1/songs/{stress_id}/recordings',
                 'recordings',
                 STRESS_THRESHOLDS['recordings'],
                 verbose=args.verbose,
