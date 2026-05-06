@@ -154,7 +154,17 @@ Every successful match writes one row to `recording_release_streaming_links`:
 | `match_method` | e.g. `'youtube_duration_match'` | which strategy succeeded |
 | `created_at`, `updated_at` | timestamps | used to enforce the 30-day refresh cap |
 
-We have an open issue ([#168](https://github.com/dprodger/ApproachNote/issues/168)) to add a periodic refresh job that re-queries any row older than ~25 days to keep us comfortably under the 30-day cap. The durable research queue we just built is the natural place for it: the same `('youtube', 'match_recording')` handler runs, with `payload.rematch=true` to force re-evaluation.
+### Refresh-or-delete policy (Dev Policies III.E.4 compliance)
+
+To stay under the 30-day cap **without** re-matching every row in the catalog every 30 days (which scales poorly), we apply a **selective refresh** model:
+
+1. **Active recordings get refreshed.** A recording is "active" if it has been viewed by a logged-in user, or favorited / added to a repertoire, within the last 30 days. A periodic worker job (one per source on the durable queue we just built) finds active YouTube rows older than ~25 days and re-runs `('youtube', 'match_recording')` with `payload.rematch=true`.
+2. **Inactive recordings get deleted.** Any YouTube row whose recording has not been touched by a user in 30 days is **deleted** from `recording_release_streaming_links` once it crosses the 30-day mark. The cached on-disk JSON for that recording's queries is also evicted.
+3. **On next user view, re-match on demand.** If a user opens a recording whose YouTube row was deleted, the API returns the recording without a YouTube link and immediately enqueues a fresh `match_recording` job. The worker fills it in (typically within seconds), and the next refresh of the recording detail view shows the YouTube button.
+
+Net effect: cached YouTube data lives **at most 30 days** for every row in the database — refreshed if the recording is being used, deleted if not. Total daily refresh load scales with **active corpus size**, not total corpus size.
+
+Implementation tracking: issue [#168](https://github.com/dprodger/ApproachNote/issues/168).
 
 ### What we do NOT store
 - We do not store thumbnails, view counts, like counts, comments, channel subscriber counts, or any audience-engagement data.
@@ -184,7 +194,7 @@ Captured in our internal review at [`doc/commercial-api-terms-review.md`](https:
 
 - **No paywalled YouTube playback** (Dev Policies III.F.3). YouTube links in ApproachNote are accessible without a subscription. If we ever introduce paid tiers, YouTube playback stays free.
 - **No ads served against YouTube data** (Dev Policies III.G.1.d). ApproachNote shows no advertising of any kind today, and any future ad implementation will exclude YouTube-derived pages.
-- **30-day cache cap** (Dev Policies III.E.4.c/d). On-disk cache TTL = 30 days; DB rows refreshed within 30 days via the planned periodic job (issue #168).
+- **30-day cache cap** (Dev Policies III.E.4.c/d). Implemented via the selective-refresh + delete model described in §6: active recordings are refreshed within 30 days; inactive ones are deleted at the 30-day mark and re-matched on demand if/when a user opens them again. On-disk cache TTL = 30 days.
 - **Feature parity with other streaming sources** (Dev Policies III.C.8). YouTube is shown alongside Spotify and Apple Music with equal visual weight — no demotion in UI ranking.
 - **No substantial duplication of YouTube** (Dev Policies III.I.1). ApproachNote is a jazz study application; the YouTube data is one input feeding a much larger context (chord changes, performer biographies, recording histories, repertoire management).
 - **Privacy policy** (ToS §7): in active drafting, will be live before the official App Store release.
@@ -194,19 +204,57 @@ Captured in our internal review at [`doc/commercial-api-terms-review.md`](https:
 
 ## 9. Why we are requesting an extended quota
 
-We currently operate at the default 10,000 unit/day quota. Our matching workload is bounded by two things:
+We currently operate at the default 10,000 unit/day quota. Our recording catalog is **~100,000 today** and is projected to roughly **double to ~200,000 over the next 12 months** as we expand coverage of historic and live recordings. Our user base is currently small and projected at **<5,000 registered users by the end of the same 12-month window**.
 
-1. **Adding new songs to the database.** Each song imports ~10–30 recordings from MusicBrainz, each of which becomes one YouTube match job at ~150 units (median). New-song additions burst to ~3,000–9,000 units in a single session.
-2. **Periodic re-matching for the 30-day refresh policy** (issue #168, in design). For our current ~5,000 recordings with YouTube links, refreshing all of them once every 25 days is ~200 jobs/day × ~150 units = ~30,000 units/day.
+The selective-refresh + delete model described in §6 means daily quota consumption scales with the **active** corpus (recordings actually being viewed/favorited), not the total corpus. A reasonable working assumption is that ~25% of recordings see user activity in any given 30-day window — typical for a long-tail reference catalog where users gravitate toward popular standards.
 
-Today the refresh job is blocked on quota — we cannot enable it without exceeding the daily cap, which means we are at risk of falling out of compliance with Dev Policies III.E.4.
+### Per-call cost reference
 
-We are requesting an extended quota of **1,000,000 units/day**, which would let us:
+| API method | Units per call | When invoked |
+|---|---:|---|
+| `search.list` (`type=video`, `part=snippet`) | **100** | Up to 3 query variants per match (title+artist credit / title+primary artist / title alone). |
+| `videos.list` (`part=snippet,contentDetails`) | **1** | One batched call per match (up to 50 candidate IDs). |
 
-- Perform a bulk data refresh for our existing database of 300 songs (~30,000 recordings) to bring the catalog up to parity with other streaming services.
-- Enable the periodic re-match job and stay comfortably within the 30-day cap on all stored YouTube data.
-- Continue adding new songs and recordings to the database at our current cadence (a few new songs per week from user-suggested tunes, plus periodic batch imports of jazz standard repertoire).
-- Maintain a small safety buffer for ad-hoc admin re-matches when match quality issues are reported.
+### Per-recording match cost
+
+| Scenario | search.list | videos.list | Total units |
+|---|---:|---:|---:|
+| Best case (one query hits, mostly cache) | 1 × 100 | 1 × 1 | **101** |
+| Median observed | ~1.5 × 100 | 1 × 1 | **~150** |
+| Worst case (all 3 query variants miss cache) | 3 × 100 | 1 × 1 | **301** |
+
+### Daily volume at projected scale
+
+Modelling for the 12-month projection (~200,000 total recordings, ~50,000 active):
+
+| Workload | Daily volume | Median units | Subtotal |
+|---|---:|---:|---:|
+| **30-day selective refresh** of active corpus (50,000 ÷ ~25 days) | 2,000 matches | 250 | 500,000 |
+| **New recordings** from song additions (~5 songs/day × ~25 recordings) | 125 matches | 250 | 31,250 |
+| **On-demand re-matches** when users open recordings whose stale rows were deleted | ~150 matches | 300 | 45,000 |
+| **Admin re-matches / quality fixes** (manual triggers from /admin/research/) | 50 matches | 250 | 12,500 |
+| **Burst/safety buffer** (batch imports, retries, growth in active corpus) | — | — | ~150,000 |
+| **Daily total** | **~2,325 matches** | — | **~740,000 units** |
+
+Translating to HTTP call counts: 2,325 matches × ~3.5 calls/match ≈ **~8,000 HTTP requests/day**.
+
+The 1,000,000 unit/day request gives us comfortable headroom (~25%) over the projected steady-state load while staying within a single bucket that can be reliably budgeted.
+
+### Why 1,000,000 specifically (not 2M+ for the full corpus)
+
+Refreshing the **entire** 200,000-recording corpus on a 30-day cycle would require ~2M units/day. We deliberately chose the smaller ask, paired with the selective-refresh + delete model, because:
+
+- **It keeps us reliably III.E.4-compliant.** Stale rows for inactive recordings are deleted, not held indefinitely. The refresh worker only spends API budget on recordings users are actually using.
+- **It avoids spending API budget on data nobody reads.** A long-tail reference app like ours has many recordings that are rarely viewed; pre-emptively refreshing them doesn't help users.
+- **It scales with usage, not catalog size.** As we add more recordings, daily quota grows only with the share of those recordings that becomes active.
+
+### Without the increase
+
+At the default 10,000 unit/day quota we cannot:
+
+- Run the selective-refresh worker — even ~40 active-recording refreshes/day would consume the entire bucket.
+- Continue enriching the catalog at our current new-song cadence without immediately running out of headroom.
+- Stay III.E.4 compliant: the cached rows we already have would age past 30 days with no mechanism to refresh or delete them within budget.
 
 ---
 
