@@ -1473,15 +1473,45 @@ _TRACK_SUFFIX_DECO_RE = re.compile(
     rf'\s+-\s+.*\b{_TRACK_SUFFIX_DECO_KEYWORDS}\b.*$',
     re.IGNORECASE,
 )
+# Aggressive variant: strip everything after the FIRST " - ", regardless of
+# keyword. Only safe in count-equal mode where positional alignment plus
+# track-count equality strongly suggests the two lists are the same album,
+# so any trailing " - <stuff>" on one side is decoration the other side
+# dropped (musical attribution, "from <movie>", arranger credit, etc.).
+_TRACK_SUFFIX_ANY_RE = re.compile(r'\s+-\s+.*$')
 _FROM_QUOTED_PARENS_RE = re.compile(
     r'''\s*\(from\s+["'“”‘’][^)]*\)''',
     re.IGNORECASE,
 )
-_TRAILING_PARENS_RE = re.compile(r'\s*\([^()]+\)\s*$')
 _LEADING_MEDLEY_RE = re.compile(r'^\s*medley:\s+', re.IGNORECASE)
 
 
-def strip_track_decorations(title: str) -> str:
+def _strip_trailing_balanced_parens(s: str) -> str:
+    """Strip the rightmost balanced-paren group from `s`, repeatedly, until
+    no trailing paren group remains. Handles nested parens correctly —
+    a regex with `[^()]+` can't match
+    ``Foo (Outer (Inner) Tail)`` because the outer body contains parens.
+    """
+    s = s.rstrip()
+    while s.endswith(')'):
+        depth = 0
+        cut = -1
+        for i in range(len(s) - 1, -1, -1):
+            ch = s[i]
+            if ch == ')':
+                depth += 1
+            elif ch == '(':
+                depth -= 1
+                if depth == 0:
+                    cut = i
+                    break
+        if cut < 0:
+            break  # unbalanced — leave alone
+        s = s[:cut].rstrip()
+    return s
+
+
+def strip_track_decorations(title: str, *, aggressive: bool = False) -> str:
     """Strip well-known annotation patterns from a track title.
 
     Used as a count-equal-mode fallback inside compare_mb_to_spotify_tracks
@@ -1489,26 +1519,109 @@ def strip_track_decorations(title: str) -> str:
     and Spotify track counts are equal — that's a strong "this is the same
     album" signal that justifies the more aggressive strip.
 
-    Strips:
+    Strips (default mode):
       - leading "Medley: "
       - trailing " - <suffix>" containing any decoration keyword
         (mastering, version, live, remix, mono, stereo, take, edit, …)
       - (From "<show>") parentheticals (no musical/film keyword required)
-      - any trailing parenthetical (handles MB alt-titles like "(Quiet Nights)"
-        and Spotify (with <featured artist>) credits)
+      - any trailing balanced-paren group (handles nested parens like
+        ``Foo (Outer (Inner)``) — covers MB alt-titles like ``(Quiet
+        Nights)`` and Spotify ``(with <featured artist>)`` credits
+
+    Aggressive mode (``aggressive=True``):
+      - Drops the keyword requirement on trailing " - <suffix>" — strips
+        everything after the first " - " regardless of what follows.
+        Useful inside count-equal fallback for "from <musical>",
+        "Arr. for X by Y", arranger/dedication credits, etc.
     """
     if not title:
         return title
     title = _LEADING_MEDLEY_RE.sub('', title)
-    title = _TRACK_SUFFIX_DECO_RE.sub('', title)
+    if aggressive:
+        title = _TRACK_SUFFIX_ANY_RE.sub('', title)
+    else:
+        title = _TRACK_SUFFIX_DECO_RE.sub('', title)
     title = _FROM_QUOTED_PARENS_RE.sub('', title)
-    # Repeatedly strip trailing parens — Spotify chains them, e.g.
-    # "Foo (From "Bar") (with Baz)" needs both gone.
-    prev = None
-    while prev != title:
-        prev = title
-        title = _TRAILING_PARENS_RE.sub('', title)
+    title = _strip_trailing_balanced_parens(title)
     return title.strip()
+
+
+# Common-affix detection: many MB releases prepend a suite/work name to
+# *some* tracks ("Back Country Suite for Piano, Bass and Drums: New Ground"
+# alongside non-suite tracks), or append an artist/credit suffix ("All the
+# Things You Are (Live) - Michel Petrucciani, Niels"). Spotify carries the
+# same content with that affix dropped. Detecting the affix at the LIST
+# level lets us strip it without baking in pattern-specific regexes.
+#
+# The affix has to end (or start) at a structural separator (": " or " - ")
+# so we never clip a partial word. We only strip when the affix appears on
+# at least 2 tracks — that is the threshold that distinguishes "structural
+# title decoration" from "incidental phrase that happens to repeat once."
+# Crucially, NOT requiring all tracks to share the affix is what lets us
+# handle albums that mix suite tracks with non-suite bonus tracks.
+_AFFIX_SEPARATORS = (': ', ' - ')
+_AFFIX_MIN_LEN = 4         # shortest affix length we're willing to strip
+_AFFIX_MIN_COUNT = 2       # must appear on at least this many tracks
+
+
+def _strip_one_prefix_pass(out, sep):
+    """Find the longest prefix ending at `sep` that recurs on >=
+    _AFFIX_MIN_COUNT tracks and strip it from those tracks. Returns
+    True if something was stripped."""
+    candidates = {}
+    for t in out:
+        idx = t.find(sep)
+        if idx >= 0:
+            p = t[:idx + len(sep)]
+            if len(p) >= _AFFIX_MIN_LEN:
+                candidates[p] = candidates.get(p, 0) + 1
+    for prefix, count in sorted(candidates.items(), key=lambda x: -len(x[0])):
+        if count >= _AFFIX_MIN_COUNT:
+            for i, t in enumerate(out):
+                if t.startswith(prefix):
+                    out[i] = t[len(prefix):].lstrip()
+            return True
+    return False
+
+
+def _strip_one_suffix_pass(out, sep):
+    candidates = {}
+    for t in out:
+        idx = t.rfind(sep)
+        if idx >= 0:
+            s = t[idx:]
+            if len(s) >= _AFFIX_MIN_LEN:
+                candidates[s] = candidates.get(s, 0) + 1
+    for suffix, count in sorted(candidates.items(), key=lambda x: -len(x[0])):
+        if count >= _AFFIX_MIN_COUNT:
+            for i, t in enumerate(out):
+                if t.endswith(suffix):
+                    out[i] = t[:len(t) - len(suffix)].rstrip()
+            return True
+    return False
+
+
+def _strip_common_affixes(titles):
+    """Detect prefixes/suffixes (ending/starting at a structural separator)
+    that recur on at least _AFFIX_MIN_COUNT tracks, and strip them from
+    those tracks. Iterates to a fixed point so multi-suite albums (e.g.
+    "Part A : Groove: ..." mixed with "Part B : Quiet Moments: ...") get
+    every group stripped, not just the longest one.
+    """
+    if len(titles) < _AFFIX_MIN_COUNT:
+        return titles
+
+    out = list(titles)
+    changed = True
+    while changed:
+        changed = False
+        for sep in _AFFIX_SEPARATORS:
+            if _strip_one_prefix_pass(out, sep):
+                changed = True
+        for sep in _AFFIX_SEPARATORS:
+            if _strip_one_suffix_pass(out, sep):
+                changed = True
+    return out
 
 
 def _match_pass(mb_tracks: list, spotify_tracks: list,
@@ -1596,19 +1709,33 @@ def compare_mb_to_spotify_tracks(mb_tracks: list, spotify_tracks: list) -> dict:
     result['matched_pairs'].extend(pairs)
 
     # Count-equal fallback: same album-shape signal, so re-try the leftover
-    # rows with decoration stripping. See strip_track_decorations() docstring.
+    # rows with aggressive decoration stripping + common-affix detection
+    # across the whole tracklist. See strip_track_decorations() and
+    # _strip_common_affixes() docstrings for the safety reasoning.
     if (
         len(mb_tracks) == len(spotify_tracks)
         and len(result['matched_pairs']) < len(mb_tracks)
     ):
-        mb_norm_stripped = [
-            normalize_for_comparison(strip_track_decorations(t['title']))
+        # Per-track aggressive strip: trailing " - <anything>", nested
+        # parens, "(From ...)" pattern, leading "Medley:". The aggressive
+        # flag drops the keyword anchor so e.g. " - from Lady, Be Good!"
+        # and " - Arr. For Vocal Quartet by N. Crellin" both go.
+        mb_titles_stripped = [
+            strip_track_decorations(t['title'], aggressive=True)
             for t in mb_tracks
         ]
-        sp_norm_stripped = [
-            normalize_for_comparison(strip_track_decorations(t['name']))
+        sp_titles_stripped = [
+            strip_track_decorations(t['name'], aggressive=True)
             for t in spotify_tracks
         ]
+        # Per-list common-affix strip: catches "Back Country Suite for
+        # Piano, Bass and Drums: <track>" on MB when Spotify drops the
+        # suite prefix, and the symmetric trailing-credit suffix.
+        mb_titles_final = _strip_common_affixes(mb_titles_stripped)
+        sp_titles_final = _strip_common_affixes(sp_titles_stripped)
+
+        mb_norm_stripped = [normalize_for_comparison(t) for t in mb_titles_final]
+        sp_norm_stripped = [normalize_for_comparison(t) for t in sp_titles_final]
         matched_mb_positions = {p[1] for p in result['matched_pairs']}
         titles2, pairs2 = _match_pass(
             mb_tracks, spotify_tracks, mb_norm_stripped, sp_norm_stripped,

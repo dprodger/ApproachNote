@@ -37,6 +37,8 @@ from integrations.spotify.matching import (
     strip_mb_year_disambiguator,
     strip_track_decorations,
     track_artist_matches_recording_leader,
+    _strip_common_affixes,
+    _strip_trailing_balanced_parens,
     validate_album_match,
     validate_track_match,
     verify_album_contains_track,
@@ -879,6 +881,168 @@ class TestCompareMbToSpotifyTracksCountEqualFallback:
         # No decorations → strict pass matches everything, fallback no-op.
         mb = [_mb('Autumn Leaves', 1), _mb('Blue in Green', 2)]
         sp = [_sp('Autumn Leaves'), _sp('Blue in Green')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 2
+
+
+# ---------------------------------------------------------------------------
+# Aggressive trailing-dash strip and nested-paren walker (count-equal mode)
+# ---------------------------------------------------------------------------
+
+class TestStripTrackDecorationsAggressive:
+    """aggressive=True drops the keyword anchor on trailing " - <suffix>".
+    Used inside the count-equal fallback where positional alignment makes
+    over-stripping safe."""
+
+    @pytest.mark.parametrize("raw,expected", [
+        # Patterns the keyword-anchored mode misses but aggressive catches.
+        ("Once In Love With Amy - From \"Where's Charley?\"", "Once In Love With Amy"),
+        ("Real Live Girl - From Little Me",                   "Real Live Girl"),
+        ("Dear John - Horn Arrangement by James Morrison",    "Dear John"),
+        ("The Source - for John Coltrane",                    "The Source"),
+        # Should also still strip the existing keyword decorations.
+        ("Clouds - 24-Bit Mastering",                         "Clouds"),
+    ])
+    def test_strips_arbitrary_dash_suffix(self, raw, expected):
+        assert strip_track_decorations(raw, aggressive=True) == expected
+
+    def test_default_mode_unchanged(self):
+        # Without aggressive, "from <show>" without keyword stays.
+        assert strip_track_decorations(
+            "Once In Love With Amy - From \"Where's Charley?\""
+        ) == "Once In Love With Amy - From \"Where's Charley?\""
+
+
+class TestStripTrailingBalancedParens:
+    @pytest.mark.parametrize("raw,expected", [
+        # Flat trailing parens.
+        ("Foo (Live)",                       "Foo"),
+        # Nested parens — the case the previous flat-paren regex missed.
+        ("It's Only A Paper Moon (The New Look: Season 1 (Apple TV+ Original Series Soundtrack))",
+         "It's Only A Paper Moon"),
+        # Multiple chained trailing parens.
+        ("Foo (From \"Bar\") (with Baz)",    "Foo"),
+        # No trailing paren — unchanged.
+        ("Killer Joe",                        "Killer Joe"),
+        # Unbalanced parens — leave alone rather than mangle.
+        ("Foo (Bar",                          "Foo (Bar"),
+        # Leading paren shouldn't be touched (only TRAILING strip).
+        ("(I Left My Heart) In San Francisco",
+         "(I Left My Heart) In San Francisco"),
+    ])
+    def test_strips_trailing_balanced_parens(self, raw, expected):
+        assert _strip_trailing_balanced_parens(raw) == expected
+
+
+class TestStripCommonAffixes:
+    def test_common_prefix_stripped_from_all_tracks(self):
+        # Suite tracks all share the same prefix.
+        titles = [
+            "Back Country Suite for Piano, Bass and Drums: New Ground",
+            "Back Country Suite for Piano, Bass and Drums: Train",
+            "Back Country Suite for Piano, Bass and Drums: Warm Night",
+        ]
+        out = _strip_common_affixes(titles)
+        assert out == ["New Ground", "Train", "Warm Night"]
+
+    def test_partial_prefix_match_strips_only_those_tracks(self):
+        # Mixed suite + non-suite tracks (Back Country Suite real shape):
+        # only the prefixed ones get stripped, unrelated tracks survive.
+        titles = [
+            "Back Country Suite for Piano, Bass and Drums: New Ground",
+            "Back Country Suite for Piano, Bass and Drums: Train",
+            "Blueberry Hill",
+            "I Thought About You",
+        ]
+        out = _strip_common_affixes(titles)
+        assert out == [
+            "New Ground", "Train", "Blueberry Hill", "I Thought About You",
+        ]
+
+    def test_two_distinct_prefix_groups(self):
+        # Guitar Groove case: tracks split into two suites.
+        # Both prefixes appear on >= 2 tracks → both get stripped.
+        titles = [
+            "Part A : Groove: Merci Afrique",
+            "Part A : Groove: Shuffle",
+            "Part A : Groove: Guitar Groove",
+            "Part B : Quiet Moments: Stardust",
+            "Part B : Quiet Moments: Lover Man",
+        ]
+        out = _strip_common_affixes(titles)
+        assert out == [
+            "Merci Afrique", "Shuffle", "Guitar Groove",
+            "Stardust", "Lover Man",
+        ]
+
+    def test_common_suffix_stripped(self):
+        # MB-side artist credit suffix that Spotify doesn't carry.
+        titles = [
+            "All the Things You Are (Live) - Michel Petrucciani, Niels",
+            "Oleo (Live) - Michel Petrucciani, Niels",
+            "Autumn Leaves (Live) - Michel Petrucciani, Niels",
+        ]
+        out = _strip_common_affixes(titles)
+        assert out == [
+            "All the Things You Are (Live)",
+            "Oleo (Live)",
+            "Autumn Leaves (Live)",
+        ]
+
+    def test_unique_separators_no_strip(self):
+        # Each track has its own ": " content but no shared prefix → no strip.
+        titles = [
+            "Sketch No. 1: Andante",
+            "Sketch No. 2: Allegro",
+        ]
+        out = _strip_common_affixes(titles)
+        assert out == titles  # unchanged
+
+    def test_short_prefix_below_threshold(self):
+        # "A: " is < _AFFIX_MIN_LEN; should not strip.
+        titles = ["A: Foo", "A: Bar"]
+        out = _strip_common_affixes(titles)
+        assert out == titles
+
+
+class TestCompareMbToSpotifyTracksCountEqualFallbackV2:
+    """Coverage for patterns surfaced by the second wave of pinned
+    audit examples (48 cases). All use count-equal alignment."""
+
+    def test_aggressive_dash_strip_rescues_musical_attribution(self):
+        # Manilow Showstoppers — Spotify appends "- from <musical>" to
+        # nearly every track; MB doesn't.
+        mb = [_mb('Once in Love With Amy', 1), _mb('Where or When', 2),
+              _mb('Real Live Girl', 3)]
+        sp = [_sp("Once In Love With Amy - From \"Where's Charley?\""),
+              _sp('Where Or When - from Babes In Arms'),
+              _sp('Real Live Girl - From Little Me')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 3
+
+    def test_common_prefix_rescues_suite_album(self):
+        # Mose Allison Back Country Suite — MB prefixes 10 suite tracks
+        # with the suite name and a colon.
+        mb = [_mb(f'Back Country Suite for Piano, Bass and Drums: {n}', i)
+              for i, n in enumerate(['New Ground', 'Train', 'Warm Night',
+                                     'Blues', 'Saturday'], start=1)]
+        sp = [_sp('New Ground'), _sp('Train'), _sp('Warm Night'),
+              _sp('Blues'), _sp('Saturday')]
+        info = compare_mb_to_spotify_tracks(mb, sp)
+        assert info['matched_count'] == 5
+
+    def test_nested_parens_strip_rescues_soundtrack_decoration(self):
+        # "(The New Look: Season 1 (Apple TV+ Original Series Soundtrack))"
+        # has nested parens — flat-paren regex misses, balanced walker
+        # handles it.
+        mb = [_mb("It's Only a Paper Moon", 1),
+              _mb("Almost Like Being in Love", 2)]
+        sp = [
+            _sp("It's Only A Paper Moon "
+                "(The New Look: Season 1 (Apple TV+ Original Series Soundtrack))"),
+            _sp("Almost Like Being In Love "
+                "(The New Look: Season 1 (Apple TV+ Original Series Soundtrack))"),
+        ]
         info = compare_mb_to_spotify_tracks(mb, sp)
         assert info['matched_count'] == 2
 
