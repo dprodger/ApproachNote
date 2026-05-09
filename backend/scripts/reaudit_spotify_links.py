@@ -3,31 +3,41 @@
 Re-evaluate an existing audit CSV with the current (in-tree) matcher rules.
 
 Reads each row of an audit CSV and re-runs compare_mb_to_spotify_tracks
-against the cached MB + Spotify tracklists. No new API calls — rows whose
-caches are missing are reported as 'cache_miss' and excluded from the
-verdict math. Use this to quantify how many flagged rows the latest
-matching changes would now rescue, without competing with a running audit
-for Spotify rate-limit budget.
+against the MB + Spotify tracklists. By default uses cached responses
+only (no API calls), reporting 'cache_miss' for rows whose caches are
+missing. Pass --fetch-on-miss to fall through to the live APIs on cache
+miss, which also populates the cache for next time.
 
 Filters: by default only re-evaluates count-equal rows (mb == sp), since
 that's the gate the new fallback opens. Use --all to re-evaluate every row.
 
 Usage:
     python scripts/reaudit_spotify_links.py
-        # newest CSV in backend/data/spotify_link_audits/, count-equal only
+        # newest CSV in backend/data/spotify_link_audits/, count-equal only,
+        # cache-only
 
     python scripts/reaudit_spotify_links.py path/to/audit.csv
 
     python scripts/reaudit_spotify_links.py --all
+
+    python scripts/reaudit_spotify_links.py --fetch-on-miss \
+        -o data/spotify_link_audits/reaudit_$(date +%Y%m%d_%H%M%S).csv
+        # repopulate cache for the count-equal subset and produce a
+        # definitive rescued-vs-still-stale CSV. Spotify auth env vars
+        # (SPOTIFY_CLIENT_ID / SPOTIFY_CLIENT_SECRET) must be set.
 """
 
 import argparse
 import csv
 import json
+import logging
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).parent.parent / '.env')
 
 from integrations.spotify.matching import (
     compare_mb_to_spotify_tracks,
@@ -69,6 +79,15 @@ def _parse_args():
         '-o', '--output', default=None,
         help='Optional output CSV with new columns appended',
     )
+    p.add_argument(
+        '--fetch-on-miss', action='store_true',
+        help='On cache miss, fetch via the Spotify and MusicBrainz APIs '
+             '(populates cache for next run). Default: skip cache misses. '
+             'MB rate-limits to 1 req/sec — expect ~3.5 minutes per 200 rows.',
+    )
+    p.add_argument(
+        '--debug', action='store_true', help='Verbose logging',
+    )
     return p.parse_args()
 
 
@@ -80,18 +99,9 @@ def _pick_default_csv():
     return csvs[0] if csvs else None
 
 
-def _load_mb_tracks(mb_release_id):
-    """Read the cached MB release-tracklist response and project to the
-    {title, position, normalized} shape compare_mb_to_spotify_tracks expects."""
-    if not mb_release_id:
-        return None
-    cache_path = MB_CACHE_DIR / f'release_{mb_release_id}_tracklist.json'
-    if not cache_path.exists():
-        return None
-    raw = json.loads(cache_path.read_text())
-    data = raw.get('data') if isinstance(raw, dict) else None
-    if data is None:
-        return None
+def _project_mb_tracks(data):
+    """Project the raw MB release-tracklist JSON to the {title, position,
+    normalized} shape compare_mb_to_spotify_tracks expects."""
     tracks = []
     pos = 0
     for medium in data.get('media', []) or []:
@@ -106,11 +116,38 @@ def _load_mb_tracks(mb_release_id):
     return tracks
 
 
-def _load_sp_tracks(spotify_album_id):
-    """Read the cached Spotify album-tracks response. The Spotify client
-    saves the list of {id, name, track_number, ...} dicts directly."""
+def _load_mb_tracks(mb_release_id, mb_searcher=None):
+    """Load MB tracklist either via the searcher (cache-then-fetch) or
+    directly from the cache file (cache-only). Returns the projected
+    track list, or None on cache miss / fetch failure."""
+    if not mb_release_id:
+        return None
+    if mb_searcher is not None:
+        # MusicBrainzSearcher.get_release_tracklist hits cache first, then
+        # falls through to the rate-limited API on miss and saves the
+        # response. Same code path the audit and matcher use.
+        data = mb_searcher.get_release_tracklist(mb_release_id)
+        if not data:
+            return None
+        return _project_mb_tracks(data)
+    cache_path = MB_CACHE_DIR / f'release_{mb_release_id}_tracklist.json'
+    if not cache_path.exists():
+        return None
+    raw = json.loads(cache_path.read_text())
+    data = raw.get('data') if isinstance(raw, dict) else None
+    if data is None:
+        return None
+    return _project_mb_tracks(data)
+
+
+def _load_sp_tracks(spotify_album_id, sp_client=None):
+    """Load Spotify album tracks either via the client (cache-then-fetch)
+    or directly from the cache file (cache-only). Returns the raw track
+    dicts the client saves, or None on cache miss / fetch failure."""
     if not spotify_album_id:
         return None
+    if sp_client is not None:
+        return sp_client.get_album_tracks(spotify_album_id)
     cache_path = SP_CACHE_DIR / f'album_{spotify_album_id}.json'
     if not cache_path.exists():
         return None
@@ -128,6 +165,12 @@ def _verdict(matched, mb_count, ratio, args):
 
 def main():
     args = _parse_args()
+    logging.basicConfig(
+        level=logging.DEBUG if args.debug else logging.INFO,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+    )
+    log = logging.getLogger('reaudit')
+
     csv_path = Path(args.csv_path) if args.csv_path else _pick_default_csv()
     if not csv_path or not csv_path.exists():
         print(f"No audit CSV found (looked in {AUDIT_DIR})", file=sys.stderr)
@@ -152,15 +195,35 @@ def main():
     print(f"  {len(eligible)} eligible "
           f"({'all rows' if args.all else 'count-equal only'})")
 
+    sp_client = None
+    mb_searcher = None
+    if args.fetch_on_miss:
+        from integrations.spotify.client import SpotifyClient
+        from integrations.musicbrainz.client import MusicBrainzSearcher
+        sp_client = SpotifyClient(logger=log)
+        if not sp_client.get_spotify_auth_token():
+            print(
+                "Spotify auth failed — set SPOTIFY_CLIENT_ID / "
+                "SPOTIFY_CLIENT_SECRET", file=sys.stderr,
+            )
+            return 1
+        mb_searcher = MusicBrainzSearcher()
+        print(f"  fetch-on-miss enabled — Spotify + MB clients ready")
+
     cache_miss = 0
     rescued = 0       # was stale, now passes
     still_stale = 0
     no_change = 0     # was passing, still passes (rare for stale-only CSVs)
     new_stale = 0     # was passing, now flagged (regression)
     out_rows = []
-    for r in eligible:
-        mb_tracks = _load_mb_tracks(r.get('mb_release_id'))
-        sp_tracks = _load_sp_tracks(r.get('spotify_album_id'))
+    for i, r in enumerate(eligible, 1):
+        if args.fetch_on_miss and i % 25 == 0:
+            log.info(
+                f"  [{i}/{len(eligible)}] rescued={rescued} "
+                f"still={still_stale} miss={cache_miss}"
+            )
+        mb_tracks = _load_mb_tracks(r.get('mb_release_id'), mb_searcher)
+        sp_tracks = _load_sp_tracks(r.get('spotify_album_id'), sp_client)
         if mb_tracks is None or sp_tracks is None:
             cache_miss += 1
             continue
