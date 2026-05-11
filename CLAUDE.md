@@ -10,6 +10,13 @@ Approach Note is a reference application for jazz music study, consisting of:
 
 The API is deployed at `https://api.approachnote.com`.
 
+## Repository Conventions
+
+- **Project documentation lives in `./doc/`, not `./docs/`.** When adding any
+  design notes, audit reports, setup guides, or other prose-style markdown,
+  put it under `doc/`. Do not create a `docs/` folder; an older one was
+  consolidated and the project standardizes on `doc/`.
+
 ## Development Commands
 
 ### Backend
