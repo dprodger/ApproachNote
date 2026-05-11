@@ -30,46 +30,125 @@ ORDERING_REJECT_BELOW = 0.4
 COVERAGE_RELAX_ORDERING_AT_LEAST = 0.8
 
 
+def fetch_local_tracks_for_release(conn, release_id: str) -> List[Dict[str, Any]]:
+    """Return the release's local recording_releases tracklist.
+
+    Used as a presence-check fallback when MusicBrainz is unreachable.
+    Note that recording_releases is only *partially* populated — we add
+    rows as recordings are researched, so a 12-track album might only
+    have 1-2 rows here. This data is therefore unsuitable for a coverage
+    check (1-of-1 = 100% would always pass), but it's a strict
+    improvement over lenient-passing when MB is down: every track we DO
+    know about must appear on the candidate, otherwise reject.
+
+    Shape matches fetch_mb_tracks_for_release: list of
+    {title, position, normalized} dicts ordered by disc/track.
+    """
+    sql = """
+        SELECT COALESCE(rr.track_title, r.title) AS title,
+               rr.disc_number,
+               rr.track_number
+        FROM recording_releases rr
+        JOIN recordings r ON r.id = rr.recording_id
+        WHERE rr.release_id = %s
+        ORDER BY rr.disc_number NULLS FIRST,
+                 rr.track_number NULLS LAST,
+                 rr.id
+    """
+    with conn.cursor() as cur:
+        cur.execute(sql, (release_id,))
+        rows = cur.fetchall()
+
+    tracks = []
+    for pos, row in enumerate(rows, start=1):
+        title = row['title'] or ''
+        tracks.append({
+            'title': title,
+            'position': pos,
+            'normalized': normalize_for_comparison(title),
+        })
+    return tracks
+
+
 def assess_apple_album_tracklist(
-    mb_tracks: List[Dict[str, Any]],
+    source: str,
+    our_tracks: List[Dict[str, Any]],
     apple_tracks: List[Dict[str, Any]],
+    status_hint: str = '',
 ) -> Tuple[bool, str, Dict[str, Any]]:
     """Decide whether an Apple album candidate passes the tracklist gate.
 
-    Compares our MusicBrainz tracklist for a release against the Apple
-    album's tracklist; rejects candidates whose coverage is too low or
-    whose track order is shuffled relative to ours (compilation signal).
+    Two operating modes depending on `source`:
 
-    Lenient when either side is empty: returns (True, ...) so a missing
-    MB tracklist or an Apple album with no song rows doesn't manufacture
-    a false reject. The catalog rebuild can run in albums-only mode and
-    we don't want that to silently break matching.
+    - source='mb'    → full coverage gate. `our_tracks` is the complete
+                       MusicBrainz tracklist; reject when matched/total
+                       falls below COVERAGE_REJECT_BELOW, or when
+                       ordering is shuffled with insufficient coverage
+                       to relax the rule.
+    - source='local' → presence-only gate. `our_tracks` is the partial
+                       recording_releases view; cannot prove "this is
+                       the same album," but can prove "this is NOT the
+                       same album" if any locally-known track is absent
+                       from Apple's tracklist. All-present → pass with a
+                       hedge in the reason; any-missing → reject.
+    - source='none'  → no tracklist signal available at all; gate skipped.
+
+    Apple-side empty (catalog albums-only mode, API hiccup) is a lenient
+    pass regardless of source — we don't manufacture rejects from
+    missing data on Apple's end.
 
     Args:
-        mb_tracks: rows from spotify.matching.fetch_mb_tracks_for_release
-            — dicts with title/position/normalized.
-        apple_tracks: Apple album tracklist dicts with at least a 'name'
-            key. Either local catalog rows (get_songs_for_album) or
-            iTunes API rows (client.lookup_album_tracks) — both already
-            expose 'name'.
+        source: 'mb' | 'local' | 'none' — chosen by the resolver in
+            search.py based on data availability.
+        our_tracks: dicts with title/position/normalized. The semantics
+            differ by source (complete tracklist vs. partial known
+            subset); the comparison call itself is identical.
+        apple_tracks: dicts with 'name' (local catalog and iTunes API
+            both expose this).
+        status_hint: when source='none', the reason text the resolver
+            supplied for why no tracks were available; surfaced in the
+            gate's lenient-pass message so the operator can tell whether
+            MB was down vs. the release has no MB ID.
 
     Returns:
-        (accept, reason, info) where info is the raw output of
-        compare_mb_to_spotify_tracks (or {} when lenient-passed).
+        (accept, reason, info) where info is the raw
+        compare_mb_to_spotify_tracks output, or {} when lenient-passed
+        without running the comparison.
     """
-    if not mb_tracks or not apple_tracks:
-        return True, 'tracklist data unavailable; gate skipped', {}
+    if source == 'none' or not our_tracks:
+        return True, (status_hint or 'no tracklist signal; gate skipped'), {}
+    if not apple_tracks:
+        return True, (
+            "Apple's album had no track rows "
+            '(catalog albums-only mode or empty API response); gate skipped'
+        ), {}
 
-    info = compare_mb_to_spotify_tracks(mb_tracks, apple_tracks)
+    info = compare_mb_to_spotify_tracks(our_tracks, apple_tracks)
     coverage = info['match_ratio']
     ordering = info['ordering_ratio']
     matched = info['matched_count']
-    mb_count = info['mb_track_count']
+    our_count = info['mb_track_count']  # function-internal name is "mb"; semantically "our side"
 
+    if source == 'local':
+        # Presence-only: every locally-known track must appear. Coverage
+        # is meaningless here (1/1 always = 100%); the only useful
+        # signal is whether any of our known tracks are missing.
+        if matched < our_count:
+            return False, (
+                f"presence check: only {matched}/{our_count} of our known "
+                f"local tracks appear on Apple's album — at least one of "
+                f"the tracks we have for this release is missing"
+            ), info
+        return True, (
+            f"presence check: all {our_count} known local tracks present "
+            f"(necessary but not sufficient — recording_releases is partial)"
+        ), info
+
+    # source == 'mb' — full coverage gate.
     if coverage < COVERAGE_REJECT_BELOW:
         return False, (
             f"tracklist coverage too low ({coverage:.0%} = "
-            f"{matched}/{mb_count} matched — needs ≥ "
+            f"{matched}/{our_count} matched — needs ≥ "
             f"{int(COVERAGE_REJECT_BELOW * 100)}%)"
         ), info
 
@@ -89,7 +168,7 @@ def assess_apple_album_tracklist(
         f", ordering {ordering:.0%}" if ordering is not None else ""
     )
     return True, (
-        f"coverage {coverage:.0%} ({matched}/{mb_count}){ordering_note}"
+        f"coverage {coverage:.0%} ({matched}/{our_count}){ordering_note}"
     ), info
 
 
