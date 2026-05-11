@@ -29,9 +29,14 @@ Result shape mapping (note: Apple matcher differs from Spotify's):
 
 from __future__ import annotations
 
+import logging
+import uuid
+from io import StringIO
 from typing import Any
 
+from db_utils import get_db_connection
 from integrations.apple_music.matcher import AppleMusicMatcher
+from integrations.apple_music.search import search_and_validate_album
 
 from research_worker.errors import PermanentError, RetryableError
 from research_worker.registry import handler
@@ -40,6 +45,15 @@ from research_worker.registry import handler
 # Substring of result['message'] that means the input was bad / target gone;
 # retrying won't help.
 _PERMANENT_ERROR_MARKERS = ('song not found',)
+
+# Mirrors the strict-mode thresholds enforced inside AppleMusicMatcher.
+# Reported back to the admin UI alongside the inputs so the operator can
+# see exactly which bar the candidate had to clear.
+_STRICT_MODE_THRESHOLDS = {
+    'min_artist_similarity': 75,
+    'min_album_similarity': 65,
+    'min_track_similarity': 85,
+}
 
 
 @handler('apple', 'match_song')
@@ -79,3 +93,84 @@ def match_song(payload: dict[str, Any], ctx) -> dict[str, Any]:
 
     # Network blips, catalog connection issues, etc. Let backoff sort it out.
     raise RetryableError(f"Apple Music match failed: {message}")
+
+
+@handler('apple', 'diagnose_match')
+def diagnose_match(payload: dict[str, Any], ctx) -> dict[str, Any]:
+    """Read-only "what would the matcher do?" for one release.
+
+    The web service can't reach the Apple Music catalog (the DuckDB index
+    and parquet exports live on the worker's persistent disk), so the
+    admin diagnose UI enqueues this job and polls research_jobs for the
+    result. Same code path the live matcher uses; nothing is written.
+
+    Captures the matcher's DEBUG log into the returned dict so the admin
+    UI can show the reasoning inline. Job completes as 'done' even when
+    the matcher errors out — the error string goes in the result so the
+    UI can render it; only setup failures (release missing, etc.) raise.
+    """
+    release_id = ctx.target_id
+    use_api_fallback = bool(payload.get('use_api_fallback', False))
+    force_refresh = bool(payload.get('force_refresh', False))
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, title, artist_credit, release_year
+                FROM releases WHERE id = %s
+                """,
+                (release_id,),
+            )
+            release = cur.fetchone()
+            if not release:
+                raise PermanentError(f"Release {release_id} not found")
+
+    log_buffer = StringIO()
+    diag_logger = logging.getLogger(f'worker.apple_diag.{uuid.uuid4().hex}')
+    diag_logger.setLevel(logging.DEBUG)
+    diag_logger.propagate = False
+    log_handler = logging.StreamHandler(log_buffer)
+    log_handler.setLevel(logging.DEBUG)
+    log_handler.setFormatter(logging.Formatter('%(message)s'))
+    diag_logger.addHandler(log_handler)
+
+    error = None
+    result = None
+    try:
+        matcher = AppleMusicMatcher(
+            dry_run=True,
+            strict_mode=True,
+            force_refresh=force_refresh,
+            local_catalog_only=not use_api_fallback,
+            logger=diag_logger,
+        )
+        result = search_and_validate_album(
+            matcher,
+            artist_name=release['artist_credit'] or '',
+            album_title=release['title'],
+            release_year=release['release_year'],
+        )
+    except Exception as e:
+        ctx.log.exception(
+            "Apple Music diagnosis failed for release %s", release_id,
+        )
+        error = str(e)
+    finally:
+        diag_logger.removeHandler(log_handler)
+        log_handler.close()
+
+    return {
+        'input': {
+            'album_title': release['title'],
+            'artist_name': release['artist_credit'],
+            'release_year': release['release_year'],
+            'use_api_fallback': use_api_fallback,
+            'force_refresh': force_refresh,
+            'thresholds': _STRICT_MODE_THRESHOLDS,
+        },
+        'matched': result is not None,
+        'result': result,
+        'log': log_buffer.getvalue(),
+        'error': error,
+    }

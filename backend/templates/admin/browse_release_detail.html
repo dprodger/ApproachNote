@@ -943,6 +943,70 @@
         // Apple Music handlers — parallel to the Spotify handlers above
         // ===================================================================
 
+        // Diagnose now runs on the research worker (which owns the Apple
+        // Music catalog on its persistent disk). We POST to enqueue, then
+        // poll the job-status endpoint until it finishes. The job's
+        // `result` field has the same shape the synchronous endpoint used
+        // to return, so renderAppleDiagnose() didn't need to change.
+        const APPLE_DIAG_POLL_MS = 1500;
+        const APPLE_DIAG_TIMEOUT_MS = 60000;
+
+        function appleDiagWaitingHTML(jobId, jobStatus, elapsedMs) {
+            const label = jobStatus === 'running' ? 'Running on worker' : 'Waiting in queue';
+            const secs = Math.floor(elapsedMs / 1000);
+            return `
+                <span class="diag-status">${escapeHtml(label)}…</span>
+                <div style="font-size: 12px; color: #666; margin-top: 6px;">
+                    job <span class="mono">#${jobId}</span> · status <span class="mono">${escapeHtml(jobStatus)}</span> · ${secs}s
+                </div>
+            `;
+        }
+
+        async function pollAppleDiagJob(jobId) {
+            const start = Date.now();
+            while (true) {
+                const elapsed = Date.now() - start;
+                if (elapsed > APPLE_DIAG_TIMEOUT_MS) {
+                    appleOut.innerHTML = `
+                        <span class="diag-status error">Timed out waiting for worker</span>
+                        <div style="font-size: 12px; color: #666; margin-top: 6px;">
+                            Job <span class="mono">#${jobId}</span> is still queued or running after
+                            ${Math.floor(APPLE_DIAG_TIMEOUT_MS / 1000)}s. Check the worker logs or
+                            the research jobs admin page.
+                        </div>
+                    `;
+                    return;
+                }
+                const resp = await fetch(
+                    `{{ admin_url('/admin/research/jobs/') }}${jobId}`,
+                    { method: 'GET' }
+                );
+                if (!resp.ok) {
+                    appleOut.innerHTML = `<div class="diag-status error">Status fetch failed (HTTP ${resp.status})</div>`;
+                    return;
+                }
+                const job = await resp.json();
+                if (job.status === 'done') {
+                    renderAppleDiagnose(job.result || {});
+                    return;
+                }
+                if (job.status === 'dead' || job.status === 'failed') {
+                    appleOut.innerHTML = `
+                        <span class="diag-status error">Worker reported failure</span>
+                        <div style="font-size: 12px; color: #c00; margin-top: 6px;">
+                            ${escapeHtml(job.last_error || '(no error message)')}
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            job <span class="mono">#${jobId}</span> · status <span class="mono">${escapeHtml(job.status)}</span>
+                        </div>
+                    `;
+                    return;
+                }
+                appleOut.innerHTML = appleDiagWaitingHTML(jobId, job.status, elapsed);
+                await new Promise(r => setTimeout(r, APPLE_DIAG_POLL_MS));
+            }
+        }
+
         appleBtn.addEventListener('click', async () => {
             appleBtn.disabled = true;
             appleApplyBtn.disabled = true;
@@ -962,7 +1026,12 @@
                     }
                 );
                 const data = await resp.json();
-                renderAppleDiagnose(data);
+                if (!resp.ok || !data.job_id) {
+                    appleOut.innerHTML = `<div class="diag-status error">Enqueue failed</div><div>${escapeHtml(data.error || `HTTP ${resp.status}`)}</div>`;
+                    return;
+                }
+                appleOut.innerHTML = appleDiagWaitingHTML(data.job_id, data.status || 'queued', 0);
+                await pollAppleDiagJob(data.job_id);
             } catch (e) {
                 appleOut.innerHTML = `<div class="diag-status error">Request failed</div><div>${escapeHtml(String(e))}</div>`;
             } finally {

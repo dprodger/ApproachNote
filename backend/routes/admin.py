@@ -4977,31 +4977,29 @@ def diagnose_release_spotify(release_id):
 
 @admin_bp.route('/releases/<release_id>/diagnose-apple', methods=['POST'])
 def diagnose_release_apple(release_id):
-    """Simulate the Apple Music matcher's album search against this release.
+    """Enqueue a read-only Apple Music match diagnosis for this release.
 
-    Mirrors what the Apple worker does at album-match time: builds a real
-    AppleMusicMatcher (dry_run=True so nothing writes), captures its
-    DEBUG-level reasoning into a buffer, and runs search_and_validate_album
-    against the release's artist + title + year. Returns the matcher's
-    result, the captured log, the inputs, and the thresholds — using the
-    matcher's actual code, not a parallel implementation, so any future
-    tuning shows up automatically.
+    The Apple Music catalog (DuckDB index + parquet exports) lives on the
+    research worker's persistent disk; the web service has no way to read
+    it. So instead of running the matcher in-process — which would always
+    report "no catalog" — we enqueue an `apple/diagnose_match` job and
+    return its id. The frontend polls GET /admin/research/jobs/<id> until
+    it finishes, then renders the result blob (same shape this endpoint
+    used to return synchronously).
 
     Body params (JSON):
         use_api_fallback: bool (default False) — if True, allow the
             matcher to fall back to the iTunes Search API after the local
-            catalog misses. The worker runs with local_catalog_only=True
-            so the default here matches that behavior; flip the flag to
-            see what would happen if the API fallback were enabled.
+            catalog misses. Worker default is local-only; mirrors that.
         force_refresh: bool (default False) — bypass the iTunes API
             response cache when the API fallback runs. Only meaningful
             when use_api_fallback is also True.
+
+    Returns:
+        202 with {'job_id': int, 'status': 'queued'|'running'} on success.
+        404 if the release does not exist.
     """
-    import logging
-    import uuid as _uuid_mod
-    from io import StringIO
-    from integrations.apple_music.matcher import AppleMusicMatcher
-    from integrations.apple_music.search import search_and_validate_album
+    from core import research_jobs
 
     body = request.get_json(silent=True) or {}
     use_api_fallback = bool(body.get('use_api_fallback', False))
@@ -5009,69 +5007,32 @@ def diagnose_release_apple(release_id):
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, title, artist_credit, release_year
-                FROM releases WHERE id = %s
-                """,
-                (release_id,),
-            )
-            release = cur.fetchone()
-            if not release:
+            cur.execute("SELECT id FROM releases WHERE id = %s", (release_id,))
+            if not cur.fetchone():
                 return jsonify({'error': 'Release not found'}), 404
 
-    log_buffer = StringIO()
-    diag_logger = logging.getLogger(f'admin.apple_diag.{_uuid_mod.uuid4().hex}')
-    diag_logger.setLevel(logging.DEBUG)
-    diag_logger.propagate = False
-    handler = logging.StreamHandler(log_buffer)
-    handler.setLevel(logging.DEBUG)
-    handler.setFormatter(logging.Formatter('%(message)s'))
-    diag_logger.addHandler(handler)
-
-    error = None
-    result = None
-    try:
-        matcher = AppleMusicMatcher(
-            dry_run=True,
-            strict_mode=True,
-            force_refresh=force_refresh,
-            # Worker default is local_catalog_only=True; mirror that
-            # unless the admin explicitly opts into API fallback.
-            local_catalog_only=not use_api_fallback,
-            logger=diag_logger,
-        )
-        result = search_and_validate_album(
-            matcher,
-            artist_name=release['artist_credit'] or '',
-            album_title=release['title'],
-            release_year=release['release_year'],
-        )
-    except Exception as e:
-        logger.exception("Apple Music diagnosis failed for release %s", release_id)
-        error = str(e)
-    finally:
-        diag_logger.removeHandler(handler)
-        handler.close()
-
-    return jsonify({
-        'input': {
-            'album_title': release['title'],
-            'artist_name': release['artist_credit'],
-            'release_year': release['release_year'],
+    job_id = research_jobs.enqueue(
+        source=research_jobs.SOURCE_APPLE,
+        job_type='diagnose_match',
+        target_type=research_jobs.TARGET_RELEASE,
+        target_id=release_id,
+        payload={
             'use_api_fallback': use_api_fallback,
             'force_refresh': force_refresh,
-            'thresholds': {
-                'min_artist_similarity': 75,
-                'min_album_similarity': 65,
-                'min_track_similarity': 85,
-            },
         },
-        'matched': result is not None,
-        'result': result,
-        'log': log_buffer.getvalue(),
-        'error': error,
-    }), (500 if error else 200)
+        # Admin-initiated, single-shot. Jump ahead of background matching;
+        # don't retry on failure — let the operator see what broke.
+        priority=10,
+        max_attempts=1,
+    )
+    if job_id is None:
+        return jsonify({'error': 'failed to enqueue diagnosis job'}), 500
+
+    job = research_jobs.get_job(job_id) or {}
+    return jsonify({
+        'job_id': job_id,
+        'status': job.get('status') or 'queued',
+    }), 202
 
 
 @admin_bp.route('/releases/<release_id>/rematch-apple', methods=['POST'])
