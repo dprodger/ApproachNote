@@ -8,15 +8,89 @@ that threads matcher thresholds through and applies compilation-artist and
 name-variant rules.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from integrations.spotify.matching import (
     calculate_similarity,
+    compare_mb_to_spotify_tracks,
     is_compilation_artist,
     is_substring_title_match,
     normalize_for_comparison,
     normalize_name_variants,
 )
+
+
+# Tracklist-gate thresholds for the Apple album-match acceptance step.
+# Mirrors the defaults used in integrations.spotify.matching.assess_album_match
+# (issue #184). The Spotify experience is that 0.4 is a confident reject
+# floor without false negatives on reissues. Tunable independently if Apple's
+# signal turns out to be noisier (e.g. catalog songs missing for some albums).
+COVERAGE_REJECT_BELOW = 0.4
+ORDERING_REJECT_BELOW = 0.4
+COVERAGE_RELAX_ORDERING_AT_LEAST = 0.8
+
+
+def assess_apple_album_tracklist(
+    mb_tracks: List[Dict[str, Any]],
+    apple_tracks: List[Dict[str, Any]],
+) -> Tuple[bool, str, Dict[str, Any]]:
+    """Decide whether an Apple album candidate passes the tracklist gate.
+
+    Compares our MusicBrainz tracklist for a release against the Apple
+    album's tracklist; rejects candidates whose coverage is too low or
+    whose track order is shuffled relative to ours (compilation signal).
+
+    Lenient when either side is empty: returns (True, ...) so a missing
+    MB tracklist or an Apple album with no song rows doesn't manufacture
+    a false reject. The catalog rebuild can run in albums-only mode and
+    we don't want that to silently break matching.
+
+    Args:
+        mb_tracks: rows from spotify.matching.fetch_mb_tracks_for_release
+            — dicts with title/position/normalized.
+        apple_tracks: Apple album tracklist dicts with at least a 'name'
+            key. Either local catalog rows (get_songs_for_album) or
+            iTunes API rows (client.lookup_album_tracks) — both already
+            expose 'name'.
+
+    Returns:
+        (accept, reason, info) where info is the raw output of
+        compare_mb_to_spotify_tracks (or {} when lenient-passed).
+    """
+    if not mb_tracks or not apple_tracks:
+        return True, 'tracklist data unavailable; gate skipped', {}
+
+    info = compare_mb_to_spotify_tracks(mb_tracks, apple_tracks)
+    coverage = info['match_ratio']
+    ordering = info['ordering_ratio']
+    matched = info['matched_count']
+    mb_count = info['mb_track_count']
+
+    if coverage < COVERAGE_REJECT_BELOW:
+        return False, (
+            f"tracklist coverage too low ({coverage:.0%} = "
+            f"{matched}/{mb_count} matched — needs ≥ "
+            f"{int(COVERAGE_REJECT_BELOW * 100)}%)"
+        ), info
+
+    if (
+        ordering is not None
+        and ordering < ORDERING_REJECT_BELOW
+        and coverage < COVERAGE_RELAX_ORDERING_AT_LEAST
+    ):
+        return False, (
+            f"tracks shuffled (ordering {ordering:.0%}) and coverage "
+            f"({coverage:.0%}) below the relaxation cutoff "
+            f"({int(COVERAGE_RELAX_ORDERING_AT_LEAST * 100)}%) — "
+            f"likely a compilation"
+        ), info
+
+    ordering_note = (
+        f", ordering {ordering:.0%}" if ordering is not None else ""
+    )
+    return True, (
+        f"coverage {coverage:.0%} ({matched}/{mb_count}){ordering_note}"
+    ), info
 
 
 def validate_album_match(

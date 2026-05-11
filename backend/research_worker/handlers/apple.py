@@ -150,6 +150,7 @@ def diagnose_match(payload: dict[str, Any], ctx) -> dict[str, Any]:
             artist_name=release['artist_credit'] or '',
             album_title=release['title'],
             release_year=release['release_year'],
+            release_id=release_id,
         )
     except Exception as e:
         ctx.log.exception(

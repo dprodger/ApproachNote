@@ -306,9 +306,13 @@ class AppleMusicMatcher:
 
         self.logger.info(f"  {progress}Processing: {artist_credit} - {release_title}")
 
-        # Search Apple Music for this album
+        # Search Apple Music for this album. release_id flips on the
+        # tracklist-coverage gate inside the validator — prevents
+        # title-stem false positives like "Recuerdos" matching
+        # "Recuerdos de Ti" with a completely different tracklist.
         apple_album = search_and_validate_album(
-            self, artist_credit, release_title, release_year
+            self, artist_credit, release_title, release_year,
+            release_id=release_id,
         )
 
         if not apple_album:
