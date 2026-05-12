@@ -38,6 +38,8 @@ from db_utils import get_db_connection
 from integrations.apple_music.matcher import AppleMusicMatcher
 from integrations.apple_music.search import search_and_validate_album
 
+from core.apple_catalog_status import get_worker_catalog_status
+
 from research_worker.errors import PermanentError, RetryableError
 from research_worker.registry import handler
 
@@ -370,3 +372,20 @@ def rematch_release(payload: dict[str, Any], ctx) -> dict[str, Any]:
         'log': log_buffer.getvalue(),
         'error': error,
     }
+
+
+@handler('apple', 'catalog_status')
+def catalog_status(payload: dict[str, Any], ctx) -> dict[str, Any]:
+    """Gather the worker's view of the Apple Music DuckDB catalog.
+
+    Same four sections the web process used to compute itself
+    (configuration, connectivity, freshness, row_counts), but now run
+    in the process that actually has the catalog disk mounted. The
+    admin page reads the cached result of this job and overlays a
+    fresh `recent_refresh_jobs` section locally.
+
+    Pure read; no DB writes. Errors per section are contained inside
+    that section's `error` field (per get_worker_catalog_status's
+    design), so this handler should essentially never raise.
+    """
+    return get_worker_catalog_status()

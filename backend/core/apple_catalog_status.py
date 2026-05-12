@@ -31,12 +31,18 @@ _EXPECTED_TABLES = ('songs', 'albums', 'artists')
 
 
 def get_catalog_status() -> dict[str, Any]:
-    """Top-level entry point used by the admin route.
+    """Top-level entry point — gathers all five status sections.
 
-    Returns a dict with five sections — `configuration`, `connectivity`,
-    `freshness`, `row_counts`, `recent_refresh_jobs`. Each section's
-    failure is contained within that section's `error` field rather
-    than bubbling up.
+    Note that four of the five sections need access to the Apple Music
+    DuckDB catalog (which lives on the research worker's persistent
+    disk). Calling this from the web process will produce a "parquet
+    fallback / missing" snapshot regardless of the worker's actual
+    state. The admin page now caches the worker's view via an
+    `apple/catalog_status` job and overlays a fresh
+    `recent_refresh_jobs` section locally; the worker handler calls
+    `get_worker_catalog_status()` for the catalog-dependent sections.
+
+    Kept for backward compat (tests + existing callers).
     """
     return {
         'configuration':       _gather_configuration(),
@@ -45,6 +51,28 @@ def get_catalog_status() -> dict[str, Any]:
         'row_counts':          _gather_row_counts(),
         'recent_refresh_jobs': _gather_recent_refresh_jobs(),
     }
+
+
+def get_worker_catalog_status() -> dict[str, Any]:
+    """The catalog-disk-dependent sections only — for the worker handler.
+
+    Recent refresh activity is a pure research_jobs query and can be
+    gathered fresh by the web process on every page load, so it's
+    excluded from the worker's snapshot.
+    """
+    return {
+        'configuration': _gather_configuration(),
+        'connectivity':  _gather_connectivity(),
+        'freshness':     _gather_freshness(),
+        'row_counts':    _gather_row_counts(),
+    }
+
+
+def gather_recent_refresh_jobs(limit: int = 12) -> dict[str, Any]:
+    """Public alias for `_gather_recent_refresh_jobs`. The admin route
+    overlays this on top of the cached worker snapshot so refresh
+    activity is always live."""
+    return _gather_recent_refresh_jobs(limit)
 
 
 # ---------------------------------------------------------------------------

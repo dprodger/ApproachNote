@@ -1662,18 +1662,90 @@ def run_matcher_all():
 
 @admin_bp.route('/apple-music-catalog')
 def apple_music_catalog_status():
-    """Read-only status snapshot of the Apple Music DuckDB catalog
-    (typically hosted on MotherDuck). Reports backing-store mode,
-    SELECT 1 round-trip latency, per-feed export freshness, per-table
-    row counts, and recent refresh-chain activity. See
-    core/apple_catalog_status.py for the section-by-section gather
-    implementation."""
-    from core.apple_catalog_status import get_catalog_status
-    status = get_catalog_status()
+    """Read-only status snapshot of the Apple Music DuckDB catalog.
+
+    Four of the five sections — configuration, connectivity, freshness,
+    row counts — depend on the catalog DuckDB file, which lives on the
+    research worker's persistent disk. Running them in the web process
+    produces a "parquet fallback / missing" snapshot regardless of the
+    worker's actual state. So we read the most recent done
+    `apple/catalog_status` job's `result` and use that as the snapshot,
+    plus a fresh local query for recent refresh activity (which is
+    catalog-disk-independent).
+
+    The page renders a "Refresh status" button that enqueues a new
+    catalog_status job and polls for it; first-time visitors with no
+    cached snapshot see an explicit "click Refresh status to gather
+    the worker's view" placeholder.
+    """
+    from core.apple_catalog_status import gather_recent_refresh_jobs
+
+    snapshot_status: dict | None = None
+    snapshot_at = None
+    snapshot_job_id = None
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, result, finished_at
+                FROM research_jobs
+                WHERE source = 'apple'
+                  AND job_type = 'catalog_status'
+                  AND status = 'done'
+                ORDER BY finished_at DESC NULLS LAST
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+            if row and row['result']:
+                snapshot_status = row['result']
+                snapshot_at = row['finished_at']
+                snapshot_job_id = row['id']
+
+    # Always-fresh refresh-activity section overlay (pure DB query).
+    status = dict(snapshot_status or {})
+    status['recent_refresh_jobs'] = gather_recent_refresh_jobs()
+
     return render_template(
         'admin/apple_music_catalog.html',
         status=status,
+        snapshot_at=snapshot_at,
+        snapshot_job_id=snapshot_job_id,
+        has_snapshot=bool(snapshot_status),
     )
+
+
+# Synthetic target_id for status-check jobs. Reuses the existing
+# 'catalog' synthetic target_type pattern from
+# integrations.apple_music.refresh; a fixed UUID gives free dedup
+# (no two status checks queued / running at once).
+_CATALOG_STATUS_TARGET_ID = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'
+
+
+@admin_bp.route('/apple-music-catalog/status', methods=['POST'])
+def apple_music_catalog_status_refresh():
+    """Enqueue an apple/catalog_status job on the worker; returns the
+    job id. The page polls GET /admin/research/jobs/<id> and reloads
+    itself when the job finishes so the cached snapshot is picked up."""
+    from core import research_jobs
+
+    job_id = research_jobs.enqueue(
+        source=research_jobs.SOURCE_APPLE,
+        job_type='catalog_status',
+        target_type='catalog',
+        target_id=_CATALOG_STATUS_TARGET_ID,
+        payload={},
+        priority=10,
+        max_attempts=1,
+    )
+    if job_id is None:
+        return jsonify({'error': 'failed to enqueue catalog status job'}), 500
+
+    job = research_jobs.get_job(job_id) or {}
+    return jsonify({
+        'job_id': job_id,
+        'status': job.get('status') or 'queued',
+    }), 202
 
 
 @admin_bp.route('/apple-music-catalog/refresh', methods=['POST'])

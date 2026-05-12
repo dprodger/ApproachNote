@@ -117,13 +117,43 @@
         <h1>Apple Music DuckDB Catalog</h1>
         <p class="subtitle">Status snapshot + manual refresh trigger. Each section below is gathered independently — a failure in one (e.g. MotherDuck offline) does not blank out the others.</p>
 
-        <!-- Refresh trigger -->
+        <!-- Snapshot freshness + status-refresh trigger -->
+        <div class="card" style="margin-bottom: 16px;">
+            <h2>Snapshot</h2>
+            <p style="font-size: 13px; color: #555; margin-bottom: 8px;">
+                Sections below (configuration, connectivity, freshness, row counts) reflect
+                the <strong>research worker's</strong> view of the catalog — it owns the persistent
+                disk where the DuckDB index and parquet files live. The web service can't read
+                that disk directly, so it reads the cached result of an
+                <code>apple/catalog_status</code> job. Recent refresh activity is queried fresh
+                on every page load (no catalog disk needed).
+            </p>
+            <p style="font-size: 13px; color: #555; margin-bottom: 12px;">
+                {% if has_snapshot %}
+                    Snapshot taken <time class="reltime" datetime="{{ snapshot_at.isoformat() if snapshot_at else '' }}">{{ snapshot_at }}</time>
+                    (job <strong>#{{ snapshot_job_id }}</strong>).
+                {% else %}
+                    <span class="pill pill-warn">No worker snapshot yet</span>
+                    Click <strong>Refresh status</strong> to gather one.
+                {% endif %}
+            </p>
+            <button id="refresh-status-btn" type="button"
+                    style="background: #0070c9; color: #fff; border: 0; padding: 10px 18px;
+                           border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer;
+                           margin-right: 8px;">
+                Refresh status
+            </button>
+            <div id="refresh-status-result" style="margin-top: 12px; font-size: 13px;"></div>
+        </div>
+
+        <!-- Catalog rebuild trigger (distinct from status refresh above) -->
         <div class="card" style="margin-bottom: 16px;">
             <h2>Catalog Refresh</h2>
             <p style="font-size: 13px; color: #555; margin-bottom: 12px;">
                 Kicks off the chained job: <strong>albums → songs → artists → rebuild_index</strong>.
                 Runs on the research worker. Only one chain can be in flight at a time;
-                clicking again while one is running returns the existing job id.
+                clicking again while one is running returns the existing job id. This is
+                a multi-hour data refresh — not the same as the snapshot refresh above.
             </p>
             <button id="refresh-btn" type="button"
                     style="background: #0070c9; color: #fff; border: 0; padding: 10px 18px;
@@ -134,6 +164,76 @@
         </div>
 
         <script>
+            // Status-refresh button: enqueue an apple/catalog_status job on
+            // the worker, poll for completion, reload the page so the
+            // server-rendered template picks up the new cached snapshot.
+            (function () {
+                const btn = document.getElementById('refresh-status-btn');
+                const out = document.getElementById('refresh-status-result');
+                if (!btn) return;
+
+                const POLL_MS = 1500;
+                const TIMEOUT_MS = 60000;
+
+                async function pollStatusJob(jobId) {
+                    const start = Date.now();
+                    while (true) {
+                        if (Date.now() - start > TIMEOUT_MS) {
+                            out.innerHTML = '<span class="pill pill-error">Timed out</span> '
+                                + 'Job <strong>#' + jobId + '</strong> is still queued or running after '
+                                + Math.floor(TIMEOUT_MS / 1000) + 's. Reload manually in a minute.';
+                            return;
+                        }
+                        const resp = await fetch('/admin/research/jobs/' + jobId);
+                        if (!resp.ok) {
+                            out.innerHTML = '<span class="pill pill-error">Status fetch failed</span> HTTP ' + resp.status;
+                            return;
+                        }
+                        const job = await resp.json();
+                        if (job.status === 'done') {
+                            out.innerHTML = '<span class="pill pill-ok">Done</span> Reloading…';
+                            window.location.reload();
+                            return;
+                        }
+                        if (job.status === 'dead' || job.status === 'failed') {
+                            out.innerHTML = '<span class="pill pill-error">Worker reported failure</span> '
+                                + (job.last_error || '(no error message)');
+                            return;
+                        }
+                        const elapsed = Math.floor((Date.now() - start) / 1000);
+                        const label = job.status === 'running' ? 'Running on worker' : 'Waiting in queue';
+                        out.innerHTML = '<span class="pill pill-neutral">' + label + '</span> '
+                            + 'job <strong>#' + jobId + '</strong> · ' + elapsed + 's';
+                        await new Promise(r => setTimeout(r, POLL_MS));
+                    }
+                }
+
+                btn.addEventListener('click', async function () {
+                    btn.disabled = true;
+                    const orig = btn.textContent;
+                    btn.textContent = 'Enqueuing…';
+                    out.innerHTML = '';
+                    try {
+                        const resp = await fetch('/admin/apple-music-catalog/status', {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                        });
+                        const data = await resp.json();
+                        if (!resp.ok || !data.job_id) {
+                            out.innerHTML = '<span class="pill pill-error">Enqueue failed</span> '
+                                + (data.error || resp.statusText);
+                            return;
+                        }
+                        await pollStatusJob(data.job_id);
+                    } catch (e) {
+                        out.innerHTML = '<span class="pill pill-error">Error</span> ' + e.message;
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = orig;
+                    }
+                });
+            })();
+
             document.getElementById('refresh-btn').addEventListener('click', async function () {
                 const btn = this;
                 const out = document.getElementById('refresh-result');
@@ -225,6 +325,19 @@
             });
         </script>
 
+        {% if not has_snapshot %}
+            <div class="card" style="margin-bottom: 16px;">
+                <p style="font-size: 13px; color: #555;">
+                    The four catalog-disk-dependent sections below
+                    (Configuration, Connectivity, Freshness, Row Counts) require a worker
+                    snapshot to render. Click <strong>Refresh status</strong> above. Recent
+                    refresh activity is gathered fresh on every page load and is shown at
+                    the bottom.
+                </p>
+            </div>
+        {% endif %}
+
+        {% if has_snapshot %}
         <div class="grid">
             <!-- Configuration -->
             <div class="card">
@@ -383,6 +496,7 @@
                 </table>
             {% endif %}
         </div>
+        {% endif %} {# end has_snapshot guard for the four catalog-disk sections #}
 
         <!-- Recent refresh activity -->
         <div class="card" style="margin-top: 16px;">
