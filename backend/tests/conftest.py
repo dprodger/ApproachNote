@@ -51,6 +51,20 @@ os.environ.setdefault("JWT_SECRET", "pytest-test-secret")
 _BACKEND_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_BACKEND_ROOT))
 
+# Load backend/.env so the production-safety guard below sees the same
+# DB_HOST/DB_USER/etc. the app fixture will eventually see. Without
+# this, app.py's load_dotenv() doesn't fire until the first fixture
+# import — which is AFTER the guard has already run and concluded
+# everything looks fine. `override=False` keeps `source .env.test`
+# overrides (and our hard RATELIMIT_ENABLED override above) in charge.
+try:
+    from dotenv import load_dotenv as _load_dotenv
+    _load_dotenv(_BACKEND_ROOT / ".env", override=False)
+except ImportError:
+    # python-dotenv not installed (uncommon — backend depends on it),
+    # but be defensive: guard still works on whatever env exists.
+    pass
+
 import psycopg  # noqa: E402
 import pytest  # noqa: E402
 
@@ -65,46 +79,106 @@ import pytest  # noqa: E402
 # ran pytest without explicit env var overrides. Wiped user-contributed
 # data and streaming-link rows multiple times before anyone noticed.
 #
-# This guard refuses to start the test session unless DB_NAME contains
-# 'test'. That's a tiny constraint on test-DB naming (call it jazz_test,
-# approachnote_test, whatever) in exchange for making the "oops, I ran
-# tests against prod" failure mode impossible.
+# May 2026 follow-up: a softer version of the same mistake — setting
+# DB_NAME=jazz_test on the command line but forgetting to source
+# .env.test — passed the name-only check but left DB_HOST pointing at
+# the production Supabase pool. Tests then made 30-second connect
+# attempts against prod (rejected, because 'jazz_test' isn't a database
+# there) before the teardown finally errored out. The "tests passed"
+# results were misleading — pure unit tests pass without ever touching
+# the DB, so the prod-host traffic was nearly silent.
 #
-# If you genuinely need to run the suite against a DB whose name doesn't
-# include 'test', either rename the DB or set PYTEST_I_KNOW_THIS_ISNT_PROD=1
-# as an explicit, visible opt-out.
+# So this guard now requires BOTH:
+#   - DB_NAME contains 'test' (case-insensitive); AND
+#   - DB_HOST does not match any known production-host marker.
+#
+# A single PYTEST_I_KNOW_THIS_ISNT_PROD=1 escape hatch covers both
+# checks, with a stderr warning each run.
 
 _PROD_SAFETY_BYPASS = "PYTEST_I_KNOW_THIS_ISNT_PROD"
 
+# Substrings that indicate a production-style host. Match is
+# case-insensitive substring; add new entries if/when the deployment
+# moves clouds. Keep the list narrow — false positives just make local
+# testing harder, not unsafe.
+_PROD_HOST_MARKERS = (
+    'supabase.com',
+    'supabase.co',
+    'pooler.supabase.com',
+    'render.com',
+)
+
+
+def _matched_prod_host_marker(db_host: str):
+    """Return the first matching prod-host marker for `db_host`, or None."""
+    host_lower = db_host.lower()
+    for marker in _PROD_HOST_MARKERS:
+        if marker in host_lower:
+            return marker
+    return None
+
 
 def _assert_test_database_or_die() -> None:
-    """Raise pytest.UsageError if the DB env doesn't look like a test DB."""
+    """Raise pytest.UsageError if the DB env doesn't look safe to TRUNCATE.
+
+    Two checks combined — DB_NAME must contain 'test', and DB_HOST must
+    not look like a known production cluster. Single bypass env var
+    covers both with an audible warning.
+    """
     db_name = os.environ.get("DB_NAME", "")
     db_host = os.environ.get("DB_HOST", "")
 
-    if "test" in db_name.lower():
-        return
     if os.environ.get(_PROD_SAFETY_BYPASS) == "1":
         # Explicit opt-out: developer swears this DB isn't prod.
-        # We still print a warning so it's obvious in the test log.
+        # Stderr warning so it's obvious in the test log either way.
         print(
-            f"\n!!! {_PROD_SAFETY_BYPASS}=1 set — skipping test-DB name "
-            f"check. DB_NAME={db_name!r} DB_HOST={db_host!r}\n",
+            f"\n!!! {_PROD_SAFETY_BYPASS}=1 set — skipping test-DB safety "
+            f"checks. DB_NAME={db_name!r} DB_HOST={db_host!r}\n",
             file=sys.stderr,
         )
         return
 
+    name_looks_like_test = "test" in db_name.lower()
+    prod_marker = _matched_prod_host_marker(db_host)
+
+    if name_looks_like_test and not prod_marker:
+        return
+
+    # Build a problem description tailored to which check(s) failed so
+    # the operator sees exactly what to fix.
+    if not name_looks_like_test and prod_marker:
+        problem = (
+            f"DB_NAME={db_name!r} does not contain 'test' AND "
+            f"DB_HOST={db_host!r} looks like a production cluster "
+            f"(matched marker {prod_marker!r})"
+        )
+    elif not name_looks_like_test:
+        problem = f"DB_NAME={db_name!r} does not contain 'test'"
+    else:
+        # prod_marker is set; common case is "DB_NAME=jazz_test passed
+        # on the CLI but .env.test was never sourced, so DB_HOST is
+        # still production". Call that out by name.
+        problem = (
+            f"DB_HOST={db_host!r} looks like a production cluster "
+            f"(matched marker {prod_marker!r}). DB_NAME={db_name!r} is "
+            f"test-ish, but you most likely forgot to "
+            f"`source backend/.env.test` — the discrete DB_HOST/DB_USER/"
+            f"DB_PASSWORD env vars came from your .env file pointing at prod"
+        )
+
     raise pytest.UsageError(
-        f"Refusing to run the test suite: DB_NAME={db_name!r} does not contain "
-        f"'test'. This suite issues TRUNCATE against users/refresh_tokens/"
+        f"Refusing to run the test suite: {problem}.\n\n"
+        f"This suite issues TRUNCATE against users/refresh_tokens/"
         f"password_reset_tokens and INSERT/DELETE against "
         f"recording_release_streaming_links from individual test modules. "
         f"It must never run against a non-test database.\n\n"
         f"Fixes:\n"
-        f"  - Set DB_NAME=jazz_test (or any name containing 'test') before "
-        f"running pytest. See backend/tests/README.md for the full bootstrap.\n"
+        f"  - Source backend/.env.test before running pytest:\n"
+        f"        source backend/.env.test && pytest backend/tests/\n"
+        f"    (Starts/uses the local Docker Postgres via "
+        f"./backend/scripts/test_db.sh up. See backend/tests/README.md.)\n"
         f"  - Or, if you're certain this DB is safe to mutate, set "
-        f"{_PROD_SAFETY_BYPASS}=1 to bypass this check (logged to stderr)."
+        f"{_PROD_SAFETY_BYPASS}=1 to bypass (logged to stderr)."
     )
 
 
