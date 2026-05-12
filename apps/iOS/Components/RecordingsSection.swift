@@ -2,10 +2,9 @@
 //  RecordingsSection.swift
 //  Approach Note
 //
-//  Collapsible section displaying filtered recordings with filter chips + sheet pattern
-//  UPDATED: Replaced nested disclosure groups with filter chips and bottom sheet
-//  UPDATED: Sort options changed from Authority/Year/Canonical to Name/Year
-//  UPDATED: Grouping changes based on sort order (by year or by artist name)
+//  Section displaying filtered recordings with filter chips + per-group accordions.
+//  The outer section is always expanded; each group (decade or artist) starts
+//  collapsed and can be opened individually.
 //
 
 import SwiftUI
@@ -38,161 +37,67 @@ struct RecordingsSection: View {
     @State private var selectedVocalFilter: VocalFilter = .all
     @State private var selectedInstrument: InstrumentFamily? = nil
     @State private var showFilterSheet: Bool = false
-    @State private var isSectionExpanded: Bool = true
+
+    // Per-group expansion state. Groups not in the set are collapsed.
+    // Default is empty: all shelves start collapsed so users see a
+    // scannable list of decades / artist names before drilling in.
+    @State private var expandedGroups: Set<String> = []
 
     var body: some View {
-        // HStack with explicit spacers ensures DisclosureGroup chevron is properly inset
-        HStack(spacing: 0) {
-            Spacer().frame(width: 16)
+        VStack(alignment: .leading, spacing: 0) {
+            sectionHeader
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
 
-            VStack(alignment: .leading, spacing: 0) {
-                DisclosureGroup(
-                    isExpanded: $isSectionExpanded,
-                    content: {
-                        VStack(alignment: .leading, spacing: 0) {
-
-                            // MARK: - FILTER CHIPS BAR
-                            if hasActiveFilters || !availableInstruments.isEmpty {
-                                filterChipsBar
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 4)
-                                    .background(ApproachNoteTheme.cardBackground)
-                                    .cornerRadius(8)
-                                    .padding(.horizontal)
-                            }
-
-                            // Recordings List (lazy-loaded for performance)
-                            LazyVStack(alignment: .leading, spacing: 12) {
-                                if !filteredRecordings.isEmpty {
-                                    ForEach(groupedRecordings, id: \.groupKey) { group in
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text("\(group.groupKey) (\(group.recordings.count))")
-                                                .font(ApproachNoteTheme.headline())
-                                                .foregroundColor(ApproachNoteTheme.burgundy)
-                                                .padding(.horizontal)
-                                                .padding(.top, 8)
-
-                                            ScrollView(.horizontal, showsIndicators: false) {
-                                                LazyHStack(alignment: .top, spacing: 0) {
-                                                    ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, recording in
-                                                        HStack(alignment: .top, spacing: 0) {
-                                                            // Divider before item (except first)
-                                                            if index > 0 {
-                                                                Rectangle()
-                                                                    .fill(ApproachNoteTheme.burgundy.opacity(0.4))
-                                                                    .frame(width: 2, height: 150)
-                                                                    .padding(.horizontal, 8)
-                                                            }
-
-                                                            NavigationLink(destination: RecordingDetailView(
-                                                                recordingId: recording.id,
-                                                                onCommunityDataChanged: onCommunityDataChanged
-                                                            )) {
-                                                                RecordingRowView(
-                                                                    recording: recording,
-                                                                    showArtistName: recordingSortOrder == .year || group.groupKey == "More Recordings",
-                                                                    onVisible: onRequestHydration
-                                                                )
-                                                            }
-                                                            .buttonStyle(.plain)
-                                                        }
-                                                    }
-                                                }
-                                                .padding(.horizontal)
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
-                                        Text("No recordings match the current filters")
-                                            .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 40)
-                                }
-                            }
-                            .padding(.top, 8)
-                            .overlay(alignment: .top) {
-                                if isReloading {
-                                    HStack(spacing: 8) {
-                                        ProgressView()
-                                            .tint(ApproachNoteTheme.burgundy)
-                                        Text("Reloading...")
-                                            .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .background(.ultraThinMaterial)
-                                    .cornerRadius(8)
-                                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                                    .padding(.top, 40)
-                                }
-                            }
-                            .opacity(isReloading ? 0.5 : 1.0)
-                            .animation(.easeInOut(duration: 0.2), value: isReloading)
-                        }
-                    },
-                    label: {
-                        HStack(alignment: .center) {
-                            Image(systemName: "music.note.list")
-                                .foregroundColor(ApproachNoteTheme.burgundy)
-
-                            Text("Recordings")
-                                .font(ApproachNoteTheme.title2())
-                                .bold()
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-
-                            // Recording count in header
-                            Text("(\(filteredRecordings.count))")
-                                .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-
-                            Spacer()
-
-                            // Sort menu
-                            Menu {
-                                ForEach(RecordingSortOrder.allCases) { sortOrder in
-                                    Button(action: {
-                                        if recordingSortOrder != sortOrder {
-                                            recordingSortOrder = sortOrder
-                                            onSortOrderChanged?(sortOrder)
-                                        }
-                                    }) {
-                                        HStack {
-                                            Text(sortOrder.displayName)
-                                            if recordingSortOrder == sortOrder {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 3) {
-                                    Text(recordingSortOrder.displayName)
-                                        .font(ApproachNoteTheme.caption())
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption2)
-                                }
-                                .foregroundColor(ApproachNoteTheme.burgundy)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(ApproachNoteTheme.burgundy.opacity(0.1))
-                                .cornerRadius(6)
-                            }
-                        }
-                        .padding(.vertical, 12)
-                    }
-                )
-                .tint(ApproachNoteTheme.burgundy)
+            if hasActiveFilters || !availableInstruments.isEmpty {
+                filterChipsBar
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
+                    .background(ApproachNoteTheme.cardBackground)
+                    .cornerRadius(8)
+                    .padding(.horizontal, 16)
             }
-            
-            Spacer().frame(width: 16)
+
+            LazyVStack(alignment: .leading, spacing: 8) {
+                if !filteredRecordings.isEmpty {
+                    ForEach(groupedRecordings, id: \.groupKey) { group in
+                        groupAccordion(group: group)
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 48))
+                            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                        Text("No recordings match the current filters")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .overlay(alignment: .top) {
+                if isReloading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(ApproachNoteTheme.burgundy)
+                        Text("Reloading...")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(8)
+                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                    .padding(.top, 40)
+                }
+            }
+            .opacity(isReloading ? 0.5 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isReloading)
         }
         .background(ApproachNoteTheme.backgroundLight)
         .sheet(isPresented: $showFilterSheet) {
@@ -203,6 +108,126 @@ struct RecordingsSection: View {
                 availableInstruments: availableInstruments
             )
         }
+    }
+
+    // MARK: - Section Header (no expand/collapse — section is always visible)
+
+    @ViewBuilder
+    private var sectionHeader: some View {
+        HStack(alignment: .center) {
+            Image(systemName: "music.note.list")
+                .foregroundColor(ApproachNoteTheme.burgundy)
+
+            Text("Recordings")
+                .font(ApproachNoteTheme.title2())
+                .bold()
+                .foregroundColor(ApproachNoteTheme.charcoal)
+
+            Text("(\(filteredRecordings.count))")
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.smokeGray)
+
+            Spacer()
+
+            Menu {
+                ForEach(RecordingSortOrder.allCases) { sortOrder in
+                    Button(action: {
+                        if recordingSortOrder != sortOrder {
+                            // Sort change rebuilds group keys entirely
+                            // (decades ↔ artist names), so previous
+                            // expansion state no longer applies.
+                            expandedGroups.removeAll()
+                            recordingSortOrder = sortOrder
+                            onSortOrderChanged?(sortOrder)
+                        }
+                    }) {
+                        HStack {
+                            Text(sortOrder.displayName)
+                            if recordingSortOrder == sortOrder {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 3) {
+                    Text(recordingSortOrder.displayName)
+                        .font(ApproachNoteTheme.caption())
+                    Image(systemName: "chevron.down")
+                        .font(.caption2)
+                }
+                .foregroundColor(ApproachNoteTheme.burgundy)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 5)
+                .background(ApproachNoteTheme.burgundy.opacity(0.1))
+                .cornerRadius(6)
+            }
+        }
+    }
+
+    // MARK: - Group Accordion Row
+
+    @ViewBuilder
+    private func groupAccordion(group: (groupKey: String, recordings: [Recording])) -> some View {
+        let isExpanded = expandedGroups.contains(group.groupKey)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isExpanded {
+                        expandedGroups.remove(group.groupKey)
+                    } else {
+                        expandedGroups.insert(group.groupKey)
+                    }
+                }
+            }) {
+                HStack {
+                    Text("\(group.groupKey) (\(group.recordings.count))")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.burgundy)
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .foregroundColor(ApproachNoteTheme.brass)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 0) {
+                        ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, recording in
+                            HStack(alignment: .top, spacing: 0) {
+                                if index > 0 {
+                                    Rectangle()
+                                        .fill(ApproachNoteTheme.burgundy.opacity(0.4))
+                                        .frame(width: 2, height: 150)
+                                        .padding(.horizontal, 8)
+                                }
+
+                                NavigationLink(destination: RecordingDetailView(
+                                    recordingId: recording.id,
+                                    onCommunityDataChanged: onCommunityDataChanged
+                                )) {
+                                    RecordingRowView(
+                                        recording: recording,
+                                        showArtistName: recordingSortOrder == .year || group.groupKey == "More Recordings",
+                                        onVisible: onRequestHydration
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                }
+                .padding(.bottom, 8)
+            }
+        }
+        .background(ApproachNoteTheme.cardBackground)
+        .cornerRadius(8)
     }
 
     // MARK: - Filter Chips Bar
