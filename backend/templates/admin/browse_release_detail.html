@@ -1041,6 +1041,73 @@
             }
         });
 
+        // Rematch also runs on the worker (writes DB rows; needs the
+        // catalog disk). Same polling pattern as diagnose, with a
+        // longer timeout — rematch does real matcher work per song and
+        // can take noticeably more than 30s on releases with many
+        // tracks. Uses the existing renderAppleApplyResult(...) on the
+        // job's `result` blob, which has the same shape the
+        // synchronous endpoint used to return.
+        const APPLE_REMATCH_POLL_MS = 2000;
+        const APPLE_REMATCH_TIMEOUT_MS = 180000;
+
+        function appleRematchWaitingHTML(jobId, jobStatus, elapsedMs) {
+            const label = jobStatus === 'running' ? 'Running matcher on worker' : 'Waiting in queue';
+            const secs = Math.floor(elapsedMs / 1000);
+            return `
+                <span class="diag-status">${escapeHtml(label)}…</span>
+                <div style="font-size: 12px; color: #666; margin-top: 6px;">
+                    job <span class="mono">#${jobId}</span> · status <span class="mono">${escapeHtml(jobStatus)}</span> · ${secs}s
+                </div>
+            `;
+        }
+
+        async function pollAppleRematchJob(jobId) {
+            const start = Date.now();
+            while (true) {
+                const elapsed = Date.now() - start;
+                if (elapsed > APPLE_REMATCH_TIMEOUT_MS) {
+                    appleOut.innerHTML = `
+                        <span class="diag-status error">Timed out waiting for worker</span>
+                        <div style="font-size: 12px; color: #666; margin-top: 6px;">
+                            Job <span class="mono">#${jobId}</span> is still queued or running after
+                            ${Math.floor(APPLE_REMATCH_TIMEOUT_MS / 1000)}s. The matcher may still
+                            finish in the background — refresh the page in a minute to see if the
+                            DB was updated. Check the worker logs if it never appears.
+                        </div>
+                    `;
+                    return;
+                }
+                const resp = await fetch(
+                    `{{ admin_url('/admin/research/jobs/') }}${jobId}`,
+                    { method: 'GET' }
+                );
+                if (!resp.ok) {
+                    appleOut.innerHTML = `<div class="diag-status error">Status fetch failed (HTTP ${resp.status})</div>`;
+                    return;
+                }
+                const job = await resp.json();
+                if (job.status === 'done') {
+                    renderAppleApplyResult(job.result || {});
+                    return;
+                }
+                if (job.status === 'dead' || job.status === 'failed') {
+                    appleOut.innerHTML = `
+                        <span class="diag-status error">Worker reported failure</span>
+                        <div style="font-size: 12px; color: #c00; margin-top: 6px;">
+                            ${escapeHtml(job.last_error || '(no error message)')}
+                        </div>
+                        <div style="font-size: 12px; color: #666; margin-top: 4px;">
+                            job <span class="mono">#${jobId}</span> · status <span class="mono">${escapeHtml(job.status)}</span>
+                        </div>
+                    `;
+                    return;
+                }
+                appleOut.innerHTML = appleRematchWaitingHTML(jobId, job.status, elapsed);
+                await new Promise(r => setTimeout(r, APPLE_REMATCH_POLL_MS));
+            }
+        }
+
         appleApplyBtn.addEventListener('click', async () => {
             const ok = window.confirm(
                 'Re-run the Apple Music matcher against this release and persist any matches it finds?\n\n' +
@@ -1066,7 +1133,12 @@
                     }
                 );
                 const data = await resp.json();
-                renderAppleApplyResult(data);
+                if (!resp.ok || !data.job_id) {
+                    appleOut.innerHTML = `<div class="diag-status error">Enqueue failed</div><div>${escapeHtml(data.error || `HTTP ${resp.status}`)}</div>`;
+                    return;
+                }
+                appleOut.innerHTML = appleRematchWaitingHTML(data.job_id, data.status || 'queued', 0);
+                await pollAppleRematchJob(data.job_id);
             } catch (e) {
                 appleOut.innerHTML = `<div class="diag-status error">Request failed</div><div>${escapeHtml(String(e))}</div>`;
             } finally {
