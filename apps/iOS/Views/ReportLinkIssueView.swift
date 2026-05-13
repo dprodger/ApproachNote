@@ -102,9 +102,8 @@ struct ReportLinkIssueView: View {
                             )
                         
                         Text("Examples: broken link, incorrect information, wrong page, outdated content")
-                            .font(ApproachNoteTheme.caption())
+                            .font(ApproachNoteTheme.caption(italic: true))
                             .foregroundColor(ApproachNoteTheme.smokeGray)
-                            .italic()
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)

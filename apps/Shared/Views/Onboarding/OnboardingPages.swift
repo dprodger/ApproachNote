@@ -69,8 +69,7 @@ struct OnboardingWelcomePage: View {
                     .foregroundColor(ApproachNoteTheme.amber)
 
                 Text("When it comes to music, the data are complicated.\nI'll walk you through the definitions.")
-                    .font(ApproachNoteTheme.body())
-                    .italic()
+                    .font(ApproachNoteTheme.body(italic: true))
                     .multilineTextAlignment(.center)
                     .foregroundColor(ApproachNoteTheme.smokeGray)
             }
@@ -111,7 +110,7 @@ struct OnboardingSongPage: View {
             VStack(alignment: .leading, spacing: 16) {
                 Text("When Gerald Marks and Seymour Simons sat down in 1932 to write ")
                 + Text("All of Me")
-                    .italic()
+                    .font(ApproachNoteTheme.body(italic: true))
                 + Text(", they were creating a ")
                 + Text("Song")
                     .fontWeight(.semibold)
@@ -309,8 +308,7 @@ struct OnboardingReleasesPage: View {
                     .foregroundColor(ApproachNoteTheme.gold)
 
                 Text("For our purposes, if we can find any Release of the same Recording, we can treat them interchangeably from a playback and lineup perspective.")
-                    .font(ApproachNoteTheme.callout())
-                    .italic()
+                    .font(ApproachNoteTheme.callout(italic: true))
                     .multilineTextAlignment(.center)
                     .foregroundColor(ApproachNoteTheme.charcoal)
             }

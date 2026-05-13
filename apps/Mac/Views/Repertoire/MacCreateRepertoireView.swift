@@ -53,7 +53,7 @@ struct MacCreateRepertoireView: View {
 
                     TextEditor(text: $description)
                         .frame(height: 80)
-                        .font(.body)
+                        .font(ApproachNoteTheme.body())
                         .overlay(
                             RoundedRectangle(cornerRadius: 5)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)

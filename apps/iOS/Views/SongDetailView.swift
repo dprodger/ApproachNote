@@ -771,8 +771,7 @@ struct AuthoritativeRecordingCard: View {
                 // Recording title (when different from song title)
                 if let recordingTitle = recording.displayTitle {
                     Text("(\(recordingTitle))")
-                        .font(ApproachNoteTheme.caption())
-                        .italic()
+                        .font(ApproachNoteTheme.caption(italic: true))
                         .foregroundColor(ApproachNoteTheme.brass)
                         .lineLimit(1)
                 }

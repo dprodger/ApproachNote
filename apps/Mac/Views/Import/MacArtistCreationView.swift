@@ -38,7 +38,7 @@ struct MacArtistCreationView: View {
                 Spacer()
 
                 Text("Create Artist")
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
 
                 Spacer()
 
@@ -67,7 +67,7 @@ struct MacArtistCreationView: View {
 
                 Section {
                     Text("Additional details (bio, dates, instruments) will be automatically fetched by the backend.")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                 }
             }

@@ -288,9 +288,9 @@ struct MacSongDetailSheet: View {
     var body: some View {
         VStack {
             Text("Song Detail")
-                .font(.headline)
+                .font(ApproachNoteTheme.headline())
             Text("Song ID: \(songId)")
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(.secondary)
             Button("Close") {
                 dismiss()
@@ -308,9 +308,9 @@ struct MacPerformerDetailSheet: View {
     var body: some View {
         VStack {
             Text("Artist Detail")
-                .font(.headline)
+                .font(ApproachNoteTheme.headline())
             Text("Artist ID: \(performerId)")
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(.secondary)
             Button("Close") {
                 dismiss()

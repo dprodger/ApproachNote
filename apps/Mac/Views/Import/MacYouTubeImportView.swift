@@ -42,7 +42,7 @@ struct MacYouTubeImportView: View {
                 Spacer()
 
                 Text("Link to Song")
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
 
                 Spacer()
 
@@ -151,11 +151,10 @@ struct MacYouTubeImportView: View {
                 .foregroundColor(.secondary)
 
             Text("Sign In Required")
-                .font(.title2)
-                .fontWeight(.semibold)
+                .font(ApproachNoteTheme.title2(weight: .semibold))
 
             Text("You need to be signed in to import YouTube videos")
-                .font(.body)
+                .font(ApproachNoteTheme.body())
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -180,12 +179,12 @@ struct MacYouTubeImportView: View {
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(youtubeData.title)
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
                     .lineLimit(2)
 
                 HStack(spacing: 8) {
                     Text(youtubeData.videoType.displayName)
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -194,7 +193,7 @@ struct MacYouTubeImportView: View {
 
                     if let channel = youtubeData.channelName {
                         Text(channel)
-                            .font(.caption)
+                            .font(ApproachNoteTheme.caption())
                             .foregroundColor(.secondary)
                     }
                 }
@@ -211,7 +210,7 @@ struct MacYouTubeImportView: View {
     private var songSearchSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Search for a song to link this video to:")
-                .font(.subheadline)
+                .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(.secondary)
                 .padding(.horizontal)
                 .padding(.top)
@@ -265,11 +264,11 @@ struct MacYouTubeImportView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(song.title)
-                                        .font(.headline)
+                                        .font(ApproachNoteTheme.headline())
 
                                     if let composer = song.composer {
                                         Text(composer)
-                                            .font(.subheadline)
+                                            .font(ApproachNoteTheme.subheadline())
                                             .foregroundColor(.secondary)
                                     }
                                 }
@@ -291,11 +290,11 @@ struct MacYouTubeImportView: View {
                         .foregroundColor(.secondary)
 
                     Text("No songs found")
-                        .font(.body)
+                        .font(ApproachNoteTheme.body())
                         .foregroundColor(.secondary)
 
                     Text("Try different keywords")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                 }
                 .frame(maxWidth: .infinity)
@@ -433,7 +432,7 @@ struct MacRecordingPickerView: View {
                 Spacer()
 
                 Text("Select Recording")
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
 
                 Spacer()
 
@@ -466,7 +465,7 @@ struct MacRecordingPickerView: View {
                         .foregroundColor(.secondary)
                     Text("No recordings found")
                     Text("This song doesn't have any recordings yet")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                 }
                 Spacer()
@@ -493,11 +492,11 @@ struct MacRecordingPickerView: View {
                 // Results count
                 HStack {
                     Text("\(filteredRecordings.count) recording\(filteredRecordings.count == 1 ? "" : "s")")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                     Spacer()
                     Text("Sorted by artist")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
@@ -556,18 +555,18 @@ struct MacRecordingPickerView: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(recording.albumTitle ?? "Unknown Album")
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
 
                 HStack(spacing: 8) {
                     if let artist = recording.artistCredit {
                         Text(artist)
-                            .font(.caption)
+                            .font(ApproachNoteTheme.caption())
                             .foregroundColor(.secondary)
                     }
 
                     if let year = recording.recordingYear {
                         Text("(\(String(year)))")
-                            .font(.caption)
+                            .font(ApproachNoteTheme.caption())
                             .foregroundColor(.secondary)
                     }
                 }

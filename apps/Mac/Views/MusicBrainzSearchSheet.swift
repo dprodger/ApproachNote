@@ -230,7 +230,7 @@ struct MusicBrainzSearchSheet: View {
                 .fill(color)
                 .frame(width: 8, height: 8)
             Text("\(scoreValue)")
-                .font(.system(size: 10, weight: .medium))
+                .font(ApproachNoteTheme.body(size: 10, weight: .medium))
                 .foregroundColor(color)
         }
         .frame(width: 24)

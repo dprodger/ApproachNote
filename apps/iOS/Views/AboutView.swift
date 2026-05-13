@@ -139,9 +139,8 @@ struct AboutView: View {
                                     .truncationMode(.tail)
                             } else {
                                 Text("Processing...")
-                                    .font(ApproachNoteTheme.caption())
+                                    .font(ApproachNoteTheme.caption(italic: true))
                                     .foregroundColor(.white.opacity(0.7))
-                                    .italic()
                             }
 
                             // Progress indicator

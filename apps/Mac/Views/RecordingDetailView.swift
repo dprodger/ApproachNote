@@ -350,8 +350,7 @@ struct RecordingDetailView: View {
                 // Recording title (when different from song title)
                 if let recordingTitle = recording.displayTitle {
                     Text("as \"\(recordingTitle)\"")
-                        .font(ApproachNoteTheme.subheadline())
-                        .italic()
+                        .font(ApproachNoteTheme.subheadline(italic: true))
                         .foregroundColor(ApproachNoteTheme.brass)
                 }
 

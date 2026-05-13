@@ -51,33 +51,33 @@ struct ApproachNoteTheme {
     // MARK: - Body Fonts
 
     /// Font for body text
-    static func body(size: CGFloat = 17, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func body(size: CGFloat = 17, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     /// Font for callouts
-    static func callout(size: CGFloat = 16, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func callout(size: CGFloat = 16, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     /// Font for subheadlines
-    static func subheadline(size: CGFloat = 15, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func subheadline(size: CGFloat = 15, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     /// Font for footnotes
-    static func footnote(size: CGFloat = 13, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func footnote(size: CGFloat = 13, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     /// Font for captions
-    static func caption(size: CGFloat = 12, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func caption(size: CGFloat = 12, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     /// Font for smaller captions
-    static func caption2(size: CGFloat = 11, weight: Font.Weight = .regular) -> Font {
-        .custom(bodyFontName(for: weight), size: size)
+    static func caption2(size: CGFloat = 11, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
     // MARK: - Font Name Helpers
@@ -141,9 +141,15 @@ struct ApproachNoteTheme {
     }
 
     /// Helper to get the correct body font name variant for the weight
-    private static func bodyFontName(for weight: Font.Weight) -> String {
+    /// Only LibreFranklin-Italic (Regular weight) is bundled today; italic + non-regular
+    /// weight falls back to the upright weight name (no slant) rather than silently
+    /// returning the wrong glyph set.
+    private static func bodyFontName(for weight: Font.Weight, italic: Bool = false) -> String {
         switch bodyFontFamily {
         case "Libre Franklin":
+            if italic && (weight == .regular) {
+                return "LibreFranklin-Italic"
+            }
             switch weight {
             case .black, .heavy: return "LibreFranklin-Black"
             case .bold: return "LibreFranklin-Bold"

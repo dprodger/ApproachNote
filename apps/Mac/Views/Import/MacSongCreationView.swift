@@ -48,7 +48,7 @@ struct MacSongCreationView: View {
                 Spacer()
 
                 Text("Create Song")
-                    .font(.headline)
+                    .font(ApproachNoteTheme.headline())
 
                 Spacer()
 
@@ -90,7 +90,7 @@ struct MacSongCreationView: View {
 
                 Section {
                     Text("Additional details (structure, recordings) can be added later through the app.")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                 }
             }

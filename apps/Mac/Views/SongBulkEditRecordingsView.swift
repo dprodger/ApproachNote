@@ -152,14 +152,14 @@ struct SongBulkEditRecordingsView: View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Bulk Edit Recordings")
-                    .font(.title2.weight(.semibold))
+                    .font(ApproachNoteTheme.title2(weight: .semibold))
                     .foregroundColor(.primary)
                 HStack(spacing: 8) {
                     Text(songTitle)
-                        .font(.subheadline)
+                        .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(.secondary)
                     Text("\(recordings.count) recordings")
-                        .font(.caption)
+                        .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -197,7 +197,7 @@ struct SongBulkEditRecordingsView: View {
             Spacer()
                 .frame(width: 30)
         }
-        .font(.caption.weight(.semibold))
+        .font(ApproachNoteTheme.caption(weight: .semibold))
         .padding(.horizontal)
         .padding(.vertical, 8)
         .background(Color(NSColor.controlBackgroundColor))
@@ -234,14 +234,14 @@ struct SongBulkEditRecordingsView: View {
         HStack(spacing: 8) {
             // Artist
             Text(recording.artistCredit ?? "Unknown Artist")
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             // Release
             Text(recording.albumTitle ?? "Unknown Album")
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(.primary)
                 .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -307,14 +307,14 @@ struct SongBulkEditRecordingsView: View {
                     Image(systemName: "arrow.up.right")
                         .font(.system(size: 8))
                 }
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(Color(NSColor.linkColor))
             }
             .buttonStyle(.plain)
             .help("Open in \(playback.service)")
         } else {
             Text(title)
-                .font(.caption)
+                .font(ApproachNoteTheme.caption())
                 .foregroundColor(.secondary)
                 .lineLimit(1)
         }
