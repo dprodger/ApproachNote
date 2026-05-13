@@ -14,12 +14,12 @@ struct ApproachNoteTheme {
     // MARK: - Typography
 
     /// Font family for headings (largeTitle, title, title2, title3, headline)
-    /// Options: "Futura", "Avenir", "Helvetica Neue", "Gill Sans", "Optima"
-    static let headingFontFamily = "Baskerville"
+    /// Options: "Libre Franklin", "Futura", "Avenir", "Helvetica Neue", "Gill Sans", "Optima", "Baskerville"
+    static let headingFontFamily = "Libre Franklin"
 
     /// Font family for body text (body, callout, subheadline, footnote, caption)
-    /// Options: "Baskerville", "Georgia", "Palatino", "Didot", "Cochin", "Charter", "Avenir", "Futura"
-    static let bodyFontFamily = "Avenir"
+    /// Options: "Libre Franklin", "Baskerville", "Georgia", "Palatino", "Didot", "Cochin", "Charter", "Avenir", "Futura"
+    static let bodyFontFamily = "Libre Franklin"
 
     // MARK: - Heading Fonts
 
@@ -85,6 +85,15 @@ struct ApproachNoteTheme {
     /// Helper to get the correct heading font name variant for the weight
     private static func headingFontName(for weight: Font.Weight) -> String {
         switch headingFontFamily {
+        case "Libre Franklin":
+            switch weight {
+            case .black, .heavy: return "LibreFranklin-Black"
+            case .bold: return "LibreFranklin-Bold"
+            case .semibold: return "LibreFranklin-SemiBold"
+            case .medium: return "LibreFranklin-Medium"
+            case .light, .ultraLight, .thin: return "LibreFranklin-Light"
+            default: return "LibreFranklin-Regular"
+            }
         case "Futura":
             switch weight {
             case .bold, .heavy, .black: return "Futura-Bold"
@@ -134,6 +143,15 @@ struct ApproachNoteTheme {
     /// Helper to get the correct body font name variant for the weight
     private static func bodyFontName(for weight: Font.Weight) -> String {
         switch bodyFontFamily {
+        case "Libre Franklin":
+            switch weight {
+            case .black, .heavy: return "LibreFranklin-Black"
+            case .bold: return "LibreFranklin-Bold"
+            case .semibold: return "LibreFranklin-SemiBold"
+            case .medium: return "LibreFranklin-Medium"
+            case .light, .ultraLight, .thin: return "LibreFranklin-Light"
+            default: return "LibreFranklin-Regular"
+            }
         case "Futura":
             switch weight {
             case .bold, .heavy, .black: return "Futura-Bold"

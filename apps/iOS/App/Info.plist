@@ -55,6 +55,17 @@
         </dict>
     </array>
     
+    <!-- Bundled fonts (Libre Franklin) -->
+    <key>UIAppFonts</key>
+    <array>
+        <string>LibreFranklin-Light.ttf</string>
+        <string>LibreFranklin-Regular.ttf</string>
+        <string>LibreFranklin-Medium.ttf</string>
+        <string>LibreFranklin-SemiBold.ttf</string>
+        <string>LibreFranklin-Bold.ttf</string>
+        <string>LibreFranklin-Black.ttf</string>
+    </array>
+
     <!-- UI Configuration -->
     <key>UIApplicationSceneManifest</key>
     <dict>
