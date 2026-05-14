@@ -643,6 +643,15 @@ class AppleMusicCatalog:
             self._create_conn()
         return self._conn
 
+    # DuckDB defaults to ~80% of system RAM for its buffer pool. On a small
+    # worker instance that crowds out everything else and has been observed
+    # spiking the process to >90% RSS during heavy match_song runs. Bound
+    # explicitly to a fraction we know fits with Spotify + YouTube workers
+    # running concurrently in the same process. APPLE_DUCKDB_MEMORY_LIMIT
+    # / APPLE_DUCKDB_THREADS let us tune without redeploying code.
+    _DEFAULT_DUCKDB_MEMORY_LIMIT = '512MB'
+    _DEFAULT_DUCKDB_THREADS = '2'
+
     def _create_conn(self):
         """Create a new DuckDB connection."""
         if self._use_motherduck:
@@ -652,6 +661,32 @@ class AppleMusicCatalog:
             self._conn = duckdb.connect(str(self.db_path), read_only=True)
         else:
             self._conn = duckdb.connect(':memory:')
+        self._apply_resource_limits(self._conn)
+
+    @classmethod
+    def _apply_resource_limits(cls, conn) -> None:
+        """Cap DuckDB's buffer pool and worker threads.
+
+        DuckDB's defaults assume it owns the box; we share it with two other
+        worker threads (spotify + youtube) and a Flask app. Read overrides
+        from env first so ops can adjust without a code change.
+        """
+        mem_limit = os.environ.get(
+            'APPLE_DUCKDB_MEMORY_LIMIT', cls._DEFAULT_DUCKDB_MEMORY_LIMIT,
+        )
+        threads = os.environ.get(
+            'APPLE_DUCKDB_THREADS', cls._DEFAULT_DUCKDB_THREADS,
+        )
+        try:
+            conn.execute(f"PRAGMA memory_limit='{mem_limit}'")
+            conn.execute(f"PRAGMA threads={int(threads)}")
+        except Exception:
+            # PRAGMA support varies (e.g. MotherDuck). Don't block the
+            # connection on a tuning hiccup — log and continue.
+            logger.exception(
+                "failed to apply DuckDB resource limits "
+                "(memory_limit=%r threads=%r)", mem_limit, threads,
+            )
 
     def _refresh_conn(self):
         """Close and recreate the DuckDB connection."""
