@@ -232,10 +232,7 @@ struct SongDetailView: View {
                 }
             }
             .padding()
-            
-            Divider()
-                .padding(.horizontal)
-            
+
             // MARK: - RECORDINGS SECTION
                 RecordingsSection(
                     recordings: song.recordings ?? [],

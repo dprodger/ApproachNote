@@ -8,8 +8,7 @@
 import SwiftUI
 
 struct RecordingFilterSheet: View {
-    @Binding var selectedFilter: SongRecordingFilter
-    @Binding var selectedVocalFilter: VocalFilter
+    @Binding var selectedServices: Set<StreamingService>
     @Binding var selectedInstrument: InstrumentFamily?
     let availableInstruments: [InstrumentFamily]
 
@@ -18,70 +17,34 @@ struct RecordingFilterSheet: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: 28) {
 
-                    // MARK: - Availability Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Availability")
+                    // MARK: - Playback availability (multi-select)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Playback availability")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.charcoal)
 
-                        VStack(spacing: 0) {
-                            ForEach(Array(SongRecordingFilter.allCases.enumerated()), id: \.element) { index, filter in
-                                if index > 0 {
-                                    Divider()
-                                        .padding(.leading, 44)
-                                }
-                                availabilityRow(
-                                    title: filter.displayName,
-                                    subtitle: filter.subtitle,
-                                    icon: filter.icon,
-                                    iconColor: filter.iconColor,
-                                    isSelected: selectedFilter == filter
-                                ) {
-                                    selectedFilter = filter
-                                }
+                        Text("Select which service(s) you'd like to include for playback")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(StreamingService.allCases) { service in
+                                serviceCheckboxRow(service)
                             }
                         }
-                        .background(Color.white)
-                        .cornerRadius(10)
-                    }
-
-                    // MARK: - Vocal/Instrumental Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("Performance Type")
-                            .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
-
-                        VStack(spacing: 0) {
-                            ForEach(Array(VocalFilter.allCases.enumerated()), id: \.element) { index, filter in
-                                if index > 0 {
-                                    Divider()
-                                        .padding(.leading, 44)
-                                }
-                                availabilityRow(
-                                    title: filter.displayName,
-                                    subtitle: filter.subtitle,
-                                    icon: filter.icon,
-                                    iconColor: filter.iconColor,
-                                    isSelected: selectedVocalFilter == filter
-                                ) {
-                                    selectedVocalFilter = filter
-                                }
-                            }
-                        }
-                        .background(Color.white)
-                        .cornerRadius(10)
+                        .padding(.top, 4)
                     }
 
                     // MARK: - Instrument Section
                     if !availableInstruments.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: 8) {
                             Text("By Instrument")
                                 .font(ApproachNoteTheme.headline())
                                 .foregroundColor(ApproachNoteTheme.charcoal)
 
-                            Text("Filter to recordings featuring a specific instrument")
+                            Text("Select to filter for recordings that feature a specific instrument")
                                 .font(ApproachNoteTheme.subheadline())
                                 .foregroundColor(ApproachNoteTheme.smokeGray)
 
@@ -94,6 +57,7 @@ struct RecordingFilterSheet: View {
                                     instrumentButton(family)
                                 }
                             }
+                            .padding(.top, 4)
                         }
                     }
 
@@ -130,38 +94,28 @@ struct RecordingFilterSheet: View {
     // MARK: - Helper Views
 
     @ViewBuilder
-    private func availabilityRow(
-        title: String,
-        subtitle: String,
-        icon: String,
-        iconColor: Color,
-        isSelected: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
+    private func serviceCheckboxRow(_ service: StreamingService) -> some View {
+        let isSelected = selectedServices.contains(service)
+
+        Button(action: {
+            if isSelected {
+                selectedServices.remove(service)
+            } else {
+                selectedServices.insert(service)
+            }
+        }) {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                    .font(ApproachNoteTheme.title2())
+                    .font(ApproachNoteTheme.title3())
                     .foregroundColor(isSelected ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.5))
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Image(systemName: icon)
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(iconColor)
-                        Text(title)
-                            .font(ApproachNoteTheme.body())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
-                    }
-                    Text(subtitle)
-                        .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
-                }
+                Text(service.displayName)
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
 
                 Spacer()
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -203,12 +157,11 @@ struct RecordingFilterSheet: View {
     // MARK: - Helpers
 
     private var hasActiveFilters: Bool {
-        selectedFilter != .all || selectedVocalFilter != .all || selectedInstrument != nil
+        !selectedServices.isEmpty || selectedInstrument != nil
     }
 
     private func clearAllFilters() {
-        selectedFilter = .all
-        selectedVocalFilter = .all
+        selectedServices.removeAll()
         selectedInstrument = nil
     }
 
@@ -234,8 +187,7 @@ struct RecordingFilterSheet: View {
 
 #Preview {
     RecordingFilterSheet(
-        selectedFilter: .constant(.withSpotify),
-        selectedVocalFilter: .constant(.all),
+        selectedServices: .constant([.spotify]),
         selectedInstrument: .constant(nil),
         availableInstruments: [.guitar, .saxophone, .trumpet, .piano, .bass, .drums]
     )

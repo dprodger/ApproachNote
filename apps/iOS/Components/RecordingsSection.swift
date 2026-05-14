@@ -33,7 +33,8 @@ struct RecordingsSection: View {
     // any callers that already pass fully-loaded recordings.
     var onRequestHydration: ((String) -> Void)?
 
-    @State private var selectedFilter: SongRecordingFilter = .playable
+    @State private var playableOnly: Bool = true
+    @State private var selectedServices: Set<StreamingService> = []
     @State private var selectedVocalFilter: VocalFilter = .all
     @State private var selectedInstrument: InstrumentFamily? = nil
     @State private var showFilterSheet: Bool = false
@@ -44,19 +45,12 @@ struct RecordingsSection: View {
     @State private var expandedGroups: Set<String> = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 16) {
             sectionHeader
                 .padding(.horizontal, 16)
-                .padding(.vertical, 12)
 
-            if hasActiveFilters || !availableInstruments.isEmpty {
-                filterChipsBar
-                    .padding(.vertical, 8)
-                    .padding(.horizontal, 4)
-                    .background(ApproachNoteTheme.cardBackground)
-                    .cornerRadius(8)
-                    .padding(.horizontal, 16)
-            }
+            controlsBar
+                .padding(.horizontal, 16)
 
             LazyVStack(alignment: .leading, spacing: 8) {
                 if !filteredRecordings.isEmpty {
@@ -102,23 +96,19 @@ struct RecordingsSection: View {
         .background(ApproachNoteTheme.backgroundLight)
         .sheet(isPresented: $showFilterSheet) {
             RecordingFilterSheet(
-                selectedFilter: $selectedFilter,
-                selectedVocalFilter: $selectedVocalFilter,
+                selectedServices: $selectedServices,
                 selectedInstrument: $selectedInstrument,
                 availableInstruments: availableInstruments
             )
         }
     }
 
-    // MARK: - Section Header (no expand/collapse — section is always visible)
+    // MARK: - Section Header
 
     @ViewBuilder
     private var sectionHeader: some View {
-        HStack(alignment: .center) {
-            Image(systemName: "music.note.list")
-                .foregroundColor(ApproachNoteTheme.burgundy)
-
-            Text("Recordings")
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text("MORE RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
                 .foregroundColor(ApproachNoteTheme.charcoal)
@@ -128,39 +118,91 @@ struct RecordingsSection: View {
                 .foregroundColor(ApproachNoteTheme.smokeGray)
 
             Spacer()
+        }
+    }
 
-            Menu {
-                ForEach(RecordingSortOrder.allCases) { sortOrder in
-                    Button(action: {
-                        if recordingSortOrder != sortOrder {
-                            // Sort change rebuilds group keys entirely
-                            // (decades ↔ artist names), so previous
-                            // expansion state no longer applies.
-                            expandedGroups.removeAll()
-                            recordingSortOrder = sortOrder
-                            onSortOrderChanged?(sortOrder)
-                        }
-                    }) {
-                        HStack {
-                            Text(sortOrder.displayName)
-                            if recordingSortOrder == sortOrder {
-                                Image(systemName: "checkmark")
+    // MARK: - Controls Bar (Filter + Sort buttons, Playable toggle, Performance Type segmented)
+
+    @ViewBuilder
+    private var controlsBar: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Filter + Sort row
+            HStack(spacing: 10) {
+                Button(action: { showFilterSheet = true }) {
+                    HStack(spacing: 6) {
+                        Text("Filter")
+                            .font(ApproachNoteTheme.subheadline())
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.caption)
+                    }
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ApproachNoteTheme.cardBackground)
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+
+                Menu {
+                    ForEach(RecordingSortOrder.allCases) { sortOrder in
+                        Button(action: {
+                            if recordingSortOrder != sortOrder {
+                                expandedGroups.removeAll()
+                                recordingSortOrder = sortOrder
+                                onSortOrderChanged?(sortOrder)
+                            }
+                        }) {
+                            HStack {
+                                Text(sortOrder.displayName)
+                                if recordingSortOrder == sortOrder {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
+                } label: {
+                    HStack(spacing: 6) {
+                        Text("Sort: \(recordingSortOrder.displayName)")
+                            .font(ApproachNoteTheme.subheadline())
+                        Image(systemName: "chevron.down")
+                            .font(.caption)
+                    }
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ApproachNoteTheme.cardBackground)
+                    .cornerRadius(8)
                 }
-            } label: {
-                HStack(spacing: 3) {
-                    Text(recordingSortOrder.displayName)
+
+                Spacer()
+            }
+
+            // Playable Only toggle
+            Toggle(isOn: $playableOnly) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Playable only?")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.charcoal)
+                    Text("Toggle On to hide versions of this song without a linked recording to listen to.")
                         .font(ApproachNoteTheme.caption())
-                    Image(systemName: "chevron.down")
-                        .font(.caption2)
+                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .foregroundColor(ApproachNoteTheme.burgundy)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 5)
-                .background(ApproachNoteTheme.burgundy.opacity(0.1))
-                .cornerRadius(6)
+            }
+            .tint(ApproachNoteTheme.burgundy)
+
+            // Performance Type segmented
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Performance Type")
+                    .font(ApproachNoteTheme.headline())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+
+                Picker("Performance Type", selection: $selectedVocalFilter) {
+                    ForEach(VocalFilter.allCases) { filter in
+                        Text(filter.displayName.uppercased()).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
         }
     }
@@ -230,63 +272,6 @@ struct RecordingsSection: View {
         .cornerRadius(8)
     }
 
-    // MARK: - Filter Chips Bar
-
-    @ViewBuilder
-    private var filterChipsBar: some View {
-        HStack(spacing: 8) {
-            // Active filter chips for streaming service
-            if selectedFilter != .all {
-                FilterChip(
-                    label: selectedFilter.displayName,
-                    icon: selectedFilter.icon,
-                    iconColor: selectedFilter.iconColor,
-                    onRemove: { selectedFilter = .all }
-                )
-            }
-
-            // Active filter chip for vocal/instrumental
-            if selectedVocalFilter != .all {
-                FilterChip(
-                    label: selectedVocalFilter.displayName,
-                    icon: selectedVocalFilter.icon,
-                    iconColor: selectedVocalFilter.iconColor,
-                    onRemove: { selectedVocalFilter = .all }
-                )
-            }
-
-            if let instrument = selectedInstrument {
-                FilterChip(
-                    label: instrument.rawValue,
-                    icon: nil,
-                    onRemove: { selectedInstrument = nil }
-                )
-            }
-
-            // Add/Edit Filter button
-            Button(action: { showFilterSheet = true }) {
-                HStack(spacing: 4) {
-                    Image(systemName: hasActiveFilters ? "slider.horizontal.3" : "plus")
-                        .font(.caption.weight(.medium))
-                    Text(hasActiveFilters ? "Edit" : "Filter")
-                        .font(ApproachNoteTheme.subheadline())
-                }
-                .foregroundColor(ApproachNoteTheme.burgundy)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(ApproachNoteTheme.burgundy.opacity(0.15))
-                .cornerRadius(14)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-        }
-    }
-
-    private var hasActiveFilters: Bool {
-        selectedFilter != .all || selectedVocalFilter != .all || selectedInstrument != nil
-    }
-
     // MARK: - Computed Properties
     // Filtering and grouping logic lives in Shared/Support/RecordingGrouping.swift
     // so iOS and Mac stay in sync. These wrappers let in-body call sites stay unchanged.
@@ -296,50 +281,37 @@ struct RecordingsSection: View {
     }
 
     private var filteredRecordings: [Recording] {
-        RecordingGrouping.filter(
+        // Run instrument + vocal filters through the shared helper, then
+        // apply the new playable / per-service filters locally so we don't
+        // disturb the SongRecordingFilter enum that Mac still uses.
+        var result = RecordingGrouping.filter(
             recordings,
             instrument: selectedInstrument,
             vocal: selectedVocalFilter,
-            streaming: selectedFilter
+            streaming: .all
         )
+
+        if !selectedServices.isEmpty {
+            result = result.filter { recording in
+                selectedServices.contains(where: { hasService(recording, $0) })
+            }
+        } else if playableOnly {
+            result = result.filter { $0.isPlayable }
+        }
+
+        return result
+    }
+
+    private func hasService(_ recording: Recording, _ service: StreamingService) -> Bool {
+        switch service {
+        case .spotify: return recording.hasSpotifyAvailable
+        case .appleMusic: return recording.hasAppleMusicAvailable
+        case .youtube: return recording.hasYoutubeAvailable
+        }
     }
 
     private var groupedRecordings: [(groupKey: String, recordings: [Recording])] {
         RecordingGrouping.grouped(filteredRecordings, sortOrder: recordingSortOrder)
-    }
-}
-
-// MARK: - Filter Chip Component
-
-struct FilterChip: View {
-    let label: String
-    let icon: String?
-    var iconColor: Color? = nil
-    var backgroundColor: Color? = nil
-    let onRemove: () -> Void
-
-    var body: some View {
-        HStack(spacing: 4) {
-            if let icon = icon {
-                Image(systemName: icon)
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(iconColor ?? .white)
-            }
-
-            Text(label)
-                .font(ApproachNoteTheme.subheadline())
-
-            Button(action: onRemove) {
-                Image(systemName: "xmark")
-                    .font(.caption2.weight(.semibold))
-            }
-            .buttonStyle(.plain)
-        }
-        .foregroundColor(.white)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(backgroundColor ?? ApproachNoteTheme.brass)
-        .cornerRadius(16)
     }
 }
 
@@ -361,13 +333,4 @@ struct FilterChip: View {
         }
     }
     return PreviewWrapper()
-}
-
-#Preview("Filter Chips") {
-    VStack(spacing: 12) {
-        FilterChip(label: "Playable", icon: "play.circle", iconColor: ApproachNoteTheme.burgundy) {}
-        FilterChip(label: "Spotify", icon: "music.note.list", iconColor: .green) {}
-        FilterChip(label: "Piano", icon: nil) {}
-    }
-    .padding()
 }
