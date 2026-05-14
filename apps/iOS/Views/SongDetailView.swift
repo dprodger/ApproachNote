@@ -291,7 +291,7 @@ struct SongDetailView: View {
     private func authoritativeRecordingsSection(for song: Song) -> some View {
         VStack(alignment: .leading, spacing: 16) {
             // Header
-            Text("Featured Recordings")
+            Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
                 .foregroundColor(ApproachNoteTheme.charcoal)
@@ -316,16 +316,8 @@ struct SongDetailView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 4)
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(12)
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
-        )
         .padding(.top, 8)
     }
     
@@ -486,7 +478,7 @@ struct AuthoritativeRecordingCard: View {
     let recording: Recording
     @State private var showingBackCover = false
 
-    private let artworkSize: CGFloat = 180
+    private let artworkSize: CGFloat = 204
 
     // Get artist name - prefer artist_credit from default release, fall back to performers
     private var artistName: String {
@@ -665,9 +657,6 @@ struct AuthoritativeRecordingCard: View {
             }
             .frame(width: artworkSize, alignment: .topLeading)
         }
-        .padding(12)
-        .background(ApproachNoteTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
 }
 
