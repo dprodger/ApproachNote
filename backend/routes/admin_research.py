@@ -15,6 +15,8 @@ Routes:
     POST /admin/research/jobs/<id>/retry  — reset to queued, run_after = now()
     POST /admin/research/jobs/<id>/cancel — mark dead
     POST /admin/research/enqueue        — manual job creation
+    GET  /admin/research/youtube-walk   — page: bulk-enqueue YouTube lookups
+    POST /admin/research/queue-youtube-lookups — walk songs, enqueue match_recording
 """
 
 from __future__ import annotations
@@ -435,3 +437,131 @@ def queue_all_songs_for_research():
             'error': 'Internal server error',
             'detail': str(e)
         }), 500
+
+
+# ---------------------------------------------------------------------------
+# YouTube walk — bulk-enqueue per-recording match jobs
+# ---------------------------------------------------------------------------
+
+@admin_research_bp.route('/youtube-walk', methods=['GET'])
+def youtube_walk_page():
+    """Render the YouTube-walk page. Backend-only flow: walks songs,
+    enqueues a youtube.match_recording job per recording. Uses the durable
+    research_jobs queue (not the in-process research_queue), so progress is
+    visible on the main dashboard via the source=youtube filter."""
+    return render_template('admin/youtube_walk.html')
+
+
+@admin_research_bp.route('/queue-youtube-lookups', methods=['POST'])
+def queue_youtube_lookups():
+    """Bulk-enqueue YouTube match jobs across every recording of every song.
+
+    Body (JSON):
+        force_refresh (bool, default False) — bypass the on-disk YouTube
+            search/videos cache. Threaded into the handler's payload.
+        rematch (bool, default False) — re-evaluate recordings that already
+            have a YouTube link. Without this, the handler short-circuits
+            those at zero quota cost.
+        batch_size (int, optional) — cap the number of recordings enqueued.
+            Counts recordings, not songs, since one recording == one job.
+        repertoire_id (uuid, optional) — restrict to recordings belonging
+            to songs in this repertoire.
+
+    Convention from the UI: "Quick" = both flags False; "Deep" = both True.
+    But the flags are independent, so callers can mix (e.g. rematch with
+    cache hits) if they have a reason.
+
+    Returns a 202 with the count actually enqueued vs. seen. Dedup hits
+    against in-flight jobs collapse silently — research_jobs.enqueue
+    returns the existing id rather than creating a duplicate.
+    """
+    body = request.get_json(silent=True) or {}
+    force_refresh = bool(body.get('force_refresh', False))
+    rematch = bool(body.get('rematch', False))
+    repertoire_id = body.get('repertoire_id')
+    try:
+        batch_size = int(body['batch_size']) if body.get('batch_size') else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'batch_size must be an integer'}), 400
+    if batch_size is not None and batch_size <= 0:
+        return jsonify({'error': 'batch_size must be > 0'}), 400
+
+    # Recordings without a default_recording_release_id are guaranteed
+    # skips inside the handler, so filter them out here rather than fill
+    # the queue with pre-determined no-ops.
+    base_sql = """
+        SELECT r.id AS recording_id
+        FROM recordings r
+        JOIN recording_releases rr
+          ON rr.recording_id = r.id
+         AND rr.release_id   = r.default_release_id
+        {join}
+        {where}
+        ORDER BY r.id
+        {limit}
+    """
+    join_clause = ''
+    where_parts: list[str] = []
+    params: list[Any] = []
+
+    if repertoire_id:
+        join_clause = 'JOIN repertoire_songs rs ON rs.song_id = r.song_id'
+        where_parts.append('rs.repertoire_id = %s')
+        params.append(repertoire_id)
+
+    where_clause = ('WHERE ' + ' AND '.join(where_parts)) if where_parts else ''
+    limit_clause = ''
+    if batch_size:
+        limit_clause = 'LIMIT %s'
+        params.append(batch_size)
+
+    sql = base_sql.format(
+        join=join_clause, where=where_clause, limit=limit_clause,
+    )
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, tuple(params))
+            rows = cur.fetchall()
+
+    if not rows:
+        return jsonify({
+            'success': True,
+            'message': 'No recordings matched the filter',
+            'recordings_seen': 0,
+            'jobs_enqueued': 0,
+        }), 200
+
+    payload = {'force_refresh': force_refresh, 'rematch': rematch}
+    enqueued = 0
+    failed = 0
+    for row in rows:
+        job_id = research_jobs.enqueue(
+            source='youtube',
+            job_type='match_recording',
+            target_type='recording',
+            target_id=row['recording_id'],
+            payload=payload,
+            # Bulk walks shouldn't jump ahead of user-initiated jobs.
+            priority=200,
+        )
+        if job_id is None:
+            failed += 1
+        else:
+            enqueued += 1
+
+    logger.info(
+        "admin: queue-youtube-lookups force_refresh=%s rematch=%s "
+        "repertoire_id=%s seen=%s enqueued=%s failed=%s",
+        force_refresh, rematch, repertoire_id, len(rows), enqueued, failed,
+    )
+
+    return jsonify({
+        'success': True,
+        'message': f'Enqueued {enqueued} of {len(rows)} recording(s)',
+        'recordings_seen': len(rows),
+        'jobs_enqueued': enqueued,
+        'jobs_failed': failed,
+        'force_refresh': force_refresh,
+        'rematch': rematch,
+    }), 202

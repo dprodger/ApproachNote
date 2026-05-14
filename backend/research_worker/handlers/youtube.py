@@ -4,7 +4,12 @@ YouTube handler — first source to live on the new queue.
 Job shape:
     source='youtube', job_type='match_recording',
     target_type='recording', target_id=<recording UUID>
-    payload may include: {'rematch': bool}
+    payload may include:
+      - rematch (bool): re-evaluate recordings that already have a YouTube
+        link. Without it, has_youtube short-circuits to a no-op skip.
+      - force_refresh (bool): bypass the on-disk YouTube search/videos
+        cache so every API call hits the wire. Used by the admin "deep
+        search" walk; defaults to False so cache hits remain quota-free.
 
 Wraps the existing YouTubeMatcher (integrations/youtube/matcher.py) so the
 matching logic stays in one place — the worker just adds queueing,
@@ -80,6 +85,7 @@ def match_recording(payload: dict[str, Any], ctx) -> dict[str, Any]:
         raise PermanentError(f"recording not found: {recording_id}")
 
     rematch = bool(payload.get('rematch', False))
+    force_refresh = bool(payload.get('force_refresh', False))
 
     # Pre-check the matcher's no-cost skip paths so we don't burn quota
     # on jobs that would never have hit the API. Mirrors the early exits
@@ -99,7 +105,11 @@ def match_recording(payload: dict[str, Any], ctx) -> dict[str, Any]:
 
     # max_units high enough that the client doesn't pre-empt us before
     # the upstream API does — quota accounting is owned by source_quotas.
-    client = YouTubeClient(max_units=10**9, logger=ctx.log)
+    client = YouTubeClient(
+        max_units=10**9,
+        force_refresh=force_refresh,
+        logger=ctx.log,
+    )
     matcher = YouTubeMatcher(
         client=client,
         rematch=rematch,

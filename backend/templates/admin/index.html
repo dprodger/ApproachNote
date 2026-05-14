@@ -262,6 +262,12 @@
                     <p>Live view of the durable background job queue: per-source quotas, throughput stats, and a filterable list of queued, running, and failed jobs with retry/cancel controls.</p>
                     <span class="endpoint">{{ admin_url('/admin/research/') }}</span>
                 </a>
+                <a href="{{ admin_url('/admin/research/youtube-walk') }}" class="card">
+                    <div class="card-icon">📺</div>
+                    <h3>YouTube Walk</h3>
+                    <p>Bulk-enqueue YouTube match jobs across every recording. Quick mode uses the on-disk search cache; deep mode bypasses it and re-matches everything.</p>
+                    <span class="endpoint">{{ admin_url('/admin/research/youtube-walk') }}</span>
+                </a>
             </div>
 
             <div class="status-section" style="margin-top: 16px;">

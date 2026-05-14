@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Walk - Admin</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { color: #1d1d1f; margin-bottom: 6px; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 0.95em; }
+        .subtitle code { background: #efeff3; padding: 1px 5px; border-radius: 3px; }
+
+        .card {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            margin-bottom: 16px;
+        }
+        .card h2 {
+            color: #1d1d1f;
+            font-size: 1em;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+
+        .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 700px) { .modes { grid-template-columns: 1fr; } }
+
+        .mode {
+            border: 1px solid #e5e5ea;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .mode h3 { font-size: 1em; color: #1d1d1f; }
+        .mode p { font-size: 0.85em; color: #666; }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+        }
+        .controls label { font-size: 0.9em; color: #555; }
+        .controls input {
+            padding: 6px 10px;
+            border: 1px solid #d0d0d0;
+            border-radius: 6px;
+            font-size: 0.9em;
+            width: 120px;
+        }
+
+        button.run {
+            padding: 8px 18px;
+            border: 1px solid #0066cc;
+            background: #0066cc;
+            color: #fff;
+            border-radius: 6px;
+            font-size: 0.95em;
+            cursor: pointer;
+            align-self: flex-start;
+        }
+        button.run:hover { background: #0052a3; }
+        button.run:disabled { opacity: 0.55; cursor: wait; }
+        button.run.deep { border-color: #b8460e; background: #b8460e; }
+        button.run.deep:hover { background: #973a0a; }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .stat {
+            background: #f9f9fb;
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .stat-value { font-size: 1.5em; font-weight: 600; color: #1d1d1f; }
+        .stat-label { color: #888; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+
+        .quota-line { color: #666; font-size: 0.85em; margin-top: 10px; }
+        .quota-line strong { color: #1d1d1f; }
+
+        #toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            min-width: 280px;
+            max-width: 400px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            background: #1d1d1f;
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+            opacity: 0;
+            transform: translateY(-8px);
+            transition: opacity 0.2s, transform 0.2s;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #toast.show { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        #toast.error { background: #c0392b; }
+        #toast.ok { background: #2c8a2c; }
+
+        .links { font-size: 0.9em; color: #666; }
+        .links a { color: #0066cc; text-decoration: none; }
+        .links a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+
+    <div id="toast" role="status" aria-live="polite"></div>
+
+    <div class="container">
+        <h1>YouTube Walk</h1>
+        <p class="subtitle">
+            Bulk-enqueue YouTube match jobs for every recording. Each recording
+            becomes one <code>youtube.match_recording</code> job in
+            <code>research_jobs</code>. Progress is visible on the
+            <a href="{{ admin_url('/admin/research/') }}">research dashboard</a>
+            (filter source = youtube).
+        </p>
+
+        <div class="card">
+            <h2>Controls</h2>
+            <div class="controls">
+                <label for="batch-size">Batch size (optional):</label>
+                <input type="number" id="batch-size" min="1" placeholder="all">
+                <span style="color:#888; font-size: 0.85em;">
+                    Caps recordings, not songs. Leave blank to walk everything.
+                </span>
+            </div>
+
+            <div class="modes">
+                <div class="mode">
+                    <h3>Quick search</h3>
+                    <p>
+                        Use the on-disk YouTube search cache where available
+                        (cache TTL: 30 days). Skips recordings that already
+                        have a YouTube link. Cheap on quota — most jobs cost
+                        zero units.
+                    </p>
+                    <button class="run" id="run-quick" type="button">
+                        Run quick walk
+                    </button>
+                </div>
+
+                <div class="mode">
+                    <h3>Deep search</h3>
+                    <p>
+                        Bypass the cache (every search hits the API) and
+                        re-evaluate recordings that already have a match.
+                        Quota-hungry — at 100 units per search, a full walk
+                        can consume a substantial chunk of the daily budget.
+                    </p>
+                    <button class="run deep" id="run-deep" type="button">
+                        Run deep walk
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>YouTube jobs</h2>
+            <div class="stats">
+                <div class="stat"><div class="stat-value" id="s-queued">–</div><div class="stat-label">Queued</div></div>
+                <div class="stat"><div class="stat-value" id="s-running">–</div><div class="stat-label">Running</div></div>
+                <div class="stat"><div class="stat-value" id="s-done">–</div><div class="stat-label">Done</div></div>
+                <div class="stat"><div class="stat-value" id="s-failed">–</div><div class="stat-label">Failed</div></div>
+                <div class="stat"><div class="stat-value" id="s-dead">–</div><div class="stat-label">Dead</div></div>
+            </div>
+            <div class="quota-line" id="quota-line">Quota: loading…</div>
+            <p class="links" style="margin-top:12px;">
+                <a href="{{ admin_url('/admin/research/') }}?source=youtube">View YouTube jobs &rarr;</a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+    (function () {
+        const toast = document.getElementById('toast');
+        let toastTimer = null;
+
+        function showToast(msg, kind) {
+            toast.textContent = msg;
+            toast.className = '';
+            if (kind) toast.classList.add(kind);
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        function getBatchSize() {
+            const raw = document.getElementById('batch-size').value.trim();
+            if (!raw) return null;
+            const n = parseInt(raw, 10);
+            return Number.isFinite(n) && n > 0 ? n : null;
+        }
+
+        async function runWalk(mode, button) {
+            const batch = getBatchSize();
+            const body = {
+                force_refresh: mode === 'deep',
+                rematch: mode === 'deep',
+            };
+            if (batch !== null) body.batch_size = batch;
+
+            const confirmMsg = mode === 'deep'
+                ? 'Deep walk bypasses the cache and re-matches everything — '
+                  + 'this can burn through the daily YouTube quota fast.\n\n'
+                  + 'Continue?'
+                : null;
+            if (confirmMsg && !window.confirm(confirmMsg)) return;
+
+            button.disabled = true;
+            const originalLabel = button.textContent;
+            button.textContent = 'Enqueueing…';
+            try {
+                const res = await fetch(
+                    '/admin/research/queue-youtube-lookups',
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(body),
+                    },
+                );
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    showToast(
+                        'Error: ' + (data.error || res.statusText), 'error',
+                    );
+                    return;
+                }
+                showToast(
+                    `${mode === 'deep' ? 'Deep' : 'Quick'} walk: enqueued `
+                    + `${data.jobs_enqueued} of ${data.recordings_seen} `
+                    + `recording(s).`,
+                    'ok',
+                );
+                refreshStats();
+            } catch (e) {
+                showToast('Request failed: ' + e.message, 'error');
+            } finally {
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
+        }
+
+        async function refreshStats() {
+            try {
+                const [statsRes, quotasRes] = await Promise.all([
+                    fetch('/admin/research/stats').then(r => r.json()),
+                    fetch('/admin/research/quotas').then(r => r.json()),
+                ]);
+                const yt = (statsRes.by_source && statsRes.by_source.youtube)
+                    || {};
+                document.getElementById('s-queued').textContent =
+                    (yt.queued || 0).toLocaleString();
+                document.getElementById('s-running').textContent =
+                    (yt.running || 0).toLocaleString();
+                document.getElementById('s-done').textContent =
+                    (yt.done || 0).toLocaleString();
+                document.getElementById('s-failed').textContent =
+                    (yt.failed || 0).toLocaleString();
+                document.getElementById('s-dead').textContent =
+                    (yt.dead || 0).toLocaleString();
+
+                const ytQuota = (quotasRes.quotas || []).find(
+                    q => q.source === 'youtube' && q.window === 'day',
+                );
+                const line = document.getElementById('quota-line');
+                if (ytQuota) {
+                    line.innerHTML =
+                        `Quota (day): <strong>`
+                        + `${ytQuota.units_used.toLocaleString()} / `
+                        + `${ytQuota.units_limit.toLocaleString()}</strong> `
+                        + `used · resets `
+                        + new Date(ytQuota.resets_at).toLocaleString();
+                } else {
+                    line.textContent = 'Quota: no row.';
+                }
+            } catch (e) {
+                console.warn('stats refresh failed', e);
+            }
+        }
+
+        document.getElementById('run-quick').addEventListener(
+            'click', e => runWalk('quick', e.currentTarget),
+        );
+        document.getElementById('run-deep').addEventListener(
+            'click', e => runWalk('deep', e.currentTarget),
+        );
+
+        refreshStats();
+        setInterval(refreshStats, 10000);
+    })();
+    </script>
+</body>
+</html>
