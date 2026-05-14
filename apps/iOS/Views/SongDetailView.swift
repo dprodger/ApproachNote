@@ -15,13 +15,10 @@ import Combine
 // MARK: - Song Detail View
 struct SongDetailView: View {
     let songId: String
-    let allSongs: [Song]
 
     // Shared data + network state lives on the view model; layout/presentation
     // state stays here.
     @StateObject private var viewModel = SongDetailViewModel()
-
-    @State private var currentSongId: String
 
     // NEW: Repertoire management
     @EnvironmentObject var repertoireManager: RepertoireManager
@@ -35,9 +32,6 @@ struct SongDetailView: View {
 
     // NEW: Toast notification
     @State private var toast: ToastItem?
-
-    // NEW: Summary Information section expansion state (starts collapsed)
-    @State private var isSummaryInfoExpanded = false
 
     // Read-only aliases so existing reference sites in this view can keep
     // using the short names unchanged.
@@ -57,76 +51,8 @@ struct SongDetailView: View {
     @Environment(\.openURL) private var openURL
 
     // MARK: - Initializer
-    init(songId: String, allSongs: [Song] = []) {
+    init(songId: String) {
         self.songId = songId
-        self.allSongs = allSongs
-        self._currentSongId = State(initialValue: songId)
-    }
-    
-    // MARK: - Pager Row
-
-    /// Previous / position / Next row shown above the song title when navigating
-    /// within a list of songs. Hidden when there is only one (e.g. deep link).
-    @ViewBuilder
-    private var pagerRow: some View {
-        if allSongs.count > 1, let index = currentIndex {
-            HStack {
-                Button(action: navigateToPrevious) {
-                    Image(systemName: "chevron.left.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(canNavigatePrevious ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.4))
-                }
-                .disabled(!canNavigatePrevious)
-
-                Spacer()
-
-                Text("\(index + 1) of \(allSongs.count)")
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
-
-                Spacer()
-
-                Button(action: navigateToNext) {
-                    Image(systemName: "chevron.right.circle.fill")
-                        .font(.title2)
-                        .foregroundColor(canNavigateNext ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.4))
-                }
-                .disabled(!canNavigateNext)
-            }
-            .buttonStyle(.plain)
-        }
-    }
-
-    // MARK: - Navigation Helpers
-
-    private var currentIndex: Int? {
-        allSongs.firstIndex { $0.id == currentSongId }
-    }
-    
-    private var canNavigatePrevious: Bool {
-        guard let index = currentIndex else { return false }
-        return index > 0
-    }
-    
-    private var canNavigateNext: Bool {
-        guard let index = currentIndex else { return false }
-        return index < allSongs.count - 1
-    }
-    
-    private func navigateToPrevious() {
-        guard let index = currentIndex, canNavigatePrevious else { return }
-        let previousSong = allSongs[index - 1]
-        currentSongId = previousSong.id
-        toast = nil
-        Task { await viewModel.load(songId: currentSongId, force: true) }
-    }
-
-    private func navigateToNext() {
-        guard let index = currentIndex, canNavigateNext else { return }
-        let nextSong = allSongs[index + 1]
-        currentSongId = nextSong.id
-        toast = nil
-        Task { await viewModel.load(songId: currentSongId, force: true) }
     }
 
     // MARK: - Song Refresh
@@ -135,7 +61,7 @@ struct SongDetailView: View {
     private func refreshSongData(forceRefresh: Bool) {
         let refreshType = forceRefresh ? "full" : "quick"
         Task {
-            let success = await viewModel.queueRefresh(songId: currentSongId, forceRefresh: forceRefresh)
+            let success = await viewModel.queueRefresh(songId: songId, forceRefresh: forceRefresh)
             if success {
                 toast = ToastItem(
                     type: .success,
@@ -189,6 +115,12 @@ struct SongDetailView: View {
         viewModel.hasAuthoritativeRecordings(for: song)
     }
 
+    /// Whether the song has at least one non-Wikipedia external link worth surfacing.
+    private func hasLearnMoreLinks(for song: Song) -> Bool {
+        return song.musicbrainzId != nil
+            || song.externalReferences?["jazzstandards"] != nil
+    }
+
     // MARK: - Playback Helpers
 
     /// Whether any recording has streaming links available
@@ -237,7 +169,6 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
             // Song Information Header
             VStack(alignment: .leading, spacing: 12) {
-                pagerRow
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(song.title)
                         .font(ApproachNoteTheme.largeTitle())
@@ -256,13 +187,9 @@ struct SongDetailView: View {
                 }
 
                 if let composer = song.composer {
-                    HStack {
-                        Image(systemName: "music.note.list")
-                            .foregroundColor(ApproachNoteTheme.brass)
-                        Text(composer)
-                            .font(ApproachNoteTheme.title3())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                    }
+                    Text("Composed by \(composer)")
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.charcoal)
                 }
 
                 // Song Reference (if available)
@@ -286,7 +213,19 @@ struct SongDetailView: View {
                 if hasSummaryContent(for: song) {
                     summaryInfoSection(for: song)
                 }
-                
+
+                // MARK: - Learn More (JazzStandards.com / MusicBrainz)
+                if hasLearnMoreLinks(for: song) {
+                    ExternalReferencesPanel(
+                        wikipediaUrl: nil,
+                        musicbrainzId: song.musicbrainzId,
+                        externalReferences: song.externalReferences,
+                        entityId: song.id,
+                        entityName: song.title,
+                        showsBackground: false
+                    )
+                }
+
                 // MARK: - Authoritative Recordings Carousel
                 if hasAuthoritativeRecordings(for: song) {
                     authoritativeRecordingsSection(for: song)
@@ -303,10 +242,10 @@ struct SongDetailView: View {
                     recordingSortOrder: $viewModel.sortOrder,
                     isReloading: isRecordingsReloading || isRecordingsLoading,
                     onSortOrderChanged: { [self] _ in
-                        Task { await viewModel.reloadRecordings(songId: currentSongId) }
+                        Task { await viewModel.reloadRecordings(songId: songId) }
                     },
                     onCommunityDataChanged: {
-                        Task { await viewModel.reloadRecordings(songId: currentSongId) }
+                        Task { await viewModel.reloadRecordings(songId: songId) }
                     },
                     onRequestHydration: { [weak viewModel] id in
                         viewModel?.requestHydration(for: id)
@@ -323,82 +262,27 @@ struct SongDetailView: View {
     }
     
     // MARK: - Summary Information Section
-    
+
     @ViewBuilder
     private func summaryInfoSection(for song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Collapsible Header
-            Button(action: {
-                withAnimation {
-                    isSummaryInfoExpanded.toggle()
-                }
-            }) {
-                HStack {
-                    Text("Summary Information")
-                        .font(ApproachNoteTheme.title3())
-                        .bold()
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                    Spacer()
-                    Image(systemName: isSummaryInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.brass)
-                }
-                .padding()
-                .background(ApproachNoteTheme.cardBackground)
-            }
-            .buttonStyle(.plain)
-            
-            // Expandable Content
-            if isSummaryInfoExpanded {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Structure
-                    if let structure = song.structure {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Structure")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                            Text(structure)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                    }
+        if let structure = song.structure, !structure.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(structure)
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .lineLimit(5)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                    // Composed Key
-                    if let composedKey = song.composedKey {
-                        HStack(spacing: 8) {
-                            Image(systemName: "tuningfork")
-                                .foregroundColor(ApproachNoteTheme.brass)
-                            Text("Original Key:")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                            Text(composedKey)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                    }
-
-                    // External References Panel (Learn More)
-                    ExternalReferencesPanel(
-                        wikipediaUrl: song.wikipediaUrl,
-                        musicbrainzId: song.musicbrainzId,
-                        externalReferences: song.externalReferences,
-                        entityId: song.id,
-                        entityName: song.title
-                    )
+                if let wikiUrlString = song.wikipediaUrl,
+                   let wikiUrl = URL(string: wikiUrlString) {
+                    Link("Read more on Wikipedia", destination: wikiUrl)
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.burgundy)
                 }
-                .padding()
-                .background(ApproachNoteTheme.cardBackground)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 4)
         }
-        .cornerRadius(10)
-        .padding(.top, 8)
     }
     
     // MARK: - Authoritative Recordings Carousel Section
@@ -424,7 +308,7 @@ struct SongDetailView: View {
                         NavigationLink(destination: RecordingDetailView(
                             recordingId: recording.id,
                             onCommunityDataChanged: {
-                                Task { await viewModel.reloadRecordings(songId: currentSongId) }
+                                Task { await viewModel.reloadRecordings(songId: songId) }
                             }
                         )) {
                             AuthoritativeRecordingCard(recording: recording)
@@ -461,20 +345,18 @@ struct SongDetailView: View {
                 toolbarContent
             }
             .task {
-                await viewModel.load(songId: currentSongId)
+                await viewModel.load(songId: songId)
             }
             .onReceive(NotificationCenter.default.publisher(for: .transcriptionCreated)) { notification in
-                // Refresh if this notification is for our song
-                if let songId = notification.userInfo?["songId"] as? String,
-                   songId == currentSongId {
-                    Task { await viewModel.load(songId: currentSongId) }
+                if let notifiedId = notification.userInfo?["songId"] as? String,
+                   notifiedId == songId {
+                    Task { await viewModel.load(songId: songId) }
                 }
             }
             .onReceive(NotificationCenter.default.publisher(for: .videoCreated)) { notification in
-                // Refresh backing tracks if this notification is for our song
-                if let songId = notification.userInfo?["songId"] as? String,
-                   songId == currentSongId {
-                    Task { await viewModel.refreshBackingTracks(songId: currentSongId) }
+                if let notifiedId = notification.userInfo?["songId"] as? String,
+                   notifiedId == songId {
+                    Task { await viewModel.refreshBackingTracks(songId: songId) }
                 }
             }
             .sheet(isPresented: $showAddToRepertoireSheet) {
@@ -517,7 +399,7 @@ struct SongDetailView: View {
             }
         }
         .refreshable {
-            await viewModel.forceRefresh(songId: currentSongId)
+            await viewModel.forceRefresh(songId: songId)
         }
     }
     
@@ -583,7 +465,7 @@ struct SongDetailView: View {
     
     private var repertoireSheet: some View {
         AddToRepertoireSheet(
-            songId: currentSongId,
+            songId: songId,
             songTitle: song?.title ?? "Unknown",
             repertoireManager: repertoireManager,
             isPresented: $showAddToRepertoireSheet,

@@ -256,10 +256,7 @@ struct SongsListView: View {
                 ForEach(groupedSongs, id: \.0) { letter, songs in
                     Section(header: SectionHeaderView(letter: letter)) {
                         ForEach(songs) { song in
-                            NavigationLink(destination: SongDetailView(
-                                                songId: song.id,
-                                                allSongs: songService.songs
-                                            )
+                            NavigationLink(destination: SongDetailView(songId: song.id)
                                                 .environmentObject(repertoireManager)) {
                                 songRowView(song: song)
                             }

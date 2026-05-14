@@ -15,7 +15,8 @@ struct ExternalReferencesPanel: View {
     let entityType: String
     let entityId: String
     let entityName: String
-    
+    var showsBackground: Bool = true
+
     @State private var reportingInfo: ReportingInfo?
     @State private var longPressOccurred = false
     @State private var showingSubmissionAlert = false
@@ -36,7 +37,7 @@ struct ExternalReferencesPanel: View {
     
     // NEW: Initializer for songs with dedicated wikipedia and musicbrainz fields
     init(wikipediaUrl: String?, musicbrainzId: String?, externalReferences: [String: String]?,
-         entityId: String, entityName: String) {
+         entityId: String, entityName: String, showsBackground: Bool = true) {
         // Use dedicated fields first, fall back to external_references if needed
         var references = externalReferences ?? [:]
         if let wikipedia = wikipediaUrl {
@@ -45,7 +46,7 @@ struct ExternalReferencesPanel: View {
         if let musicbrainz = musicbrainzId {
             references["musicbrainz"] = musicbrainz
         }
-        
+
         self.externalReferences = references
         self.musicbrainzId = musicbrainzId
         self.musicbrainzType = .work
@@ -53,6 +54,7 @@ struct ExternalReferencesPanel: View {
         self.entityType = "song"
         self.entityId = entityId
         self.entityName = entityName
+        self.showsBackground = showsBackground
     }
     
     // Initializer for artists with dedicated wikipedia and musicbrainz fields
@@ -178,9 +180,10 @@ struct ExternalReferencesPanel: View {
                 }
             }
         }
-        .padding()
-        .background(ApproachNoteTheme.cardBackground)
-        .cornerRadius(10)
+        .padding(showsBackground ? EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+                                 : EdgeInsets())
+        .background(showsBackground ? ApproachNoteTheme.cardBackground : Color.clear)
+        .cornerRadius(showsBackground ? 10 : 0)
         .sheet(item: $reportingInfo) { info in
             ReportLinkIssueView(
                 entityType: entityType,
