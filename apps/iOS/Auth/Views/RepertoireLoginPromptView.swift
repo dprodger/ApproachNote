@@ -18,16 +18,12 @@ struct RepertoireLoginPromptView: View {
             VStack(spacing: 24) {
                 // Header
                 VStack(spacing: 12) {
-                    Image(systemName: "music.note.list")
-                        .font(.system(size: 60))
-                        .foregroundColor(ApproachNoteTheme.burgundy)
-
-                    Text("Build Your Repertoire")
+                    Text("Sign up or Sign In")
                         .font(.title)
                         .fontWeight(.bold)
                         .foregroundColor(ApproachNoteTheme.charcoal)
 
-                    Text("Sign in to save songs and track your practice")
+                    Text("To use the repertoire feature, you need to have an account. Create one now, or sign in below.")
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)

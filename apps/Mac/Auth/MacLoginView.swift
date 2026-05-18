@@ -35,6 +35,65 @@ struct MacLoginView: View {
             }
             .padding(.top, isInline ? 0 : 20)
 
+            // Google Sign-In button — pre-rendered asset per Google's
+            // identity branding guidelines
+            // (developers.google.com/identity/branding-guidelines).
+            // Native asset size 185x44; Apple button below matches.
+            #if canImport(GoogleSignIn)
+            BrandedGoogleSignInButton(action: signInWithGoogle)
+                .frame(width: 168, height: 40)
+                .disabled(authManager.isLoading)
+            #else
+            // Fallback for when GoogleSignIn is not available
+            Button(action: {
+                authManager.errorMessage = "Google Sign-In is not available on this platform"
+            }) {
+                HStack {
+                    Image(systemName: "globe")
+                    Text("Sign in with Google")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.large)
+            .disabled(true)
+            #endif
+
+            // Sign in with Apple button — sized to match the Google asset.
+            SignInWithAppleButton(
+                .signIn,
+                onRequest: { request in
+                    request.requestedScopes = [.fullName, .email]
+                },
+                onCompletion: { result in
+                    Task {
+                        let success = await authManager.signInWithApple(result)
+                        if success {
+                            dismiss()
+                        }
+                    }
+                }
+            )
+            .signInWithAppleButtonStyle(.black)
+            .frame(width: 168, height: 40)
+            .cornerRadius(8)
+            .disabled(authManager.isLoading)
+
+            // Divider
+            HStack {
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(.gray.opacity(0.3))
+                Text("or")
+                    .foregroundColor(.secondary)
+                    .font(ApproachNoteTheme.caption())
+                    .padding(.horizontal, 8)
+                Rectangle()
+                    .frame(height: 1)
+                    .foregroundColor(.gray.opacity(0.3))
+            }
+            .padding(.vertical, 8)
+
             // Email field
             VStack(alignment: .leading, spacing: 6) {
                 Text("Email")
@@ -92,63 +151,6 @@ struct MacLoginView: View {
             .tint(ApproachNoteTheme.burgundy)
             .controlSize(.large)
             .disabled(!viewModel.canSubmit || authManager.isLoading)
-
-            // Divider
-            HStack {
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(.gray.opacity(0.3))
-                Text("or")
-                    .foregroundColor(.secondary)
-                    .font(ApproachNoteTheme.caption())
-                    .padding(.horizontal, 8)
-                Rectangle()
-                    .frame(height: 1)
-                    .foregroundColor(.gray.opacity(0.3))
-            }
-            .padding(.vertical, 8)
-
-            // Google Sign-In button
-            #if canImport(GoogleSignIn)
-            GoogleSignInButton(action: signInWithGoogle)
-                .frame(height: 44)
-                .cornerRadius(8)
-                .disabled(authManager.isLoading)
-            #else
-            // Fallback for when GoogleSignIn is not available
-            Button(action: {
-                authManager.errorMessage = "Google Sign-In is not available on this platform"
-            }) {
-                HStack {
-                    Image(systemName: "globe")
-                    Text("Sign in with Google")
-                }
-                .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
-            .disabled(true)
-            #endif
-
-            // Sign in with Apple button
-            SignInWithAppleButton(
-                .signIn,
-                onRequest: { request in
-                    request.requestedScopes = [.fullName, .email]
-                },
-                onCompletion: { result in
-                    Task {
-                        let success = await authManager.signInWithApple(result)
-                        if success {
-                            dismiss()
-                        }
-                    }
-                }
-            )
-            .signInWithAppleButtonStyle(.black)
-            .frame(height: 44)
-            .cornerRadius(8)
-            .disabled(authManager.isLoading)
 
             // Divider
             HStack {

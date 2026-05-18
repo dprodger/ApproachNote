@@ -12,7 +12,6 @@
 
 import SwiftUI
 import AuthenticationServices
-import GoogleSignInSwift
 
 struct LoginFormBody: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -26,18 +25,19 @@ struct LoginFormBody: View {
     var body: some View {
         VStack(spacing: 24) {
 
-            // Google Sign In Button
-            GoogleSignInButton(action: {
+            // Google + Apple sign-in buttons. Pinned to the Google asset's
+            // 185:44 aspect ratio (rendered at 210x50) so the pair stacks
+            // uniformly. Google asset per branding guidelines:
+            // developers.google.com/identity/branding-guidelines.
+            BrandedGoogleSignInButton(action: {
                 Task {
                     let success = await viewModel.signInWithGoogle(using: authManager)
                     if success { onAuthenticated?() }
                 }
             })
-            .frame(height: 50)
-            .cornerRadius(10)
+            .frame(width: 210, height: 50)
             .disabled(authManager.isLoading)
 
-            // Sign in with Apple Button
             SignInWithAppleButton(
                 .signIn,
                 onRequest: { request in
@@ -51,7 +51,7 @@ struct LoginFormBody: View {
                 }
             )
             .signInWithAppleButtonStyle(.black)
-            .frame(height: 50)
+            .frame(width: 210, height: 50)
             .cornerRadius(10)
             .disabled(authManager.isLoading)
 
