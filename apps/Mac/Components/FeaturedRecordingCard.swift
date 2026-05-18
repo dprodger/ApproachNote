@@ -17,8 +17,6 @@ struct FeaturedRecordingCard: View {
     /// without paying for an unused title line.
     var shelfHasAnyDistinctTitle: Bool = false
 
-    @State private var isHovering = false
-
     private let artworkSize: CGFloat = 180
 
     private var artistName: String {
@@ -113,16 +111,5 @@ struct FeaturedRecordingCard: View {
             }
             .frame(width: artworkSize, alignment: .leading)
         }
-        .padding(12)
-        .background(isHovering ? ApproachNoteTheme.backgroundLight : ApproachNoteTheme.cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isHovering ? ApproachNoteTheme.burgundy.opacity(0.5) : Color.clear, lineWidth: 2)
-        )
-        .onHover { hovering in
-            isHovering = hovering
-        }
-        .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
 }

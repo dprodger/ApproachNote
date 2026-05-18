@@ -18,10 +18,11 @@ struct SongDetailView: View {
     @StateObject private var viewModel = SongDetailViewModel()
 
     @State private var selectedRecordingId: String?
-    @State private var selectedFilter: SongRecordingFilter = .playable
+    @State private var playableOnly: Bool = true
+    @State private var selectedServices: Set<StreamingService> = []
     @State private var selectedVocalFilter: VocalFilter = .all
     @State private var selectedInstrument: InstrumentFamily? = nil
-    @State private var isSummaryInfoExpanded = false
+    @State private var showFilterPopover: Bool = false
     @State private var showAddToRepertoire = false
     @State private var successMessage: String?
     @State private var errorMessage: String?
@@ -80,9 +81,19 @@ struct SongDetailView: View {
                     // Header
                     songHeader(song)
 
-                    // Summary Information (collapsible)
-                    if hasSummaryContent(for: song) {
-                        summaryInfoSection(song)
+                    // Structure paragraph + Wikipedia link
+                    if let structure = song.structure, !structure.isEmpty {
+                        structureSection(song)
+                    }
+
+                    // Composed key
+                    if let composedKey = song.composedKey {
+                        composedKeyRow(composedKey)
+                    }
+
+                    // Learn More external links (JazzStandards / MusicBrainz / Wikipedia)
+                    if hasExternalLinks(for: song) {
+                        learnMoreSection(song)
                     }
 
                     // Featured Recordings carousel
@@ -242,15 +253,11 @@ struct SongDetailView: View {
                 .help("Add this song to a repertoire")
             }
 
-            // Composer with icon
+            // Composer
             if let composer = song.composer {
-                HStack {
-                    Image(systemName: "music.note.list")
-                        .foregroundColor(ApproachNoteTheme.brass)
-                    Text(composer)
-                        .font(ApproachNoteTheme.title3())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
-                }
+                Text("Composed by \(composer)")
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
             }
 
             // Song Reference (if available)
@@ -374,119 +381,91 @@ struct SongDetailView: View {
     }
 
     @ViewBuilder
-    private func summaryInfoSection(_ song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Collapsible Header
-            Button(action: {
-                withAnimation {
-                    isSummaryInfoExpanded.toggle()
+    private func structureSection(_ song: Song) -> some View {
+        if let structure = song.structure, !structure.isEmpty {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(structure)
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let wikiUrlString = song.wikipediaUrl,
+                   let wikiUrl = URL(string: wikiUrlString) {
+                    Link("Read more on Wikipedia", destination: wikiUrl)
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.burgundy)
                 }
-            }) {
-                HStack {
-                    Text("Summary Information")
-                        .font(ApproachNoteTheme.title3())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                    Spacer()
-                    Image(systemName: isSummaryInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.brass)
-                }
-                .padding()
-                .background(ApproachNoteTheme.cardBackground)
             }
-            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
 
-            // Expandable Content
-            if isSummaryInfoExpanded {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Structure
-                    if let structure = song.structure {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Structure")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                            Text(structure)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                    }
+    @ViewBuilder
+    private func composedKeyRow(_ composedKey: String) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: "tuningfork")
+                .foregroundColor(ApproachNoteTheme.brass)
+            Text("Original Key:")
+                .font(ApproachNoteTheme.headline())
+                .foregroundColor(ApproachNoteTheme.charcoal)
+            Text(composedKey)
+                .font(ApproachNoteTheme.body())
+                .foregroundColor(ApproachNoteTheme.smokeGray)
+        }
+    }
 
-                    // Composed Key
-                    if let composedKey = song.composedKey {
-                        HStack(spacing: 8) {
-                            Image(systemName: "tuningfork")
-                                .foregroundColor(ApproachNoteTheme.brass)
-                            Text("Original Key:")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                            Text(composedKey)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                    }
+    @ViewBuilder
+    private func learnMoreSection(_ song: Song) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Learn More")
+                .font(ApproachNoteTheme.headline())
+                .foregroundColor(ApproachNoteTheme.charcoal)
 
-                    // External References (Learn More)
-                    if hasExternalLinks(for: song) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Learn More")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-
-                            HStack(spacing: 12) {
-                                // Wikipedia
-                                if let wikipediaUrl = song.wikipediaUrl, let url = URL(string: wikipediaUrl) {
-                                    compactExternalLink(icon: "book.fill", label: "Wikipedia", color: ApproachNoteTheme.teal, url: url)
-                                }
-
-                                // Jazz Standards
-                                if let jazzStandardsUrl = song.externalReferences?["jazzstandards"], let url = URL(string: jazzStandardsUrl) {
-                                    compactExternalLink(icon: "music.note.list", label: "JazzStandards.com", color: ApproachNoteTheme.brass, url: url)
-                                }
-
-                                // MusicBrainz
-                                if let musicbrainzId = song.musicbrainzId, let url = URL(string: "https://musicbrainz.org/work/\(musicbrainzId)") {
-                                    compactExternalLink(icon: "waveform.circle.fill", label: "MusicBrainz", color: ApproachNoteTheme.charcoal, url: url)
-                                }
-                            }
-                        }
-                        .padding()
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(Color.white)
-                        .cornerRadius(8)
-                    }
+            HStack(spacing: 12) {
+                if let wikipediaUrl = song.wikipediaUrl, let url = URL(string: wikipediaUrl) {
+                    compactExternalLink(icon: "book.fill", label: "Wikipedia", color: ApproachNoteTheme.teal, url: url)
                 }
-                .padding()
-                .background(ApproachNoteTheme.cardBackground)
+                if let jazzStandardsUrl = song.externalReferences?["jazzstandards"], let url = URL(string: jazzStandardsUrl) {
+                    compactExternalLink(icon: "music.note.list", label: "JazzStandards.com", color: ApproachNoteTheme.brass, url: url)
+                }
+                if let musicbrainzId = song.musicbrainzId, let url = URL(string: "https://musicbrainz.org/work/\(musicbrainzId)") {
+                    compactExternalLink(icon: "waveform.circle.fill", label: "MusicBrainz", color: ApproachNoteTheme.charcoal, url: url)
+                }
             }
         }
-        .cornerRadius(10)
     }
 
 
     @ViewBuilder
     private func recordingsSection(_ recordings: [Recording]) -> some View {
-        let filtered = RecordingGrouping.filter(
+        // Mirror iOS: run instrument + vocal through the shared helper with
+        // streaming: .all, then layer the playable/per-service filters on top.
+        let baseFiltered = RecordingGrouping.filter(
             recordings,
             instrument: selectedInstrument,
             vocal: selectedVocalFilter,
-            streaming: selectedFilter
+            streaming: .all
         )
+        let filtered: [Recording] = {
+            if !selectedServices.isEmpty {
+                return baseFiltered.filter { recording in
+                    selectedServices.contains(where: { hasService(recording, $0) })
+                }
+            } else if playableOnly {
+                return baseFiltered.filter { $0.isPlayable }
+            } else {
+                return baseFiltered
+            }
+        }()
         let grouped = RecordingGrouping.grouped(filtered, sortOrder: sortOrder)
+        let availableInstruments = RecordingGrouping.availableInstruments(in: recordings)
 
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with count, filter, and sort
-            HStack {
-                Image(systemName: "music.note.list")
-                    .foregroundColor(ApproachNoteTheme.burgundy)
-                Text("Recordings")
+        VStack(alignment: .leading, spacing: 16) {
+            // Heading
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("MORE RECORDINGS")
                     .font(ApproachNoteTheme.title2())
+                    .bold()
                     .foregroundColor(ApproachNoteTheme.charcoal)
 
                 Text("(\(filtered.count))")
@@ -494,141 +473,28 @@ struct SongDetailView: View {
                     .foregroundColor(ApproachNoteTheme.smokeGray)
 
                 Spacer()
+            }
 
-                // Filter menu
-                Menu {
-                    ForEach(SongRecordingFilter.allCases) { filter in
-                        Button(action: { selectedFilter = filter }) {
-                            HStack {
-                                Image(systemName: filter.icon)
-                                    .foregroundColor(filter.iconColor)
-                                Text(filter.displayName)
-                                if selectedFilter == filter {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: selectedFilter.icon)
-                            .foregroundColor(selectedFilter == .all ? ApproachNoteTheme.charcoal : selectedFilter.iconColor)
-                        Text(selectedFilter.displayName)
+            // Filter + Sort row
+            HStack(spacing: 10) {
+                Button(action: { showFilterPopover = true }) {
+                    HStack(spacing: 6) {
+                        Text("Filter")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
-                        Image(systemName: "chevron.down")
-                            .font(ApproachNoteTheme.caption2())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                        Image(systemName: "slider.horizontal.3")
+                            .font(.caption)
                     }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(selectedFilter == .all ? ApproachNoteTheme.cardBackground : selectedFilter.iconColor.opacity(0.15))
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ApproachNoteTheme.cardBackground)
                     .cornerRadius(8)
                 }
-                .menuStyle(.borderlessButton)
-
-                // Vocal/Instrumental filter menu
-                Menu {
-                    ForEach(VocalFilter.allCases) { filter in
-                        Button(action: { selectedVocalFilter = filter }) {
-                            HStack {
-                                Image(systemName: filter.icon)
-                                    .foregroundColor(filter.iconColor)
-                                Text(filter.rawValue)
-                                if selectedVocalFilter == filter {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: selectedVocalFilter.icon)
-                            .foregroundColor(selectedVocalFilter == .all ? ApproachNoteTheme.charcoal : selectedVocalFilter.iconColor)
-                        Text(selectedVocalFilter.rawValue)
-                            .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
-                        Image(systemName: "chevron.down")
-                            .font(ApproachNoteTheme.caption2())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(selectedVocalFilter == .all ? ApproachNoteTheme.cardBackground : selectedVocalFilter.iconColor.opacity(0.15))
-                    .cornerRadius(8)
-                }
-                .menuStyle(.borderlessButton)
-
-                // Clear button when vocal filter is active
-                if selectedVocalFilter != .all {
-                    Button(action: { selectedVocalFilter = .all }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(ApproachNoteTheme.burgundy)
-                            .font(.system(size: 16))
-                    }
-                    .buttonStyle(.plain)
-                    .help("Clear type filter")
+                .buttonStyle(.plain)
+                .popover(isPresented: $showFilterPopover, arrowEdge: .bottom) {
+                    filterPopoverContent(availableInstruments: availableInstruments)
                 }
 
-                // Instrument filter menu (only show if instruments are available)
-                let instruments = RecordingGrouping.availableInstruments(in: recordings)
-                if !instruments.isEmpty {
-                    Menu {
-                        Button(action: { selectedInstrument = nil }) {
-                            HStack {
-                                Text("All Instruments")
-                                if selectedInstrument == nil {
-                                    Spacer()
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-
-                        Divider()
-
-                        ForEach(instruments) { family in
-                            Button(action: { selectedInstrument = family }) {
-                                HStack {
-                                    Image(systemName: family.icon)
-                                    Text(family.rawValue)
-                                    if selectedInstrument == family {
-                                        Spacer()
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: selectedInstrument?.icon ?? "pianokeys")
-                            Text(selectedInstrument?.rawValue ?? "Instrument")
-                                .font(ApproachNoteTheme.subheadline())
-                            Image(systemName: "chevron.down")
-                                .font(ApproachNoteTheme.caption2())
-                        }
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(ApproachNoteTheme.cardBackground)
-                        .cornerRadius(8)
-                    }
-                    .menuStyle(.borderlessButton)
-
-                    // Clear button when instrument filter is active
-                    if selectedInstrument != nil {
-                        Button(action: { selectedInstrument = nil }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(ApproachNoteTheme.burgundy)
-                                .font(.system(size: 16))
-                        }
-                        .buttonStyle(.plain)
-                        .help("Clear instrument filter")
-                    }
-                }
-
-                // Sort menu (matching iOS style)
                 Menu {
                     ForEach(RecordingSortOrder.allCases) { order in
                         Button(action: { viewModel.sortOrder = order }) {
@@ -641,20 +507,50 @@ struct SongDetailView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 3) {
-                        Text(sortOrder.displayName)
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                    HStack(spacing: 6) {
+                        Text("Sort: \(sortOrder.displayName)")
+                            .font(ApproachNoteTheme.subheadline())
                         Image(systemName: "chevron.down")
-                            .font(ApproachNoteTheme.caption2())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .font(.caption)
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(ApproachNoteTheme.burgundy.opacity(0.2))
-                    .cornerRadius(6)
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(ApproachNoteTheme.cardBackground)
+                    .cornerRadius(8)
                 }
                 .menuStyle(.borderlessButton)
+                .fixedSize()
+
+                Spacer()
+            }
+
+            // Playable Only toggle (always visible)
+            Toggle(isOn: $playableOnly) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Playable only?")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.charcoal)
+                    Text("Toggle On to hide versions of this song without a linked recording to listen to.")
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(ApproachNoteTheme.burgundy)
+
+            // Performance Type segmented (always visible)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Performance Type")
+                    .font(ApproachNoteTheme.headline())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+
+                Picker("Performance Type", selection: $selectedVocalFilter) {
+                    ForEach(VocalFilter.allCases) { filter in
+                        Text(filter.displayName.uppercased()).tag(filter)
+                    }
+                }
+                .pickerStyle(.segmented)
             }
 
             // Recordings list
@@ -677,7 +573,9 @@ struct SongDetailView: View {
                         .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(ApproachNoteTheme.smokeGray)
                     Button("Clear Filters") {
-                        selectedFilter = .all
+                        playableOnly = false
+                        selectedServices.removeAll()
+                        selectedVocalFilter = .all
                         selectedInstrument = nil
                     }
                     .buttonStyle(.link)
@@ -733,16 +631,129 @@ struct SongDetailView: View {
         }
     }
 
+    // MARK: - Filter helpers
+
+    private func hasService(_ recording: Recording, _ service: StreamingService) -> Bool {
+        switch service {
+        case .spotify: return recording.hasSpotifyAvailable
+        case .appleMusic: return recording.hasAppleMusicAvailable
+        case .youtube: return recording.hasYoutubeAvailable
+        }
+    }
+
+    @ViewBuilder
+    private func filterPopoverContent(availableInstruments: [InstrumentFamily]) -> some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 24) {
+                // Playback availability (multi-select)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Playback availability")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.charcoal)
+                    Text("Select which service(s) you'd like to include for playback")
+                        .font(ApproachNoteTheme.subheadline())
+                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(StreamingService.allCases) { service in
+                            Toggle(isOn: Binding(
+                                get: { selectedServices.contains(service) },
+                                set: { isOn in
+                                    if isOn {
+                                        selectedServices.insert(service)
+                                    } else {
+                                        selectedServices.remove(service)
+                                    }
+                                }
+                            )) {
+                                Text(service.displayName)
+                                    .font(ApproachNoteTheme.body())
+                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                            }
+                            .tint(ApproachNoteTheme.burgundy)
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+
+                // By Instrument
+                if !availableInstruments.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("By Instrument")
+                            .font(ApproachNoteTheme.headline())
+                            .foregroundColor(ApproachNoteTheme.charcoal)
+                        Text("Select to filter for recordings that feature a specific instrument")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        LazyVGrid(columns: [
+                            GridItem(.flexible()),
+                            GridItem(.flexible()),
+                            GridItem(.flexible())
+                        ], spacing: 8) {
+                            ForEach(availableInstruments, id: \.self) { family in
+                                Button(action: {
+                                    selectedInstrument = (selectedInstrument == family) ? nil : family
+                                }) {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: family.icon)
+                                            .font(ApproachNoteTheme.caption())
+                                        Text(family.rawValue)
+                                            .font(ApproachNoteTheme.subheadline())
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                    }
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 8)
+                                    .background(selectedInstrument == family ? ApproachNoteTheme.brass : Color.white)
+                                    .foregroundColor(selectedInstrument == family ? .white : ApproachNoteTheme.charcoal)
+                                    .cornerRadius(8)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .stroke(selectedInstrument == family ? Color.clear : ApproachNoteTheme.smokeGray.opacity(0.5), lineWidth: 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+                }
+
+                HStack {
+                    if !selectedServices.isEmpty || selectedInstrument != nil {
+                        Button("Clear All") {
+                            selectedServices.removeAll()
+                            selectedInstrument = nil
+                        }
+                        .buttonStyle(.link)
+                        .foregroundColor(ApproachNoteTheme.burgundy)
+                    }
+                    Spacer()
+                    Button("Done") { showFilterPopover = false }
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.top, 8)
+            }
+            .padding(16)
+        }
+        .frame(width: 360, height: 420)
+    }
+
     // MARK: - Featured Recordings Carousel
 
     @ViewBuilder
     private func featuredRecordingsSection(_ recordings: [Recording]) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("Featured Recordings")
+        VStack(alignment: .leading, spacing: 12) {
+            Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
+                .bold()
                 .foregroundColor(ApproachNoteTheme.charcoal)
 
-            Text("Important recordings for this song")
+            Text("Take a look at these important recordings for this song.")
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(ApproachNoteTheme.smokeGray)
 
@@ -758,6 +769,7 @@ struct SongDetailView: View {
                             parentSongTitle: parentSongTitle,
                             shelfHasAnyDistinctTitle: carouselHasAnyDistinctTitle
                         )
+                        .contentShape(Rectangle())
                         .onTapGesture {
                             selectedRecordingId = recording.id
                         }
@@ -766,9 +778,6 @@ struct SongDetailView: View {
                 .padding(.horizontal, 4)
             }
         }
-        .padding(16)
-        .background(Color.white)
-        .cornerRadius(12)
     }
 
     // MARK: - Transcriptions Section
