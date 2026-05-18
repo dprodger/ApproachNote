@@ -30,6 +30,9 @@ struct SongDetailView: View {
     // Song refresh management
     @State private var showRefreshConfirmation = false
 
+    // Tracks whether the in-page song title is visible; drives nav bar title swap.
+    @State private var isHeaderTitleVisible = true
+
     // NEW: Toast notification
     @State private var toast: ToastItem?
 
@@ -169,21 +172,21 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 16) {
             // Song Information Header
             VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                (
                     Text(song.title)
-                        .font(ApproachNoteTheme.largeTitle())
-                        .bold()
+                        .font(ApproachNoteTheme.largeTitle(weight: .bold))
                         .foregroundColor(ApproachNoteTheme.charcoal)
-                    if let year = song.composedYear {
-                        Text("(\(String(year)))")
-                            .font(ApproachNoteTheme.title2())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                    }
-                }
+                    + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
+                        .font(ApproachNoteTheme.largeTitle(weight: .regular))
+                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                )
                 .onLongPressGesture {
                     if canQueueForRefresh {
                         showRefreshConfirmation = true
                     }
+                }
+                .onScrollVisibilityChange(threshold: 0.1) { visible in
+                    isHeaderTitleVisible = visible
                 }
 
                 if let composer = song.composer {
@@ -329,7 +332,7 @@ struct SongDetailView: View {
     private var contentView: some View {
         mainScrollView
             .background(ApproachNoteTheme.backgroundLight)
-            .jazzNavigationBar(title: song?.title ?? "")
+            .jazzNavigationBar(title: isHeaderTitleVisible ? "Song" : (song?.title ?? "Song"))
             .toolbar {
                 toolbarContent
             }

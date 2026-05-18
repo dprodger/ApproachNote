@@ -329,6 +329,8 @@ extension View {
                     Text(title)
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(.white)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
             }
     }

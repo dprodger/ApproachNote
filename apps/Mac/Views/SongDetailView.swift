@@ -187,16 +187,12 @@ struct SongDetailView: View {
             // Title row with Add to Repertoire button
             HStack(alignment: .firstTextBaseline) {
                 // Title with composed year
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(song.title)
-                        .font(ApproachNoteTheme.largeTitle())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                    if let year = song.composedYear {
-                        Text("(\(String(year)))")
-                            .font(ApproachNoteTheme.title2())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                    }
-                }
+                Text(song.title)
+                    .font(ApproachNoteTheme.largeTitle(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
+                    .font(ApproachNoteTheme.largeTitle(weight: .regular))
+                    .foregroundColor(ApproachNoteTheme.smokeGray)
 
                 Spacer()
 

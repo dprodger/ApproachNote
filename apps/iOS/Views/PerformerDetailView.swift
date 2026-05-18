@@ -24,6 +24,9 @@ struct PerformerDetailView: View {
 
     // Two-phase loading: summary loads first (fast), then recordings load in background
     @State private var isRecordingsLoading: Bool = true
+
+    // Tracks whether the in-page artist name is visible; drives nav bar title swap.
+    @State private var isHeaderNameVisible = true
     
     var body: some View {
         ScrollView {
@@ -37,20 +40,6 @@ struct PerformerDetailView: View {
                 .background(ApproachNoteTheme.backgroundLight)
             } else if let performer = performer {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Styled Header with Jazz Theme
-                    HStack {
-                        Image(systemName: "person.fill")
-                            .font(ApproachNoteTheme.title2())
-                            .foregroundColor(ApproachNoteTheme.cream)
-                        Text("ARTIST")
-                            .font(ApproachNoteTheme.headline())
-                            .fontWeight(.semibold)
-                            .foregroundColor(ApproachNoteTheme.cream)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(ApproachNoteTheme.amberGradient)
-                    
                     VStack(alignment: .leading, spacing: 20) {
                         // Artist Name - MOVED TO TOP
                         Text(performer.name)
@@ -59,6 +48,9 @@ struct PerformerDetailView: View {
                             .foregroundColor(ApproachNoteTheme.charcoal)
                             .padding(.horizontal)
                             .padding(.top, 12)
+                            .onScrollVisibilityChange(threshold: 0.1) { visible in
+                                isHeaderNameVisible = visible
+                            }
                         
                         // Image Carousel - MOVED AFTER NAME
                         if let images = performer.images, !images.isEmpty {
@@ -205,7 +197,7 @@ struct PerformerDetailView: View {
             }
         }
         .background(ApproachNoteTheme.backgroundLight)
-        .jazzNavigationBar(title: performer?.name ?? "", color: ApproachNoteTheme.amber)
+        .jazzNavigationBar(title: isHeaderNameVisible ? "Artist" : (performer?.name ?? "Artist"), color: ApproachNoteTheme.amber)
         .task {
             #if DEBUG
             if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
