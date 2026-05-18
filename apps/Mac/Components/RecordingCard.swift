@@ -11,14 +11,22 @@ import SwiftUI
 
 struct RecordingCard: View {
     let recording: Recording
-    var showArtistName: Bool = true
+    /// Song title from the surrounding context. Nested-under-song API
+    /// responses don't populate `song_title` on individual recordings,
+    /// so we rely on the parent to supply it for the duplicate-title
+    /// check. Falls back to `recording.songTitle` when nil.
+    var parentSongTitle: String? = nil
+    /// True when at least one recording in the surrounding shelf has a
+    /// distinct title. Set by the shelf so every card reserves matching
+    /// space for the title line, while shelves with no distinct titles
+    /// don't allocate the space at all.
+    var shelfHasAnyDistinctTitle: Bool = false
     /// Shell+hydrate viewport hook. SongDetailView passes a closure that
     /// forwards to `SongDetailViewModel.requestHydration(for:)`; other
     /// call sites leave this nil and render fully-loaded recordings.
     var onVisible: ((String) -> Void)? = nil
 
     @State private var isHovering = false
-    @State private var showingBackCover = false
 
     private let artworkSize: CGFloat = 160
 
@@ -42,59 +50,17 @@ struct RecordingCard: View {
         recording.bestAlbumArtLarge ?? recording.bestAlbumArtMedium
     }
 
-    // Back cover URL
-    private var backCoverUrl: String? {
-        recording.backCoverArtLarge ?? recording.backCoverArtMedium
+    private var displayedRecordingTitle: String? {
+        recording.displayTitle(comparedTo: parentSongTitle)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Album art with flip support and streaming button overlay
+            // Album art with canonical star overlay
             ZStack(alignment: .topTrailing) {
-                // Album art with card-flip animation
-                ZStack {
-                    // Front cover
-                    Group {
-                        if let frontUrl = frontCoverUrl {
-                            AsyncImage(url: URL(string: frontUrl)) { phase in
-                                switch phase {
-                                case .empty:
-                                    Rectangle()
-                                        .fill(ApproachNoteTheme.cardBackground)
-                                        .overlay { ProgressView() }
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                case .failure:
-                                    Rectangle()
-                                        .fill(ApproachNoteTheme.cardBackground)
-                                        .overlay {
-                                            Image(systemName: "music.note")
-                                                .font(.system(size: 40))
-                                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                                        }
-                                @unknown default:
-                                    EmptyView()
-                                }
-                            }
-                        } else {
-                            Rectangle()
-                                .fill(ApproachNoteTheme.cardBackground)
-                                .overlay {
-                                    Image(systemName: "music.note")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
-                                }
-                        }
-                    }
-                    .frame(width: artworkSize, height: artworkSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .opacity(showingBackCover ? 0 : 1)
-
-                    // Back cover (pre-rotated so it appears correct after flip)
-                    if let backUrl = backCoverUrl {
-                        AsyncImage(url: URL(string: backUrl)) { phase in
+                Group {
+                    if let frontUrl = frontCoverUrl {
+                        AsyncImage(url: URL(string: frontUrl)) { phase in
                             switch phase {
                             case .empty:
                                 Rectangle()
@@ -107,93 +73,71 @@ struct RecordingCard: View {
                             case .failure:
                                 Rectangle()
                                     .fill(ApproachNoteTheme.cardBackground)
+                                    .overlay {
+                                        Image(systemName: "music.note")
+                                            .font(.system(size: 40))
+                                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    }
                             @unknown default:
                                 EmptyView()
                             }
                         }
-                        .frame(width: artworkSize, height: artworkSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 10))
-                        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-                        .opacity(showingBackCover ? 1 : 0)
+                    } else {
+                        Rectangle()
+                            .fill(ApproachNoteTheme.cardBackground)
+                            .overlay {
+                                Image(systemName: "music.note")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                            }
                     }
                 }
-                .rotation3DEffect(
-                    .degrees(showingBackCover ? 180 : 0),
-                    axis: (x: 0, y: 1, z: 0)
-                )
+                .frame(width: artworkSize, height: artworkSize)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
                 .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
 
-                // Flip badge (shown when back cover available)
-                if recording.canFlipToBackCover {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            showingBackCover.toggle()
-                        }
-                    }) {
-                        Image(systemName: showingBackCover ? "arrow.uturn.backward" : "arrow.trianglehead.2.clockwise.rotate.90")
-                            .foregroundColor(.white)
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(6)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(6)
-                    .help(showingBackCover ? "Show front cover" : "Show back cover")
+                // Canonical star badge
+                if recording.isCanonical == true {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(ApproachNoteTheme.caption())
+                        .padding(6)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(Circle())
+                        .padding(6)
                 }
-
             }
             .frame(width: artworkSize, height: artworkSize)
 
-            // Recording info below artwork
+            // Recording info below artwork — Year → Artist → Album → (Song Title)
             VStack(alignment: .leading, spacing: 4) {
-                // Artist name
-                if showArtistName {
-                    Text(artistName)
-                        .font(ApproachNoteTheme.subheadline(weight: .semibold))
-                        .foregroundColor(ApproachNoteTheme.brass)
-                        .lineLimit(1)
-                }
-
-                // Album title with optional canonical star + image-source ⓘ button
-                HStack(spacing: 4) {
-                    if recording.isCanonical == true {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(ApproachNoteTheme.gold)
-                            .font(ApproachNoteTheme.caption())
-                    }
-
-                    Text(recording.albumTitle ?? "Unknown Album")
-                        .font(ApproachNoteTheme.body(weight: .medium))
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                        .lineLimit(2)
-
-                    if showingBackCover {
-                        AlbumArtSourceBadge(
-                            source: recording.backCoverSource,
-                            sourceUrl: recording.backCoverSourceUrl
-                        )
-                    } else {
-                        AlbumArtSourceBadge(
-                            source: recording.displayAlbumArtSource,
-                            sourceUrl: recording.displayAlbumArtSourceUrl
-                        )
-                    }
-                }
-
-                // Recording title (when different from song title)
-                if let recordingTitle = recording.displayTitle {
-                    Text("(\(recordingTitle))")
-                        .font(ApproachNoteTheme.caption(italic: true))
-                        .foregroundColor(ApproachNoteTheme.brass)
-                        .lineLimit(1)
-                }
-
                 // Year
                 if let year = recording.recordingYear {
                     Text(String(year))
-                        .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .font(ApproachNoteTheme.subheadline(weight: .bold))
+                        .foregroundColor(ApproachNoteTheme.charcoal)
+                }
+
+                // Artist name
+                Text(artistName)
+                    .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .lineLimit(1)
+
+                // Album title — wraps naturally to 1-2 lines so the song
+                // title below can pull up when the album fits on one line.
+                Text(recording.albumTitle ?? "Unknown Album")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .lineLimit(2)
+
+                // Recording title — only allocated when some card in this
+                // shelf actually has a distinct title.
+                if shelfHasAnyDistinctTitle {
+                    Text(displayedRecordingTitle.map { "(\($0))" } ?? " ")
+                        .font(ApproachNoteTheme.caption(italic: true))
+                        .foregroundColor(ApproachNoteTheme.brass)
+                        .lineLimit(1, reservesSpace: true)
                 }
             }
             .frame(width: artworkSize, alignment: .leading)

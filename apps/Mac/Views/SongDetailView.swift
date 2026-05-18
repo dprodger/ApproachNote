@@ -686,7 +686,11 @@ struct SongDetailView: View {
                 .padding(.vertical, 40)
             } else {
                 // Grouped recordings
+                let parentSongTitle = song?.title
                 ForEach(grouped, id: \.groupKey) { group in
+                    let shelfHasAnyDistinctTitle = group.recordings.contains { recording in
+                        recording.displayTitle(comparedTo: parentSongTitle) != nil
+                    }
                     VStack(alignment: .leading, spacing: 8) {
                         // Group header
                         Text("\(group.groupKey) (\(group.recordings.count))")
@@ -700,7 +704,8 @@ struct SongDetailView: View {
                                 ForEach(group.recordings) { recording in
                                     RecordingCard(
                                         recording: recording,
-                                        showArtistName: sortOrder == .year || group.groupKey == "More Recordings",
+                                        parentSongTitle: parentSongTitle,
+                                        shelfHasAnyDistinctTitle: shelfHasAnyDistinctTitle,
                                         onVisible: { [weak viewModel] id in
                                             viewModel?.requestHydration(for: id)
                                         }
@@ -741,13 +746,21 @@ struct SongDetailView: View {
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(ApproachNoteTheme.smokeGray)
 
+            let parentSongTitle = song?.title
+            let carouselHasAnyDistinctTitle = recordings.contains { recording in
+                recording.displayTitle(comparedTo: parentSongTitle) != nil
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 20) {
                     ForEach(recordings) { recording in
-                        FeaturedRecordingCard(recording: recording)
-                            .onTapGesture {
-                                selectedRecordingId = recording.id
-                            }
+                        FeaturedRecordingCard(
+                            recording: recording,
+                            parentSongTitle: parentSongTitle,
+                            shelfHasAnyDistinctTitle: carouselHasAnyDistinctTitle
+                        )
+                        .onTapGesture {
+                            selectedRecordingId = recording.id
+                        }
                     }
                 }
                 .padding(.horizontal, 4)
