@@ -154,12 +154,30 @@ struct Recording: Codable, Identifiable {
     // MARK: - Helper computed properties
 
     var displayTitle: String? {
+        displayTitle(comparedTo: nil)
+    }
+
+    /// Returns the recording title to surface beside album info, or nil
+    /// when it matches the song title (case- and punctuation-insensitive).
+    /// `parentSongTitle` lets callers nested under a song endpoint
+    /// supply the song name when the API didn't populate it on the
+    /// recording itself.
+    func displayTitle(comparedTo parentSongTitle: String?) -> String? {
         guard let recordingTitle = title else { return nil }
-        guard let songTitle = songTitle else { return recordingTitle }
-        if recordingTitle.lowercased() == songTitle.lowercased() {
+        let comparator = parentSongTitle ?? songTitle
+        guard let comparator = comparator else { return recordingTitle }
+        if Self.normalizedForTitleMatch(recordingTitle) == Self.normalizedForTitleMatch(comparator) {
             return nil
         }
         return recordingTitle
+    }
+
+    /// Strip punctuation/whitespace and lowercase so titles like
+    /// "A Child Is Born" / "A Child is Born" and
+    /// "Ain't Misbehaving" / "Ain’t Misbehaving" compare equal.
+    private static func normalizedForTitleMatch(_ value: String) -> String {
+        let scalars = value.lowercased().unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }
+        return String(String.UnicodeScalarView(scalars))
     }
 
     var hasDistinctTitle: Bool {

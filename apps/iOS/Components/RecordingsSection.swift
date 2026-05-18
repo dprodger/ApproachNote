@@ -15,6 +15,12 @@ import SwiftUI
 struct RecordingsSection: View {
     let recordings: [Recording]
 
+    /// Title of the song these recordings belong to. Used so each row
+    /// can suppress the recording title when it duplicates the song
+    /// name — the nested-under-song API responses don't populate
+    /// `song_title` on individual recordings.
+    var parentSongTitle: String? = nil
+
     // Binding for sort order (passed from parent)
     @Binding var recordingSortOrder: RecordingSortOrder
 
@@ -239,28 +245,19 @@ struct RecordingsSection: View {
 
             if isExpanded {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 0) {
-                        ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, recording in
-                            HStack(alignment: .top, spacing: 0) {
-                                if index > 0 {
-                                    Rectangle()
-                                        .fill(ApproachNoteTheme.burgundy.opacity(0.4))
-                                        .frame(width: 2, height: 150)
-                                        .padding(.horizontal, 8)
-                                }
-
-                                NavigationLink(destination: RecordingDetailView(
-                                    recordingId: recording.id,
-                                    onCommunityDataChanged: onCommunityDataChanged
-                                )) {
-                                    RecordingRowView(
-                                        recording: recording,
-                                        showArtistName: recordingSortOrder == .year || group.groupKey == "More Recordings",
-                                        onVisible: onRequestHydration
-                                    )
-                                }
-                                .buttonStyle(.plain)
+                    LazyHStack(alignment: .top, spacing: 16) {
+                        ForEach(group.recordings, id: \.id) { recording in
+                            NavigationLink(destination: RecordingDetailView(
+                                recordingId: recording.id,
+                                onCommunityDataChanged: onCommunityDataChanged
+                            )) {
+                                RecordingRowView(
+                                    recording: recording,
+                                    parentSongTitle: parentSongTitle,
+                                    onVisible: onRequestHydration
+                                )
                             }
+                            .buttonStyle(.plain)
                         }
                     }
                     .padding(.horizontal, 12)

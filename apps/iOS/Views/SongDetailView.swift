@@ -49,10 +49,6 @@ struct SongDetailView: View {
     private var isRecordingsLoading: Bool { viewModel.isRecordingsLoading }
     private var canQueueForRefresh: Bool { viewModel.canQueueForRefresh }
 
-    // Playback preference
-    @AppStorage("preferredStreamingService") private var preferredStreamingService: String = StreamingService.spotify.rawValue
-    @Environment(\.openURL) private var openURL
-
     // MARK: - Initializer
     init(songId: String) {
         self.songId = songId
@@ -124,46 +120,6 @@ struct SongDetailView: View {
             || song.externalReferences?["jazzstandards"] != nil
     }
 
-    // MARK: - Playback Helpers
-
-    /// Whether any recording has streaming links available
-    private var canPlay: Bool {
-        guard let song = song else { return false }
-        return song.hasAnyStreaming == true
-    }
-
-    /// Get the best playback URL for the song (from first featured or first available recording)
-    private var bestPlaybackInfo: (service: String, url: String)? {
-        guard let song = song else { return nil }
-
-        // First try featured recordings
-        if let featured = song.featuredRecordings {
-            for recording in featured {
-                if let playback = recording.playbackUrl(preferring: preferredStreamingService) {
-                    return playback
-                }
-            }
-        }
-
-        // Then try all recordings
-        if let recordings = song.recordings {
-            for recording in recordings {
-                if let playback = recording.playbackUrl(preferring: preferredStreamingService) {
-                    return playback
-                }
-            }
-        }
-
-        return nil
-    }
-
-    /// Open the best available playback URL
-    private func openPlayback() {
-        guard let playback = bestPlaybackInfo,
-              let url = URL(string: playback.url) else { return }
-        openURL(url)
-    }
-    
     // MARK: - Song Content View
     
     @ViewBuilder
@@ -239,6 +195,7 @@ struct SongDetailView: View {
             // MARK: - RECORDINGS SECTION
                 RecordingsSection(
                     recordings: song.recordings ?? [],
+                    parentSongTitle: song.title,
                     recordingSortOrder: $viewModel.sortOrder,
                     isReloading: isRecordingsReloading || isRecordingsLoading,
                     onSortOrderChanged: { [self] _ in
@@ -311,7 +268,7 @@ struct SongDetailView: View {
                                 Task { await viewModel.reloadRecordings(songId: songId) }
                             }
                         )) {
-                            AuthoritativeRecordingCard(recording: recording)
+                            AuthoritativeRecordingCard(recording: recording, parentSongTitle: song.title)
                         }
                         .buttonStyle(.plain)
                     }
@@ -428,33 +385,13 @@ struct SongDetailView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            HStack(spacing: 16) {
-                // Play button - only show if streaming is available
-                if canPlay {
-                    Button(action: openPlayback) {
-                        Image(systemName: "play.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(playButtonColor)
-                    }
-                }
-
-                // Add to repertoire button
-                Button(action: { showAddToRepertoireSheet = true }) {
-                    Image(systemName: "plus.circle")
-                }
+            Button(action: { showAddToRepertoireSheet = true }) {
+                Image(systemName: "plus.circle")
             }
         }
     }
 
-    /// Color for play button based on which service will be used
-    private var playButtonColor: Color {
-        guard let playback = bestPlaybackInfo,
-              let service = StreamingService(key: playback.service) else {
-            return ApproachNoteTheme.burgundy
-        }
-        return service.brandColor
-    }
-    
+
     private var repertoireSheet: some View {
         AddToRepertoireSheet(
             songId: songId,
@@ -476,7 +413,7 @@ struct SongDetailView: View {
 // MARK: - Authoritative Recording Card
 struct AuthoritativeRecordingCard: View {
     let recording: Recording
-    @State private var showingBackCover = false
+    var parentSongTitle: String? = nil
 
     private let artworkSize: CGFloat = 204
 
@@ -505,46 +442,25 @@ struct AuthoritativeRecordingCard: View {
         recording.bestAlbumArtLarge ?? recording.bestAlbumArtMedium
     }
 
-    // Back cover URL
-    private var backCoverUrl: String? {
-        recording.backCoverArtLarge ?? recording.backCoverArtMedium
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Album Art with flip support
-            ZStack(alignment: .topTrailing) {
-                // Album art with card-flip animation
-                ZStack {
-                    // Front cover
-                    Group {
-                        if let frontUrl = frontCoverUrl {
-                            AsyncImage(url: URL(string: frontUrl)) { phase in
-                                switch phase {
-                                case .empty:
-                                    Rectangle()
-                                        .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
-                                        .overlay {
-                                            ProgressView()
-                                                .tint(ApproachNoteTheme.burgundy)
-                                        }
-                                case .success(let image):
-                                    image
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fill)
-                                case .failure:
-                                    Rectangle()
-                                        .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
-                                        .overlay {
-                                            Image(systemName: "music.note")
-                                                .font(.system(size: 40))
-                                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                                        }
-                                @unknown default:
-                                    EmptyView()
+            // Album Art
+            Group {
+                if let frontUrl = frontCoverUrl {
+                    AsyncImage(url: URL(string: frontUrl)) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle()
+                                .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                                .overlay {
+                                    ProgressView()
+                                        .tint(ApproachNoteTheme.burgundy)
                                 }
-                            }
-                        } else {
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
                             Rectangle()
                                 .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
                                 .overlay {
@@ -552,108 +468,49 @@ struct AuthoritativeRecordingCard: View {
                                         .font(.system(size: 40))
                                         .foregroundColor(ApproachNoteTheme.smokeGray)
                                 }
+                        @unknown default:
+                            EmptyView()
                         }
                     }
-                    .frame(width: artworkSize, height: artworkSize)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .opacity(showingBackCover ? 0 : 1)
-
-                    // Back cover (pre-rotated so it appears correct after flip)
-                    if let backUrl = backCoverUrl {
-                        AsyncImage(url: URL(string: backUrl)) { phase in
-                            switch phase {
-                            case .empty:
-                                Rectangle()
-                                    .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
-                                    .overlay {
-                                        ProgressView()
-                                            .tint(ApproachNoteTheme.burgundy)
-                                    }
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure:
-                                Rectangle()
-                                    .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
-                            @unknown default:
-                                EmptyView()
-                            }
+                } else {
+                    Rectangle()
+                        .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                        .overlay {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 40))
+                                .foregroundColor(ApproachNoteTheme.smokeGray)
                         }
-                        .frame(width: artworkSize, height: artworkSize)
-                        .clipShape(RoundedRectangle(cornerRadius: 12))
-                        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-                        .opacity(showingBackCover ? 1 : 0)
-                    }
                 }
-                .rotation3DEffect(
-                    .degrees(showingBackCover ? 180 : 0),
-                    axis: (x: 0, y: 1, z: 0)
-                )
-
-                // Flip badge (shown when back cover available)
-                if recording.canFlipToBackCover {
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            showingBackCover.toggle()
-                        }
-                    }) {
-                        Image(systemName: showingBackCover ? "arrow.uturn.backward" : "arrow.trianglehead.2.clockwise.rotate.90")
-                            .foregroundColor(.white)
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(6)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    .padding(6)
-                }
-
             }
             .frame(width: artworkSize, height: artworkSize)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
 
             // Recording Info - fixed height for consistent card sizing
             VStack(alignment: .leading, spacing: 4) {
-                // Artist Name
+                // Year
+                Text(recording.recordingYear.map { String($0) } ?? " ")
+                    .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+
+                // Artist
                 Text(artistName)
-                    .font(ApproachNoteTheme.subheadline())
-                    .fontWeight(.semibold)
-                    .foregroundColor(ApproachNoteTheme.brass)
+                    .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.charcoal)
                     .lineLimit(1)
 
-                // Album Title + image-source ⓘ button
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(recording.albumTitle ?? "Unknown Album")
-                        .font(ApproachNoteTheme.body())
-                        .fontWeight(.medium)
-                        .foregroundColor(ApproachNoteTheme.charcoal)
-                        .lineLimit(2)
-                    if showingBackCover {
-                        AlbumArtSourceBadge(
-                            source: recording.backCoverSource,
-                            sourceUrl: recording.backCoverSourceUrl
-                        )
-                    } else {
-                        AlbumArtSourceBadge(
-                            source: recording.displayAlbumArtSource,
-                            sourceUrl: recording.displayAlbumArtSourceUrl
-                        )
-                    }
-                }
+                // Album — reserve 2 lines so every card has identical height.
+                Text(recording.albumTitle ?? "Unknown Album")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .lineLimit(2, reservesSpace: true)
 
-                // Recording title (when different from song title)
-                if let recordingTitle = recording.displayTitle {
-                    Text("(\(recordingTitle))")
-                        .font(ApproachNoteTheme.caption(italic: true))
-                        .foregroundColor(ApproachNoteTheme.brass)
-                        .lineLimit(1)
-                }
-
-                // Year (always reserve space)
-                Text(recording.recordingYear.map { String($0) } ?? " ")
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                // Recording title — always render (empty when no distinct
+                // title) so cards keep a consistent height in the carousel.
+                Text(recording.displayTitle(comparedTo: parentSongTitle).map { "(\($0))" } ?? " ")
+                    .font(ApproachNoteTheme.caption(italic: true))
+                    .foregroundColor(ApproachNoteTheme.brass)
+                    .lineLimit(1, reservesSpace: true)
             }
             .frame(width: artworkSize, alignment: .topLeading)
         }
