@@ -259,16 +259,24 @@ struct SongDetailView: View {
                 .foregroundColor(ApproachNoteTheme.smokeGray)
 
             // Horizontal scrolling carousel - use featuredRecordings from summary
+            let featured = song.featuredRecordings ?? []
+            let carouselHasAnyDistinctTitle = featured.contains { recording in
+                recording.displayTitle(comparedTo: song.title) != nil
+            }
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 20) {
-                    ForEach(song.featuredRecordings ?? []) { recording in
+                    ForEach(featured) { recording in
                         NavigationLink(destination: RecordingDetailView(
                             recordingId: recording.id,
                             onCommunityDataChanged: {
                                 Task { await viewModel.reloadRecordings(songId: songId) }
                             }
                         )) {
-                            AuthoritativeRecordingCard(recording: recording, parentSongTitle: song.title)
+                            AuthoritativeRecordingCard(
+                                recording: recording,
+                                parentSongTitle: song.title,
+                                shelfHasAnyDistinctTitle: carouselHasAnyDistinctTitle
+                            )
                         }
                         .buttonStyle(.plain)
                     }
@@ -414,6 +422,10 @@ struct SongDetailView: View {
 struct AuthoritativeRecordingCard: View {
     let recording: Recording
     var parentSongTitle: String? = nil
+    /// True when at least one card in the surrounding carousel has a
+    /// distinct title. Set by the carousel so cards align in height
+    /// without paying for an unused title line when none has one.
+    var shelfHasAnyDistinctTitle: Bool = false
 
     private let artworkSize: CGFloat = 204
 
@@ -499,18 +511,22 @@ struct AuthoritativeRecordingCard: View {
                     .foregroundColor(ApproachNoteTheme.charcoal)
                     .lineLimit(1)
 
-                // Album — reserve 2 lines so every card has identical height.
+                // Album — wraps naturally to 1-2 lines so the song title
+                // below can pull up when the album fits on one line.
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(ApproachNoteTheme.charcoal)
-                    .lineLimit(2, reservesSpace: true)
+                    .lineLimit(2)
 
-                // Recording title — always render (empty when no distinct
-                // title) so cards keep a consistent height in the carousel.
-                Text(recording.displayTitle(comparedTo: parentSongTitle).map { "(\($0))" } ?? " ")
-                    .font(ApproachNoteTheme.caption(italic: true))
-                    .foregroundColor(ApproachNoteTheme.brass)
-                    .lineLimit(1, reservesSpace: true)
+                // Recording title — only allocated when some card in the
+                // carousel has a distinct title. Cards without one render
+                // an empty placeholder so card heights stay aligned.
+                if shelfHasAnyDistinctTitle {
+                    Text(recording.displayTitle(comparedTo: parentSongTitle).map { "(\($0))" } ?? " ")
+                        .font(ApproachNoteTheme.caption(italic: true))
+                        .foregroundColor(ApproachNoteTheme.brass)
+                        .lineLimit(1, reservesSpace: true)
+                }
             }
             .frame(width: artworkSize, alignment: .topLeading)
         }

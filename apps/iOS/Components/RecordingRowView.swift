@@ -17,6 +17,11 @@ struct RecordingRowView: View {
     /// recording title duplicates the song name. Falls back to
     /// `recording.songTitle` when nil.
     var parentSongTitle: String? = nil
+    /// True when at least one recording in the surrounding shelf has a
+    /// distinct title. Set by the shelf so every card in the shelf
+    /// reserves matching space for the title line, while shelves with
+    /// no distinct titles don't allocate the space at all.
+    var shelfHasAnyDistinctTitle: Bool = false
     /// Called once when the row appears on screen. SongDetailView passes
     /// a closure that forwards the recording ID to
     /// `SongDetailViewModel.requestHydration(for:)`, which drives the
@@ -114,21 +119,25 @@ struct RecordingRowView: View {
                 .lineLimit(1)
                 .frame(width: 150, alignment: .leading)
 
-            // Album title — reserve 2 lines so every card measures the same
-            // height regardless of whether the title wraps.
+            // Album title — wraps naturally to 1-2 lines so the song
+            // title below can pull up when the album fits on one line.
             Text(recording.albumTitle ?? "Unknown Album")
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(ApproachNoteTheme.charcoal)
-                .lineLimit(2, reservesSpace: true)
+                .lineLimit(2)
                 .frame(width: 150, alignment: .leading)
 
-            // Recording title — always render (empty when no distinct title)
-            // so cards keep a consistent height in the horizontal shelf.
-            Text(displayedRecordingTitle.map { "(\($0))" } ?? " ")
-                .font(ApproachNoteTheme.caption(italic: true))
-                .foregroundColor(ApproachNoteTheme.brass)
-                .lineLimit(1, reservesSpace: true)
-                .frame(width: 150, alignment: .leading)
+            // Recording title — only allocated when some card in this
+            // shelf actually has a distinct title. Cards in the same
+            // shelf that have no distinct title render an empty
+            // placeholder so all card heights stay aligned.
+            if shelfHasAnyDistinctTitle {
+                Text(displayedRecordingTitle.map { "(\($0))" } ?? " ")
+                    .font(ApproachNoteTheme.caption(italic: true))
+                    .foregroundColor(ApproachNoteTheme.brass)
+                    .lineLimit(1, reservesSpace: true)
+                    .frame(width: 150, alignment: .leading)
+            }
         }
         .frame(width: 150)
         .onAppear {

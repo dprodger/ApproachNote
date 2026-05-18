@@ -244,6 +244,9 @@ struct RecordingsSection: View {
             .buttonStyle(.plain)
 
             if isExpanded {
+                let shelfHasAnyDistinctTitle = group.recordings.contains { recording in
+                    recording.displayTitle(comparedTo: parentSongTitle) != nil
+                }
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHStack(alignment: .top, spacing: 16) {
                         ForEach(group.recordings, id: \.id) { recording in
@@ -254,6 +257,7 @@ struct RecordingsSection: View {
                                 RecordingRowView(
                                     recording: recording,
                                     parentSongTitle: parentSongTitle,
+                                    shelfHasAnyDistinctTitle: shelfHasAnyDistinctTitle,
                                     onVisible: onRequestHydration
                                 )
                             }
