@@ -11,6 +11,7 @@ struct SettingsView: View {
     @State private var contributionStats: UserContributionStats?
     @State private var isLoadingContributions = false
     @State private var contributionsError: String?
+    @State private var isShowingLogin = false
 
     private let contributionService = ContributionService()
 
@@ -18,37 +19,39 @@ struct SettingsView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    // User Info Section
-                    VStack(spacing: 16) {
-                        // Profile Icon
-                        Circle()
-                            .fill(ApproachNoteTheme.burgundy.gradient)
-                            .frame(width: 80, height: 80)
-                            .overlay {
-                                Image(systemName: "person.fill")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.white)
+                    if authManager.isAuthenticated {
+                        // User Info Section
+                        VStack(spacing: 16) {
+                            // Profile Icon
+                            Circle()
+                                .fill(ApproachNoteTheme.burgundy.gradient)
+                                .frame(width: 80, height: 80)
+                                .overlay {
+                                    Image(systemName: "person.fill")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(.white)
+                                }
+
+                            // Name
+                            if let displayName = authManager.currentUser?.displayName {
+                                Text(displayName)
+                                    .font(ApproachNoteTheme.title2())
+                                    .fontWeight(.semibold)
+                                    .foregroundColor(ApproachNoteTheme.charcoal)
                             }
 
-                        // Name
-                        if let displayName = authManager.currentUser?.displayName {
-                            Text(displayName)
-                                .font(ApproachNoteTheme.title2())
-                                .fontWeight(.semibold)
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                            // Email
+                            if let email = authManager.currentUser?.email {
+                                Text(email)
+                                    .font(ApproachNoteTheme.body())
+                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                            }
                         }
+                        .padding(.top, 32)
 
-                        // Email
-                        if let email = authManager.currentUser?.email {
-                            Text(email)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                        }
+                        Divider()
+                            .padding(.horizontal)
                     }
-                    .padding(.top, 32)
-
-                    Divider()
-                        .padding(.horizontal)
 
                     // Playback Settings Section
                     VStack(alignment: .leading, spacing: 12) {
@@ -85,88 +88,190 @@ struct SettingsView: View {
                             .padding(.horizontal)
                     }
 
-                    Divider()
-                        .padding(.horizontal)
+                    if authManager.isAuthenticated {
+                        Divider()
+                            .padding(.horizontal)
 
-                    // Favorites Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "heart.fill")
-                                .foregroundColor(.red)
-                            Text("Favorites")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                        }
-                        .padding(.horizontal)
-
-                        if favoritesManager.isLoading {
+                        // Favorites Section
+                        VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Spacer()
-                                ProgressView()
-                                    .tint(ApproachNoteTheme.brass)
-                                Spacer()
+                                Image(systemName: "heart.fill")
+                                    .foregroundColor(.red)
+                                Text("Favorites")
+                                    .font(ApproachNoteTheme.headline())
+                                    .foregroundColor(ApproachNoteTheme.charcoal)
                             }
-                            .padding()
-                        } else if favoritesManager.favoriteRecordings.isEmpty {
-                            Text("No favorite recordings yet")
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                                .padding(.horizontal)
-                        } else {
-                            ScrollView(.horizontal, showsIndicators: false) {
-                                HStack(spacing: 16) {
-                                    ForEach(favoritesManager.favoriteRecordings, id: \.id) { recording in
-                                        NavigationLink(destination: RecordingDetailView(recordingId: recording.id)) {
-                                            VStack(spacing: 8) {
-                                                // Album art
-                                                if let artUrl = recording.bestAlbumArtSmall,
-                                                   let url = URL(string: artUrl) {
-                                                    CachedAsyncImage(
-                                                        url: url,
-                                                        content: { image in
-                                                            image
-                                                                .resizable()
-                                                                .aspectRatio(contentMode: .fill)
-                                                                .frame(width: 80, height: 80)
-                                                                .cornerRadius(8)
-                                                        },
-                                                        placeholder: {
-                                                            Rectangle()
-                                                                .fill(ApproachNoteTheme.cardBackground)
-                                                                .frame(width: 80, height: 80)
-                                                                .cornerRadius(8)
-                                                        }
-                                                    )
-                                                } else {
-                                                    Rectangle()
-                                                        .fill(ApproachNoteTheme.cardBackground)
-                                                        .frame(width: 80, height: 80)
-                                                        .cornerRadius(8)
-                                                        .overlay(
-                                                            Image(systemName: "opticaldisc")
-                                                                .foregroundColor(ApproachNoteTheme.smokeGray)
-                                                        )
-                                                }
+                            .padding(.horizontal)
 
-                                                // Song title
-                                                Text(recording.songTitle ?? "Unknown")
-                                                    .font(ApproachNoteTheme.caption())
-                                                    .fontWeight(.medium)
-                                                    .foregroundColor(ApproachNoteTheme.charcoal)
-                                                    .lineLimit(2)
-                                                    .multilineTextAlignment(.center)
+                            if favoritesManager.isLoading {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .tint(ApproachNoteTheme.brass)
+                                    Spacer()
+                                }
+                                .padding()
+                            } else if favoritesManager.favoriteRecordings.isEmpty {
+                                Text("No favorite recordings yet")
+                                    .font(ApproachNoteTheme.body())
+                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .padding(.horizontal)
+                            } else {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 16) {
+                                        ForEach(favoritesManager.favoriteRecordings, id: \.id) { recording in
+                                            NavigationLink(destination: RecordingDetailView(recordingId: recording.id)) {
+                                                VStack(spacing: 8) {
+                                                    // Album art
+                                                    if let artUrl = recording.bestAlbumArtSmall,
+                                                       let url = URL(string: artUrl) {
+                                                        CachedAsyncImage(
+                                                            url: url,
+                                                            content: { image in
+                                                                image
+                                                                    .resizable()
+                                                                    .aspectRatio(contentMode: .fill)
+                                                                    .frame(width: 80, height: 80)
+                                                                    .cornerRadius(8)
+                                                            },
+                                                            placeholder: {
+                                                                Rectangle()
+                                                                    .fill(ApproachNoteTheme.cardBackground)
+                                                                    .frame(width: 80, height: 80)
+                                                                    .cornerRadius(8)
+                                                            }
+                                                        )
+                                                    } else {
+                                                        Rectangle()
+                                                            .fill(ApproachNoteTheme.cardBackground)
+                                                            .frame(width: 80, height: 80)
+                                                            .cornerRadius(8)
+                                                            .overlay(
+                                                                Image(systemName: "opticaldisc")
+                                                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                                            )
+                                                    }
+
+                                                    // Song title
+                                                    Text(recording.songTitle ?? "Unknown")
+                                                        .font(ApproachNoteTheme.caption())
+                                                        .fontWeight(.medium)
+                                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                                        .lineLimit(2)
+                                                        .multilineTextAlignment(.center)
+                                                }
+                                                .frame(width: 80)
                                             }
-                                            .frame(width: 80)
+                                            .buttonStyle(.plain)
                                         }
-                                        .buttonStyle(.plain)
                                     }
+                                    .padding(.horizontal)
+                                }
+                            }
+
+                            if favoritesManager.favoriteCount > 0 {
+                                Text("\(favoritesManager.favoriteCount) \(favoritesManager.favoriteCount == 1 ? "recording" : "recordings")")
+                                    .font(ApproachNoteTheme.caption())
+                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .padding(.horizontal)
+                            }
+                        }
+
+                        Divider()
+                            .padding(.horizontal)
+
+                        // Contributions Section
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Image(systemName: "person.3.fill")
+                                    .foregroundColor(ApproachNoteTheme.brass)
+                                Text("Your Contributions")
+                                    .font(ApproachNoteTheme.headline())
+                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                            }
+                            .padding(.horizontal)
+
+                            if isLoadingContributions {
+                                HStack {
+                                    Spacer()
+                                    ProgressView()
+                                        .tint(ApproachNoteTheme.brass)
+                                    Spacer()
+                                }
+                                .padding()
+                            } else if let stats = contributionStats {
+                                VStack(spacing: 0) {
+                                    ContributionStatRow(
+                                        icon: "music.note.list",
+                                        iconColor: ApproachNoteTheme.burgundy,
+                                        label: "Transcriptions",
+                                        count: stats.transcriptions
+                                    )
+
+                                    Divider()
+                                        .padding(.leading, 48)
+
+                                    ContributionStatRow(
+                                        icon: "play.rectangle.fill",
+                                        iconColor: .green,
+                                        label: "Backing Tracks",
+                                        count: stats.backingTracks
+                                    )
+
+                                    Divider()
+                                        .padding(.leading, 48)
+
+                                    ContributionStatRow(
+                                        icon: "metronome",
+                                        iconColor: ApproachNoteTheme.brass,
+                                        label: "Tempo Markings",
+                                        count: stats.tempoMarkings
+                                    )
+
+                                    Divider()
+                                        .padding(.leading, 48)
+
+                                    ContributionStatRow(
+                                        icon: "mic.fill",
+                                        iconColor: .purple,
+                                        label: "Vocal/Instrumental",
+                                        count: stats.instrumentalVocal
+                                    )
+
+                                    Divider()
+                                        .padding(.leading, 48)
+
+                                    ContributionStatRow(
+                                        icon: "music.note",
+                                        iconColor: .blue,
+                                        label: "Performance Keys",
+                                        count: stats.keys
+                                    )
+                                }
+                                .padding(.horizontal)
+                                .background(ApproachNoteTheme.cardBackground)
+                                .cornerRadius(8)
+                                .padding(.horizontal)
+
+                                if stats.totalContributions > 0 {
+                                    Text("Total: \(stats.totalContributions) contribution\(stats.totalContributions == 1 ? "" : "s")")
+                                        .font(ApproachNoteTheme.caption())
+                                        .foregroundColor(ApproachNoteTheme.brass)
+                                        .fontWeight(.medium)
+                                        .padding(.horizontal)
+                                }
+                            } else if let error = contributionsError {
+                                HStack {
+                                    Image(systemName: "exclamationmark.triangle")
+                                        .foregroundColor(.orange)
+                                    Text(error)
+                                        .font(ApproachNoteTheme.body())
+                                        .foregroundColor(ApproachNoteTheme.smokeGray)
                                 }
                                 .padding(.horizontal)
                             }
-                        }
 
-                        if favoritesManager.favoriteCount > 0 {
-                            Text("\(favoritesManager.favoriteCount) \(favoritesManager.favoriteCount == 1 ? "recording" : "recordings")")
+                            Text("Thank you for helping improve the community!")
                                 .font(ApproachNoteTheme.caption())
                                 .foregroundColor(ApproachNoteTheme.smokeGray)
                                 .padding(.horizontal)
@@ -176,124 +281,41 @@ struct SettingsView: View {
                     Divider()
                         .padding(.horizontal)
 
-                    // Contributions Section
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Image(systemName: "person.3.fill")
-                                .foregroundColor(ApproachNoteTheme.brass)
-                            Text("Your Contributions")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
-                        }
-                        .padding(.horizontal)
-
-                        if isLoadingContributions {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .tint(ApproachNoteTheme.brass)
-                                Spacer()
-                            }
-                            .padding()
-                        } else if let stats = contributionStats {
-                            VStack(spacing: 0) {
-                                ContributionStatRow(
-                                    icon: "music.note.list",
-                                    iconColor: ApproachNoteTheme.burgundy,
-                                    label: "Transcriptions",
-                                    count: stats.transcriptions
-                                )
-
-                                Divider()
-                                    .padding(.leading, 48)
-
-                                ContributionStatRow(
-                                    icon: "play.rectangle.fill",
-                                    iconColor: .green,
-                                    label: "Backing Tracks",
-                                    count: stats.backingTracks
-                                )
-
-                                Divider()
-                                    .padding(.leading, 48)
-
-                                ContributionStatRow(
-                                    icon: "metronome",
-                                    iconColor: ApproachNoteTheme.brass,
-                                    label: "Tempo Markings",
-                                    count: stats.tempoMarkings
-                                )
-
-                                Divider()
-                                    .padding(.leading, 48)
-
-                                ContributionStatRow(
-                                    icon: "mic.fill",
-                                    iconColor: .purple,
-                                    label: "Vocal/Instrumental",
-                                    count: stats.instrumentalVocal
-                                )
-
-                                Divider()
-                                    .padding(.leading, 48)
-
-                                ContributionStatRow(
-                                    icon: "music.note",
-                                    iconColor: .blue,
-                                    label: "Performance Keys",
-                                    count: stats.keys
-                                )
-                            }
-                            .padding(.horizontal)
-                            .background(ApproachNoteTheme.cardBackground)
-                            .cornerRadius(8)
-                            .padding(.horizontal)
-
-                            if stats.totalContributions > 0 {
-                                Text("Total: \(stats.totalContributions) contribution\(stats.totalContributions == 1 ? "" : "s")")
-                                    .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.brass)
-                                    .fontWeight(.medium)
-                                    .padding(.horizontal)
-                            }
-                        } else if let error = contributionsError {
-                            HStack {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .foregroundColor(.orange)
-                                Text(error)
-                                    .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
-                            }
-                            .padding(.horizontal)
-                        }
-
-                        Text("Thank you for helping improve the community!")
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
-                            .padding(.horizontal)
-                    }
-
-                    Divider()
-                        .padding(.horizontal)
-
                     // Account Actions
                     VStack(spacing: 0) {
-                        // Log Out Button
-                        Button(action: {
-                            authManager.logout()
-                        }) {
-                            HStack {
-                                Image(systemName: "rectangle.portrait.and.arrow.right")
-                                    .foregroundColor(ApproachNoteTheme.burgundy)
-                                Text("Log Out")
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
-                                Spacer()
+                        if authManager.isAuthenticated {
+                            Button(action: {
+                                authManager.logout()
+                            }) {
+                                HStack {
+                                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                    Text("Log Out")
+                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(ApproachNoteTheme.cardBackground)
+                                .cornerRadius(8)
                             }
-                            .padding()
-                            .background(ApproachNoteTheme.cardBackground)
-                            .cornerRadius(8)
+                            .padding(.horizontal)
+                        } else {
+                            Button(action: {
+                                isShowingLogin = true
+                            }) {
+                                HStack {
+                                    Image(systemName: "person.crop.circle.badge.plus")
+                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                    Text("Sign In or Create Account")
+                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                    Spacer()
+                                }
+                                .padding()
+                                .background(ApproachNoteTheme.cardBackground)
+                                .cornerRadius(8)
+                            }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
 
                     Spacer()
@@ -301,8 +323,12 @@ struct SettingsView: View {
             }
             .background(ApproachNoteTheme.backgroundLight)
             .jazzNavigationBar(title: "Settings")
-            .task {
+            .task(id: authManager.isAuthenticated) {
                 await loadContributionStats()
+            }
+            .sheet(isPresented: $isShowingLogin) {
+                LoginView()
+                    .environmentObject(authManager)
             }
         }
     }
@@ -311,7 +337,6 @@ struct SettingsView: View {
 
     private func loadContributionStats() async {
         guard let token = authManager.getAccessToken() else {
-            contributionsError = "Not authenticated"
             return
         }
 

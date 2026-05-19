@@ -23,18 +23,11 @@ struct ContentView: View {
                     Label("Recordings", systemImage: "opticaldisc")
                 }
 
-            // Settings Tab (protected)
-            Group {
-                if authManager.isAuthenticated {
-                    SettingsView()
-                        .environmentObject(authManager)
-                } else {
-                    RepertoireLoginPromptView()
+            SettingsView()
+                .environmentObject(authManager)
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape.fill")
                 }
-            }
-            .tabItem {
-                Label("Settings", systemImage: "gearshape.fill")
-            }
 
             AboutView()
                 .tabItem {
