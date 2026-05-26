@@ -1,61 +1,61 @@
 {
   "images" : [
     {
-      "filename" : "app_icon 9.png",
+      "filename" : "Black on White-16.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "16x16"
     },
     {
-      "filename" : "app_icon 8.png",
+      "filename" : "Black on White-32 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "16x16"
     },
     {
-      "filename" : "app_icon 7.png",
+      "filename" : "Black on White-32.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "32x32"
     },
     {
-      "filename" : "app_icon 6.png",
+      "filename" : "Black on White-64.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "32x32"
     },
     {
-      "filename" : "app_icon 5.png",
+      "filename" : "Black on White-128.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "128x128"
     },
     {
-      "filename" : "app_icon 4.png",
+      "filename" : "Black on White-256 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "128x128"
     },
     {
-      "filename" : "app_icon 1.png",
+      "filename" : "Black on White-256.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "256x256"
     },
     {
-      "filename" : "app_icon.png",
+      "filename" : "Black on White-512 1.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "256x256"
     },
     {
-      "filename" : "app_icon 2.png",
+      "filename" : "Black on White-512.png",
       "idiom" : "mac",
       "scale" : "1x",
       "size" : "512x512"
     },
     {
-      "filename" : "app_icon 3.png",
+      "filename" : "Black on White.png",
       "idiom" : "mac",
       "scale" : "2x",
       "size" : "512x512"
