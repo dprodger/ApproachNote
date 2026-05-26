@@ -198,12 +198,13 @@ struct SongDetailView: View {
             // Title row with Add to Repertoire button
             HStack(alignment: .firstTextBaseline) {
                 // Title with composed year
-                Text(song.title)
+                let titlePart = Text(song.title)
                     .font(ApproachNoteTheme.largeTitle(weight: .bold))
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
+                let yearPart = Text(song.composedYear.map { " (\(String($0)))" } ?? "")
                     .font(ApproachNoteTheme.largeTitle(weight: .regular))
                     .foregroundColor(ApproachNoteTheme.textSecondary)
+                Text("\(titlePart)\(yearPart)")
 
                 Spacer()
 

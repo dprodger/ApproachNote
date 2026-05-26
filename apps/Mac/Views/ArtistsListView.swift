@@ -205,14 +205,10 @@ struct ArtistRowView: View {
         let after = String(performer.name[range.upperBound...])
 
         // Use regular weight for non-sort parts, semibold for sort key
-        return Text(before)
-            .font(ApproachNoteTheme.headline(weight: .regular))
-            .foregroundColor(textColor)
-        + Text(keyText)
-            .font(ApproachNoteTheme.headline(weight: .semibold))
-            .foregroundColor(textColor)
-        + Text(after)
-            .font(ApproachNoteTheme.headline(weight: .regular))
+        let beforePart = Text(before).font(ApproachNoteTheme.headline(weight: .regular))
+        let keyPart = Text(keyText).font(ApproachNoteTheme.headline(weight: .semibold))
+        let afterPart = Text(after).font(ApproachNoteTheme.headline(weight: .regular))
+        return Text("\(beforePart)\(keyPart)\(afterPart)")
             .foregroundColor(textColor)
     }
 

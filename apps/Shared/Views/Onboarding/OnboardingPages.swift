@@ -108,13 +108,7 @@ struct OnboardingSongPage: View {
             }
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("When Gerald Marks and Seymour Simons sat down in 1932 to write ")
-                + Text("All of Me")
-                    .font(ApproachNoteTheme.body(italic: true))
-                + Text(", they were creating a ")
-                + Text("Song")
-                    .fontWeight(.semibold)
-                + Text(".")
+                Text("When Gerald Marks and Seymour Simons sat down in 1932 to write \(Text("All of Me").font(ApproachNoteTheme.body(italic: true))), they were creating a \(Text("Song").fontWeight(.semibold)).")
 
                 Text("This can sometimes be called a Work, or a Composition.")
                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -188,10 +182,7 @@ struct OnboardingRecordingPage: View {
             }
 
             VStack(alignment: .leading, spacing: 16) {
-                Text("When Count Basie and his orchestra got together in November 1941 to play this song and commit it to media, that generated this ")
-                + Text("Recording")
-                    .fontWeight(.semibold)
-                + Text(".")
+                Text("When Count Basie and his orchestra got together in November 1941 to play this song and commit it to media, that generated this \(Text("Recording").fontWeight(.semibold)).")
 
                 Text("The lineup for this recording is what it was on that date & time.")
                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -266,10 +257,7 @@ struct OnboardingReleasesPage: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("The music industry being what it is, here's where it gets complicated.")
 
-                Text("That recording was issued to the public on a ")
-                + Text("Release")
-                    .fontWeight(.semibold)
-                + Text(". The release is a piece of commercial product (vinyl, CD, cassette, streaming) that was put into the world by a label.")
+                Text("That recording was issued to the public on a \(Text("Release").fontWeight(.semibold)). The release is a piece of commercial product (vinyl, CD, cassette, streaming) that was put into the world by a label.")
 
                 Text("The same piece of audio often appears on multiple releases.")
             }
