@@ -64,7 +64,7 @@ struct RecordingCard: View {
                             switch phase {
                             case .empty:
                                 Rectangle()
-                                    .fill(ApproachNoteTheme.cardBackground)
+                                    .fill(ApproachNoteTheme.surface)
                                     .overlay { ProgressView() }
                             case .success(let image):
                                 image
@@ -72,11 +72,11 @@ struct RecordingCard: View {
                                     .aspectRatio(contentMode: .fill)
                             case .failure:
                                 Rectangle()
-                                    .fill(ApproachNoteTheme.cardBackground)
+                                    .fill(ApproachNoteTheme.surface)
                                     .overlay {
                                         Image(systemName: "music.note")
                                             .font(.system(size: 40))
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                                            .foregroundColor(ApproachNoteTheme.textSecondary)
                                     }
                             @unknown default:
                                 EmptyView()
@@ -84,11 +84,11 @@ struct RecordingCard: View {
                         }
                     } else {
                         Rectangle()
-                            .fill(ApproachNoteTheme.cardBackground)
+                            .fill(ApproachNoteTheme.surface)
                             .overlay {
                                 Image(systemName: "music.note")
                                     .font(.system(size: 40))
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                     }
                 }
@@ -115,20 +115,20 @@ struct RecordingCard: View {
                 if let year = recording.recordingYear {
                     Text(String(year))
                         .font(ApproachNoteTheme.subheadline(weight: .bold))
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
 
                 // Artist name
                 Text(artistName)
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(1)
 
                 // Album title — wraps naturally to 1-2 lines so the song
                 // title below can pull up when the album fits on one line.
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(2)
 
                 // Recording title — only allocated when some card in this
@@ -136,18 +136,18 @@ struct RecordingCard: View {
                 if shelfHasAnyDistinctTitle {
                     Text(displayedRecordingTitle.map { "(\($0))" } ?? " ")
                         .font(ApproachNoteTheme.caption(italic: true))
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1, reservesSpace: true)
                 }
             }
             .frame(width: artworkSize, alignment: .leading)
         }
         .padding(12)
-        .background(isHovering ? ApproachNoteTheme.backgroundLight : ApproachNoteTheme.cardBackground)
+        .background(isHovering ? ApproachNoteTheme.background : ApproachNoteTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isHovering ? ApproachNoteTheme.burgundy.opacity(0.5) : Color.clear, lineWidth: 2)
+                .stroke(isHovering ? ApproachNoteTheme.brand.opacity(0.5) : Color.clear, lineWidth: 2)
         )
         .onHover { hovering in
             isHovering = hovering

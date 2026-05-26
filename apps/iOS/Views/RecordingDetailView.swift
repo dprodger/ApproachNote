@@ -190,27 +190,15 @@ struct RecordingDetailView: View {
             if isLoading {
                 VStack {
                     Spacer()
-                    ThemedProgressView(message: "Loading...", tintColor: ApproachNoteTheme.brass)
+                    ThemedProgressView(message: "Loading...", tintColor: ApproachNoteTheme.textSecondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(ApproachNoteTheme.backgroundLight)
+                .background(ApproachNoteTheme.background)
             } else if let recording = recording {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Styled Header with Jazz Theme
-                    HStack {
-                        Image(systemName: "opticaldisc")
-                            .font(ApproachNoteTheme.title2())
-                            .foregroundColor(ApproachNoteTheme.cream)
-                        Text("RECORDING")
-                            .font(ApproachNoteTheme.headline())
-                            .fontWeight(.semibold)
-                            .foregroundColor(ApproachNoteTheme.cream)
-                        Spacer()
-                    }
-                    .padding()
-                    .background(ApproachNoteTheme.brassGradient)
-                    
+                    ThemedSectionHeader("Recording")
+
                     VStack(alignment: .leading, spacing: 20) {
                         // Album Information
                         VStack(alignment: .leading, spacing: 12) {
@@ -231,12 +219,12 @@ struct RecordingDetailView: View {
                                             },
                                             placeholder: {
                                                 Rectangle()
-                                                    .fill(ApproachNoteTheme.cardBackground)
+                                                    .fill(ApproachNoteTheme.surface)
                                                     .aspectRatio(1, contentMode: .fit)
                                                     .cornerRadius(8)
                                                     .overlay(
                                                         ProgressView()
-                                                            .tint(ApproachNoteTheme.brass)
+                                                            .tint(ApproachNoteTheme.textSecondary)
                                                     )
                                             }
                                         )
@@ -259,12 +247,12 @@ struct RecordingDetailView: View {
                                             },
                                             placeholder: {
                                                 Rectangle()
-                                                    .fill(ApproachNoteTheme.cardBackground)
+                                                    .fill(ApproachNoteTheme.surface)
                                                     .aspectRatio(1, contentMode: .fit)
                                                     .cornerRadius(8)
                                                     .overlay(
                                                         ProgressView()
-                                                            .tint(ApproachNoteTheme.brass)
+                                                            .tint(ApproachNoteTheme.textSecondary)
                                                     )
                                             }
                                         )
@@ -303,7 +291,7 @@ struct RecordingDetailView: View {
                             HStack {
                                 if recording.isCanonical == true {
                                     Image(systemName: "star.fill")
-                                        .foregroundColor(ApproachNoteTheme.gold)
+                                        .foregroundColor(ApproachNoteTheme.accent)
                                         .font(ApproachNoteTheme.title2())
                                 }
                                 if let songTitle = recording.songTitle {
@@ -311,7 +299,7 @@ struct RecordingDetailView: View {
                                     Text("\(songTitle)\(yearSuffix)")
                                         .font(ApproachNoteTheme.largeTitle())
                                         .bold()
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                 }
                                 Spacer()
                                 if showingBackCover {
@@ -331,19 +319,19 @@ struct RecordingDetailView: View {
                             if let recordingTitle = recording.displayTitle {
                                 Text("as \"\(recordingTitle)\"")
                                     .font(ApproachNoteTheme.subheadline(italic: true))
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
 
                             // Release Name
                             Text(displayAlbumTitle)
                                 .font(ApproachNoteTheme.title2())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                                 .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
 
                             if let composer = recording.composer {
                                 Text("Composed by \(composer)")
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
 
                             // Streaming services indicator
@@ -370,13 +358,13 @@ struct RecordingDetailView: View {
                                 Text("Performers")
                                     .font(ApproachNoteTheme.title2())
                                     .bold()
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                 
                                 // Indicator when showing release-specific performers
                                 if selectedRelease != nil, let releasePerformers = selectedRelease?.performers, !releasePerformers.isEmpty {
                                     Text("(from selected release)")
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                             }
                             .padding(.horizontal)
@@ -391,7 +379,7 @@ struct RecordingDetailView: View {
                                 .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
                             } else {
                                 Text("No performer information available")
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .padding()
                             }
                         }
@@ -415,7 +403,7 @@ struct RecordingDetailView: View {
                                         .foregroundColor(.red)
                                     Text("Favorited by \(favoritedBy.count) \(favoritedBy.count == 1 ? "person" : "people")")
                                         .font(ApproachNoteTheme.headline())
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                 }
                                 .padding(.horizontal)
 
@@ -424,16 +412,16 @@ struct RecordingDetailView: View {
                                         ForEach(favoritedBy) { user in
                                             VStack(spacing: 4) {
                                                 Circle()
-                                                    .fill(ApproachNoteTheme.brass.opacity(0.2))
+                                                    .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                                                     .frame(width: 40, height: 40)
                                                     .overlay(
                                                         Text(String((user.displayName ?? "?").prefix(1)).uppercased())
                                                             .font(ApproachNoteTheme.headline())
-                                                            .foregroundColor(ApproachNoteTheme.brass)
+                                                            .foregroundColor(ApproachNoteTheme.textSecondary)
                                                     )
                                                 Text(user.displayName ?? "User")
                                                     .font(ApproachNoteTheme.caption())
-                                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                                     .lineLimit(1)
                                             }
                                             .frame(width: 60)
@@ -456,18 +444,18 @@ struct RecordingDetailView: View {
                 VStack {
                     Spacer()
                     Text("Recording not found")
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     Spacer()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(ApproachNoteTheme.backgroundLight)
+                .background(ApproachNoteTheme.background)
             }
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .refreshable {
             await viewModel.refresh()
         }
-        .jazzNavigationBar(title: displayAlbumTitle, color: ApproachNoteTheme.brass)
+        .jazzNavigationBar(title: displayAlbumTitle)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 16) {
@@ -477,11 +465,11 @@ struct RecordingDetailView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: isFavorited ? "heart.fill" : "heart")
-                                .foregroundColor(isFavorited ? .red : ApproachNoteTheme.smokeGray)
+                                .foregroundColor(isFavorited ? .red : ApproachNoteTheme.textSecondary)
                             if displayFavoriteCount > 0 {
                                 Text("\(displayFavoriteCount)")
                                     .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                     }
@@ -603,7 +591,7 @@ struct RecordingDetailView: View {
             HStack {
                 Text("Also Available On")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 
                 Spacer()
             }
@@ -641,13 +629,13 @@ struct RecordingDetailView: View {
                         Image(systemName: showAllReleases ? "chevron.up" : "chevron.down")
                             .font(ApproachNoteTheme.caption())
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 }
                 .padding(.top, 4)
             }
         }
         .padding()
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(10)
         .padding(.horizontal)
     }
@@ -659,11 +647,11 @@ struct RecordingDetailView: View {
             if isSelected {
                 Image(systemName: "checkmark.circle.fill")
                     .font(ApproachNoteTheme.title3())
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
             } else {
                 Image(systemName: "circle")
                     .font(ApproachNoteTheme.title3())
-                    .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                    .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
             }
             
             // Cover art or placeholder
@@ -680,27 +668,27 @@ struct RecordingDetailView: View {
                     },
                     placeholder: {
                         Rectangle()
-                            .fill(ApproachNoteTheme.smokeGray.opacity(0.3))
+                            .fill(ApproachNoteTheme.textSecondary.opacity(0.3))
                             .frame(width: 50, height: 50)
                             .cornerRadius(4)
                     }
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: 4)
-                        .stroke(isSelected ? ApproachNoteTheme.burgundy : Color.clear, lineWidth: 2)
+                        .stroke(isSelected ? ApproachNoteTheme.brand : Color.clear, lineWidth: 2)
                 )
             } else {
                 Rectangle()
-                    .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                    .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                     .frame(width: 50, height: 50)
                     .cornerRadius(4)
                     .overlay(
                         Image(systemName: "opticaldisc")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 4)
-                            .stroke(isSelected ? ApproachNoteTheme.burgundy : Color.clear, lineWidth: 2)
+                            .stroke(isSelected ? ApproachNoteTheme.brand : Color.clear, lineWidth: 2)
                     )
             }
             
@@ -709,7 +697,7 @@ struct RecordingDetailView: View {
                 Text(release.title)
                     .font(ApproachNoteTheme.subheadline())
                     .fontWeight(isSelected ? .bold : .medium)
-                    .foregroundColor(isSelected ? ApproachNoteTheme.burgundy : ApproachNoteTheme.charcoal)
+                    .foregroundColor(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.textPrimary)
                     .lineLimit(2)
                 
                 // Artist and year
@@ -726,13 +714,13 @@ struct RecordingDetailView: View {
                     }
                 }
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 
                 // Track position
                 if let trackPos = release.trackPositionDisplay {
                     Text(trackPos)
                         .font(ApproachNoteTheme.caption2())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 
                 // Format badge
@@ -741,9 +729,9 @@ struct RecordingDetailView: View {
                         .font(ApproachNoteTheme.caption2())
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(ApproachNoteTheme.smokeGray.opacity(0.2))
+                        .background(ApproachNoteTheme.textSecondary.opacity(0.2))
                         .cornerRadius(4)
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
             }
             
@@ -753,12 +741,12 @@ struct RecordingDetailView: View {
             if release.spotifyTrackUrl != nil || release.spotifyAlbumUrl != nil {
                 Image(systemName: "music.note")
                     .font(ApproachNoteTheme.title3())
-                    .foregroundColor(ApproachNoteTheme.teal)
+                    .foregroundColor(ApproachNoteTheme.accent)
             }
         }
         .padding(.vertical, 6)
         .padding(.horizontal, 8)
-        .background(isSelected ? ApproachNoteTheme.burgundy.opacity(0.1) : Color.clear)
+        .background(isSelected ? ApproachNoteTheme.brand.opacity(0.1) : Color.clear)
         .cornerRadius(8)
     }
     
@@ -768,7 +756,7 @@ struct RecordingDetailView: View {
         HStack(spacing: 12) {
             Text("Listen on")
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
 
             ForEach(availableStreamingSources, id: \.url) { source in
                 Button {
@@ -791,14 +779,14 @@ struct RecordingDetailView: View {
 
     private var albumArtPlaceholder: some View {
         Rectangle()
-            .fill(ApproachNoteTheme.cardBackground)
+            .fill(ApproachNoteTheme.surface)
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
             .cornerRadius(8)
             .overlay(
                 Image(systemName: "music.note")
                     .font(.system(size: 80))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             )
     }
     
@@ -823,16 +811,16 @@ struct RecordingDetailView: View {
                     HStack {
                         Text("Recording Details")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
 
                         Spacer()
 
                         Image(systemName: isLearnMoreExpanded ? "chevron.up" : "chevron.down")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.brass)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding()
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                 }
                 .buttonStyle(.plain)
                 
@@ -867,15 +855,15 @@ struct RecordingDetailView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack {
                                     Image(systemName: "note.text")
-                                        .foregroundColor(ApproachNoteTheme.brass)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                         .frame(width: 24)
                                     Text("Notes")
                                         .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                                 Text(notes)
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                     .padding(.leading, 32)
                             }
                         }
@@ -894,7 +882,7 @@ struct RecordingDetailView: View {
                         }
                     }
                     .padding()
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                 }
             }
             .cornerRadius(10)

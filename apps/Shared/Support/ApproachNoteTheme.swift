@@ -240,18 +240,18 @@ struct ApproachNoteTheme {
     static func navigationBarAppearance() -> UINavigationBarAppearance {
         let appearance = UINavigationBarAppearance()
         appearance.configureWithOpaqueBackground()
-        appearance.backgroundColor = UIColor(burgundy)
+        appearance.backgroundColor = UIColor(brand)
 
         // Large title font (used when scrolled to top)
         appearance.largeTitleTextAttributes = [
             .font: uiHeadingFont(size: 34, weight: .bold),
-            .foregroundColor: UIColor.white
+            .foregroundColor: UIColor(textOnDark)
         ]
 
         // Inline title font (used when scrolled or in compact mode)
         appearance.titleTextAttributes = [
             .font: uiHeadingFont(size: 17, weight: .semibold),
-            .foregroundColor: UIColor.white
+            .foregroundColor: UIColor(textOnDark)
         ]
 
         return appearance
@@ -308,17 +308,18 @@ struct JazzLargeNavigationTitle: View {
     var body: some View {
         Text(title)
             .font(ApproachNoteTheme.largeTitle())
-            .foregroundColor(.white)
+            .foregroundColor(ApproachNoteTheme.textOnDark)
     }
 }
 
 extension View {
-    /// Applies ApproachNoteTheme styling to the navigation bar with custom title font
-    /// Use this instead of .navigationTitle() for themed headers
+    /// Applies ApproachNoteTheme styling to the navigation bar with custom title font.
+    /// Use this instead of `.navigationTitle()` for themed headers.
     /// - Parameters:
-    ///   - title: The navigation bar title
-    ///   - color: Background color (defaults to burgundy)
-    func jazzNavigationBar(title: String, color: Color = ApproachNoteTheme.burgundy) -> some View {
+    ///   - title: The navigation bar title.
+    ///   - color: Background color (defaults to brand). Override only for special cases —
+    ///     under the new semantic theme nearly all nav bars should use `.brand`.
+    func jazzNavigationBar(title: String, color: Color = ApproachNoteTheme.brand) -> some View {
         self
             .navigationBarTitleDisplayMode(.inline)
             .toolbarBackground(color, for: .navigationBar)
@@ -328,7 +329,7 @@ extension View {
                 ToolbarItem(placement: .principal) {
                     Text(title)
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(.white)
+                        .foregroundColor(ApproachNoteTheme.textOnDark)
                         .lineLimit(1)
                         .truncationMode(.tail)
                 }
@@ -337,200 +338,187 @@ extension View {
 }
 #endif
 
+// MARK: - Semantic Color Tokens
+//
+// Colors are organized by *role*, not pigment. Pick the token that matches
+// what the color is doing semantically — don't pick by hue.
+//
+// Roles:
+//   - Surface:   background, surface, surfaceMuted
+//   - Text:      textPrimary, textSecondary, textTertiary, textOnDark, textOnAccent
+//   - Brand:     brand (navigation chrome, app identity)
+//   - Accent:    accent, accentMuted, accentBackground (interactive, links, selection)
+//   - Status:    warning, warningBackground (alerts, destructive actions)
+
 extension ApproachNoteTheme {
-    // MARK: - Primary Colors
-    
-    /// Deep burgundy - main accent color
-    static let burgundy = Color(red: 0.45, green: 0.15, blue: 0.15) // #731A1A
-    
-    /// Warm amber - secondary accent
-    static let amber = Color(red: 0.85, green: 0.55, blue: 0.25) // #D98C3F
-    
-    /// Smoky brass - tertiary accent
-    static let brass = Color(red: 0.65, green: 0.50, blue: 0.30) // #A67F4D
-    
-    /// Deep teal - cool accent
-    static let teal = Color(red: 0.20, green: 0.35, blue: 0.40) // #335966
 
-    /// Forest green - for backing tracks and practice materials
-    static let green = Color(red: 0.25, green: 0.50, blue: 0.35) // #408059
+    // MARK: - Brand
 
-    // MARK: - Neutrals
-    
-    /// Rich charcoal - primary text on light backgrounds
-    static let charcoal = Color(red: 0.15, green: 0.15, blue: 0.15) // #262626
-    
-    /// Warm cream - text on dark backgrounds
-    static let cream = Color(red: 0.95, green: 0.93, blue: 0.88) // #F2EDE0
-    
-    /// Muted gray - secondary text
-    static let smokeGray = Color(red: 0.55, green: 0.52, blue: 0.48) // #8C857A
-    
-    // MARK: - Special
-    
-    /// Gold star - for canonical recordings
-    static let gold = Color(red: 0.85, green: 0.65, blue: 0.13) // #D9A521
-    
-    // MARK: - Gradients
-    
-    static let burgundyGradient = LinearGradient(
-        gradient: Gradient(colors: [burgundy, burgundy.opacity(0.8)]),
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-    
-    static let amberGradient = LinearGradient(
-        gradient: Gradient(colors: [amber, amber.opacity(0.8)]),
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-    
-    static let brassGradient = LinearGradient(
-        gradient: Gradient(colors: [brass, brass.opacity(0.8)]),
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-    
-    static let tealGradient = LinearGradient(
-        gradient: Gradient(colors: [teal, teal.opacity(0.8)]),
-        startPoint: .leading,
-        endPoint: .trailing
-    )
-    
-    // MARK: - Background Colors
-    
-    /// Light warm background
-    static let backgroundLight = Color(red: 0.97, green: 0.95, blue: 0.92) // #F7F2EB
-    
-    /// Card background
-    static let cardBackground = Color(red: 0.93, green: 0.91, blue: 0.87) // #EDE8DD
-    
-    // MARK: - Section Headers by Type
-    
-    struct SectionHeader {
-        let gradient: LinearGradient
-        let icon: String
-        
-        static let song = SectionHeader(
-            gradient: burgundyGradient,
-            icon: "music.note"
-        )
-        
-        static let recording = SectionHeader(
-            gradient: brassGradient,
-            icon: "opticaldisc"
-        )
-        
-        static let artist = SectionHeader(
-            gradient: amberGradient,
-            icon: "person.fill"
-        )
-    }
+    /// Brand identity color. Navigation chrome, section headers, app identity.
+    /// Deep blue (#363A87). Shares its hex with `accent` — same hue serves two
+    /// roles (filled surface vs. interactive foreground) and is intentionally
+    /// kept as separate tokens so they can diverge later without a rename pass.
+    static let brand = Color(red: 0.212, green: 0.227, blue: 0.529)
+
+    // MARK: - Surfaces
+
+    /// App background. Off-white (#FFFCF7).
+    static let background = Color(red: 1.0, green: 0.988, blue: 0.969)
+
+    /// Elevated surface — cards, sheets, modals. White (#FFFFFF).
+    static let surface = Color.white
+
+    /// Recessed / grouped surface. Light gray (#D9D7D7). Also useful for divider fills.
+    static let surfaceMuted = Color(red: 0.851, green: 0.843, blue: 0.843)
+
+    // MARK: - Text
+
+    /// Primary text on light surfaces. Warm near-black (#413737).
+    static let textPrimary = Color(red: 0.255, green: 0.216, blue: 0.216)
+
+    /// Secondary text — captions, supporting copy, metadata. (#675F5F)
+    static let textSecondary = Color(red: 0.404, green: 0.373, blue: 0.373)
+
+    /// Tertiary text — disabled, hint, placeholder. (#B3AFAF)
+    static let textTertiary = Color(red: 0.702, green: 0.686, blue: 0.686)
+
+    /// Text/icons on dark surfaces (brand chrome, nav bar titles). Off-white (#FFFCF7).
+    static let textOnDark = Color(red: 1.0, green: 0.988, blue: 0.969)
+
+    /// Text/icons on filled accent buttons. Pure white.
+    static let textOnAccent = Color.white
+
+    // MARK: - Accent (interactive)
+
+    /// Primary interactive color — links, action buttons, selection, ratings. Blue (#363A87).
+    static let accent = Color(red: 0.212, green: 0.227, blue: 0.529)
+
+    /// Pressed / hover state of accent. Slightly lighter blue (#5D619F).
+    static let accentMuted = Color(red: 0.365, green: 0.380, blue: 0.624)
+
+    /// Tinted background for accent-themed regions (e.g. selected row, info panels). (#ECEDFF)
+    static let accentBackground = Color(red: 0.925, green: 0.929, blue: 1.0)
+
+    // MARK: - Status
+
+    /// Warnings, alerts, destructive actions. Red (#FF3A4E).
+    static let warning = Color(red: 1.0, green: 0.227, blue: 0.306)
+
+    /// Tinted background for warning regions. (#FFEBED)
+    static let warningBackground = Color(red: 1.0, green: 0.922, blue: 0.929)
+
 }
 
-// MARK: - View Extension for Easy Access
+// MARK: - Section Headers
+//
+// Typography-only — uppercase bold title in `textPrimary` on the body
+// background. No chrome band, no icon. Optional subtitle in `textSecondary`.
 
-extension View {
-    func jazzThemedSectionHeader(title: String, type: ApproachNoteTheme.SectionHeader) -> some View {
-        HStack {
-            Image(systemName: type.icon)
-                .font(.title2)
-                .foregroundColor(ApproachNoteTheme.cream)
-            Text(title)
-                .font(.headline)
-                .fontWeight(.semibold)
-                .foregroundColor(ApproachNoteTheme.cream)
-            Spacer()
+struct ThemedSectionHeader: View {
+    let title: String
+    let subtitle: String?
+
+    init(_ title: String, subtitle: String? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title.uppercased())
+                .font(ApproachNoteTheme.headline())
+                .fontWeight(.bold)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+            if let subtitle {
+                Text(subtitle)
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
         }
-        .padding()
-        .background(type.gradient)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal)
+        .padding(.top, 24)
+        .padding(.bottom, 8)
     }
 }
 
 // MARK: - Themed Progress View
 
-/// A progress view with consistent ApproachNoteTheme styling
-/// Use this for all loading indicators to ensure consistent typography
+/// A progress view with consistent ApproachNoteTheme styling.
+/// Use this for all loading indicators to ensure consistent typography.
 struct ThemedProgressView: View {
     let message: String
-    var tintColor: Color = ApproachNoteTheme.brass
+    var tintColor: Color = ApproachNoteTheme.accent
 
     var body: some View {
         ProgressView {
             Text(message)
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
         }
         .tint(tintColor)
     }
 }
 
-// MARK: - Usage Examples
+// MARK: - Preview
 
 struct ApproachNoteThemePreview: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 20) {
-                // Song Header
-                VStack {
-                    Text("SONG")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(ApproachNoteTheme.cream)
+                // Section header demonstrations — typography only on body background.
+                VStack(alignment: .leading, spacing: 0) {
+                    ThemedSectionHeader("Featured Recordings",
+                                        subtitle: "Take a look at these important recordings for this song.")
+                    ThemedSectionHeader("Performers")
+                    ThemedSectionHeader("About the Song")
                 }
                 .frame(maxWidth: .infinity)
-                .padding()
-                .background(ApproachNoteTheme.SectionHeader.song.gradient)
-                
-                // Recording Header
-                VStack {
-                    Text("RECORDING")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(ApproachNoteTheme.cream)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(ApproachNoteTheme.SectionHeader.recording.gradient)
-                
-                // Artist Header
-                VStack {
-                    Text("ARTIST")
-                        .font(.headline)
-                        .fontWeight(.semibold)
-                        .foregroundColor(ApproachNoteTheme.cream)
-                }
-                .frame(maxWidth: .infinity)
-                .padding()
-                .background(ApproachNoteTheme.SectionHeader.artist.gradient)
-                
-                // Color Swatches
+
+                // Color swatches grouped by role.
                 VStack(alignment: .leading, spacing: 16) {
-                    Text("Color Palette")
-                        .font(.title2)
-                        .bold()
-                    
-                    ColorSwatch(name: "Burgundy", color: ApproachNoteTheme.burgundy)
-                    ColorSwatch(name: "Amber", color: ApproachNoteTheme.amber)
-                    ColorSwatch(name: "Brass", color: ApproachNoteTheme.brass)
-                    ColorSwatch(name: "Teal", color: ApproachNoteTheme.teal)
-                    ColorSwatch(name: "Gold (Star)", color: ApproachNoteTheme.gold)
-                    ColorSwatch(name: "Charcoal", color: ApproachNoteTheme.charcoal)
-                    ColorSwatch(name: "Cream", color: ApproachNoteTheme.cream, darkBackground: true)
-                    ColorSwatch(name: "Smoke Gray", color: ApproachNoteTheme.smokeGray)
+                    Text("Brand & Surfaces")
+                        .font(.title2).bold()
+                    ColorSwatch(name: "brand", color: ApproachNoteTheme.brand)
+                    ColorSwatch(name: "background", color: ApproachNoteTheme.background)
+                    ColorSwatch(name: "surface", color: ApproachNoteTheme.surface)
+                    ColorSwatch(name: "surfaceMuted", color: ApproachNoteTheme.surfaceMuted)
+
+                    Text("Text")
+                        .font(.title2).bold()
+                        .padding(.top, 8)
+                    ColorSwatch(name: "textPrimary", color: ApproachNoteTheme.textPrimary)
+                    ColorSwatch(name: "textSecondary", color: ApproachNoteTheme.textSecondary)
+                    ColorSwatch(name: "textTertiary", color: ApproachNoteTheme.textTertiary)
+                    ColorSwatch(name: "textOnDark", color: ApproachNoteTheme.textOnDark, darkBackground: true)
+                    ColorSwatch(name: "textOnAccent", color: ApproachNoteTheme.textOnAccent, darkBackground: true)
+
+                    Text("Accent")
+                        .font(.title2).bold()
+                        .padding(.top, 8)
+                    ColorSwatch(name: "accent", color: ApproachNoteTheme.accent)
+                    ColorSwatch(name: "accentMuted", color: ApproachNoteTheme.accentMuted)
+                    ColorSwatch(name: "accentBackground", color: ApproachNoteTheme.accentBackground)
+
+                    Text("Status")
+                        .font(.title2).bold()
+                        .padding(.top, 8)
+                    ColorSwatch(name: "warning", color: ApproachNoteTheme.warning)
+                    ColorSwatch(name: "warningBackground", color: ApproachNoteTheme.warningBackground)
                 }
                 .padding()
             }
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
+
 }
 
 struct ColorSwatch: View {
     let name: String
     let color: Color
     var darkBackground: Bool = false
-    
+
     var body: some View {
         HStack {
             RoundedRectangle(cornerRadius: 8)
@@ -540,13 +528,19 @@ struct ColorSwatch: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                 )
-            
+                .background(
+                    // Show light/dark backdrop behind on-dark/on-accent swatches so they're visible.
+                    darkBackground
+                        ? RoundedRectangle(cornerRadius: 8).fill(ApproachNoteTheme.brand)
+                        : nil
+                )
+
             VStack(alignment: .leading) {
                 Text(name)
                     .font(.headline)
-                Text(darkBackground ? "For dark backgrounds" : "Primary use")
+                Text(darkBackground ? "For dark / accent backgrounds" : "Primary use")
                     .font(.caption)
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             Spacer()
         }

@@ -15,12 +15,12 @@ struct TranscriptionRowView: View {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.teal.opacity(0.15))
+                        .fill(ApproachNoteTheme.accent.opacity(0.15))
                         .frame(width: 80, height: 45)
 
                     Image(systemName: "play.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.teal)
+                        .foregroundColor(ApproachNoteTheme.accent)
                 }
 
                 // Transcription info
@@ -28,7 +28,7 @@ struct TranscriptionRowView: View {
                     // Album/Recording title
                     Text(transcription.albumTitle ?? "Solo Transcription")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -37,22 +37,22 @@ struct TranscriptionRowView: View {
                         if let year = transcription.recordingYear {
                             HStack(spacing: 4) {
                                 Image(systemName: "calendar")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(String(format: "%d", year))
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let label = transcription.label {
                             HStack(spacing: 4) {
                                 Image(systemName: "opticaldisc")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(label)
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .lineLimit(1)
                             }
                         }
@@ -64,11 +64,11 @@ struct TranscriptionRowView: View {
                 // Chevron indicator
                 Image(systemName: "chevron.right")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(10)
             .padding(.horizontal)
         }

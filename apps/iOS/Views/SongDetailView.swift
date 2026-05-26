@@ -84,7 +84,7 @@ struct SongDetailView: View {
         case .currentlyResearching(let progress):
             ResearchStatusBanner(
                 icon: "waveform.circle.fill",
-                iconColor: ApproachNoteTheme.burgundy,
+                iconColor: ApproachNoteTheme.brand,
                 title: "Researching Now",
                 message: viewModel.researchingMessage(progress: progress),
                 helperText: "We're scouring the internet to learn more about this song... Check back in a while to see what we've found.",
@@ -93,7 +93,7 @@ struct SongDetailView: View {
         case .inQueue(let position):
             ResearchStatusBanner(
                 icon: "clock.fill",
-                iconColor: ApproachNoteTheme.amber,
+                iconColor: ApproachNoteTheme.accent,
                 title: "In Research Queue",
                 message: "Position \(position) in queue",
                 helperText: "This song is in the queue to get researched... Check back in a while to see what we've found.",
@@ -131,10 +131,10 @@ struct SongDetailView: View {
                 (
                     Text(song.title)
                         .font(ApproachNoteTheme.largeTitle(weight: .bold))
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
                         .font(ApproachNoteTheme.largeTitle(weight: .regular))
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 )
                 .onLongPressGesture {
                     if canQueueForRefresh {
@@ -148,18 +148,18 @@ struct SongDetailView: View {
                 if let composer = song.composer {
                     Text("Composed by \(composer)")
                         .font(ApproachNoteTheme.body())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
 
                 // Song Reference (if available)
                 if let songRef = song.songReference {
                     HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "book.closed.fill")
-                            .foregroundColor(ApproachNoteTheme.brass)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .font(ApproachNoteTheme.subheadline())
                         Text(songRef)
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.top, 4)
@@ -226,7 +226,7 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(5)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -234,7 +234,7 @@ struct SongDetailView: View {
                    let wikiUrl = URL(string: wikiUrlString) {
                     Link("Read more on Wikipedia", destination: wikiUrl)
                         .font(ApproachNoteTheme.body())
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -251,12 +251,12 @@ struct SongDetailView: View {
             Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             // Introductory text
             Text("Take a look at these important recordings for this song.")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
 
             // Horizontal scrolling carousel - use featuredRecordings from summary
             let featured = song.featuredRecordings ?? []
@@ -296,7 +296,7 @@ struct SongDetailView: View {
     
     private var contentView: some View {
         mainScrollView
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .jazzNavigationBar(title: isHeaderTitleVisible ? "Song" : (song?.title ?? "Song"))
             .toolbar {
                 toolbarContent
@@ -364,7 +364,7 @@ struct SongDetailView: View {
         VStack {
             Spacer()
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: ApproachNoteTheme.burgundy))
+                .progressViewStyle(CircularProgressViewStyle(tint: ApproachNoteTheme.brand))
                 .scaleEffect(1.5)
             Spacer()
         }
@@ -375,13 +375,13 @@ struct SongDetailView: View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(ApproachNoteTheme.amber)
+                .foregroundColor(ApproachNoteTheme.accent)
             Text("Unable to load song")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             Text("There was a problem loading the song details.")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
         }
@@ -463,10 +463,10 @@ struct AuthoritativeRecordingCard: View {
                         switch phase {
                         case .empty:
                             Rectangle()
-                                .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                                .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                                 .overlay {
                                     ProgressView()
-                                        .tint(ApproachNoteTheme.burgundy)
+                                        .tint(ApproachNoteTheme.brand)
                                 }
                         case .success(let image):
                             image
@@ -474,11 +474,11 @@ struct AuthoritativeRecordingCard: View {
                                 .aspectRatio(contentMode: .fill)
                         case .failure:
                             Rectangle()
-                                .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                                .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                                 .overlay {
                                     Image(systemName: "music.note")
                                         .font(.system(size: 40))
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                         @unknown default:
                             EmptyView()
@@ -486,11 +486,11 @@ struct AuthoritativeRecordingCard: View {
                     }
                 } else {
                     Rectangle()
-                        .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                        .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                         .overlay {
                             Image(systemName: "music.note")
                                 .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                 }
             }
@@ -503,19 +503,19 @@ struct AuthoritativeRecordingCard: View {
                 // Year
                 Text(recording.recordingYear.map { String($0) } ?? " ")
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 // Artist
                 Text(artistName)
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(1)
 
                 // Album — wraps naturally to 1-2 lines so the song title
                 // below can pull up when the album fits on one line.
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(2)
 
                 // Recording title — only allocated when some card in the
@@ -524,7 +524,7 @@ struct AuthoritativeRecordingCard: View {
                 if shelfHasAnyDistinctTitle {
                     Text(recording.displayTitle(comparedTo: parentSongTitle).map { "(\($0))" } ?? " ")
                         .font(ApproachNoteTheme.caption(italic: true))
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1, reservesSpace: true)
                 }
             }

@@ -52,7 +52,7 @@ struct MacResetPasswordView: View {
 
             Text("Password Reset Complete")
                 .font(ApproachNoteTheme.title2())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("Your password has been successfully reset. You can now sign in with your new password.")
                 .font(ApproachNoteTheme.subheadline())
@@ -63,7 +63,7 @@ struct MacResetPasswordView: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .padding(.top, 16)
         }
@@ -77,7 +77,7 @@ struct MacResetPasswordView: View {
             VStack(spacing: 8) {
                 Text("Set New Password")
                     .font(ApproachNoteTheme.title())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("Enter your new password below.")
                     .font(ApproachNoteTheme.subheadline())
@@ -146,7 +146,7 @@ struct MacResetPasswordView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .disabled(!isFormValid || authManager.isLoading)
 

@@ -43,7 +43,7 @@ struct SongsListView: View {
     var body: some View {
         NavigationStack {
             contentView
-                .background(ApproachNoteTheme.backgroundLight)
+                .background(ApproachNoteTheme.background)
                 .jazzNavigationBar(title: "Songs (\(songService.songs.count.formatted()))")
                 .searchable(text: $searchText, prompt: "Search songs")
                 .onChange(of: searchText) { oldValue, newValue in
@@ -86,7 +86,7 @@ struct SongsListView: View {
                     }
                 }
         }
-        .tint(ApproachNoteTheme.burgundy)
+        .tint(ApproachNoteTheme.brand)
     }
     
     // MARK: - Helper Methods
@@ -143,11 +143,11 @@ struct SongsListView: View {
     private var currentRepertoireBanner: some View {
         HStack {
             Image(systemName: "music.note.list")
-                .foregroundColor(ApproachNoteTheme.burgundy)
+                .foregroundColor(ApproachNoteTheme.brand)
             Text(repertoireManager.currentRepertoireDisplayName)
                 .font(ApproachNoteTheme.subheadline())
                 .fontWeight(.medium)
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             Spacer()
             Button(action: {
                 if authManager.isAuthenticated {
@@ -158,7 +158,7 @@ struct SongsListView: View {
             }) {
                 Text("Change")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
             }
             .sheet(isPresented: $showRepertoirePicker) {
                 RepertoirePickerSheet(
@@ -174,30 +174,30 @@ struct SongsListView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(ApproachNoteTheme.amber.opacity(0.15))
+        .background(ApproachNoteTheme.accent.opacity(0.15))
     }
     
     private var loadingView: some View {
         VStack {
             Spacer()
-            ThemedProgressView(message: "Loading songs...", tintColor: ApproachNoteTheme.burgundy)
+            ThemedProgressView(message: "Loading songs...", tintColor: ApproachNoteTheme.brand)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
     
     private func errorView(error: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(ApproachNoteTheme.amber)
+                .foregroundColor(ApproachNoteTheme.accent)
             Text("Error")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             Text(error)
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             Button("Retry") {
@@ -206,31 +206,31 @@ struct SongsListView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     private var emptySearchResultsView: some View {
         VStack(spacing: 16) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             Text("No Results")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("No songs match \"\(searchText)\"")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
             VStack(spacing: 12) {
                 Text("Can't find what you're looking for?")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
 
                 Button(action: {
                     showMusicBrainzSearch = true
@@ -241,13 +241,13 @@ struct SongsListView: View {
                     }
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(ApproachNoteTheme.burgundy)
+                .tint(ApproachNoteTheme.brand)
             }
             .padding(.top, 8)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     private var songsListView: some View {
@@ -260,7 +260,7 @@ struct SongsListView: View {
                                                 .environmentObject(repertoireManager)) {
                                 songRowView(song: song)
                             }
-                            .listRowBackground(ApproachNoteTheme.cardBackground)
+                            .listRowBackground(ApproachNoteTheme.surface)
                         }
                     }
                     .id(letter) // Anchor for scrolling
@@ -268,7 +268,7 @@ struct SongsListView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .refreshable {
                 await loadSongs()
             }
@@ -276,7 +276,7 @@ struct SongsListView: View {
                 // Custom alphabet index overlay
                 AlphabetIndexView(
                     letters: sectionLetters,
-                    accentColor: ApproachNoteTheme.burgundy,
+                    accentColor: ApproachNoteTheme.brand,
                     onTap: { letter in
                         // Use short animation to prevent conflicts during rapid scrubbing
                         withAnimation(.easeOut(duration: 0.1)) {
@@ -294,17 +294,17 @@ struct SongsListView: View {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(song.title)
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 if let year = song.composedYear {
                     Text("(\(String(year)))")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
             if let composer = song.composer {
                 Text(composer)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
         }
         .padding(.vertical, 4)
@@ -332,19 +332,19 @@ struct RepertoirePickerSheet: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(repertoire.name)
                                         .font(ApproachNoteTheme.headline())
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                     
                                     if let description = repertoire.description {
                                         Text(description)
                                             .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                                            .foregroundColor(ApproachNoteTheme.textSecondary)
                                             .lineLimit(2)
                                     }
                                     
                                     if repertoire.id != "all" {
                                         Text("\(repertoire.songCount) songs")
                                             .font(ApproachNoteTheme.caption())
-                                            .foregroundColor(ApproachNoteTheme.burgundy)
+                                            .foregroundColor(ApproachNoteTheme.brand)
                                     }
                                 }
                                 
@@ -352,7 +352,7 @@ struct RepertoirePickerSheet: View {
                                 
                                 if repertoire.id == repertoireManager.selectedRepertoire.id {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                        .foregroundColor(ApproachNoteTheme.brand)
                                         .font(ApproachNoteTheme.title3())
                                 }
                             }
@@ -362,34 +362,34 @@ struct RepertoirePickerSheet: View {
                             .frame(maxWidth: .infinity)
                             .background(
                                 repertoire.id == repertoireManager.selectedRepertoire.id ?
-                                    ApproachNoteTheme.burgundy.opacity(0.1) :
-                                    ApproachNoteTheme.cardBackground
+                                    ApproachNoteTheme.brand.opacity(0.1) :
+                                    ApproachNoteTheme.surface
                             )
                         }
                         .buttonStyle(.plain)
                         
                         if repertoire.id != repertoireManager.repertoires.last?.id {
                             Divider()
-                                .background(ApproachNoteTheme.smokeGray.opacity(0.3))
+                                .background(ApproachNoteTheme.textSecondary.opacity(0.3))
                         }
                     }
                     
                     // Add "Create New Repertoire" button for authenticated users
                     if authManager.isAuthenticated {
                         Divider()
-                            .background(ApproachNoteTheme.smokeGray.opacity(0.3))
+                            .background(ApproachNoteTheme.textSecondary.opacity(0.3))
                         
                         Button(action: {
                             showCreateRepertoire = true
                         }) {
                             HStack {
                                 Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(ApproachNoteTheme.burgundy)
+                                    .foregroundColor(ApproachNoteTheme.brand)
                                     .font(ApproachNoteTheme.title3())
                                 
                                 Text("Create New Repertoire")
                                     .font(ApproachNoteTheme.headline())
-                                    .foregroundColor(ApproachNoteTheme.burgundy)
+                                    .foregroundColor(ApproachNoteTheme.brand)
                                 
                                 Spacer()
                             }
@@ -397,13 +397,13 @@ struct RepertoirePickerSheet: View {
                             .padding(.horizontal, 16)
                             .padding(.vertical, 12)
                             .frame(maxWidth: .infinity)
-                            .background(ApproachNoteTheme.cardBackground)
+                            .background(ApproachNoteTheme.surface)
                         }
                         .buttonStyle(.plain)
                     }
                 }
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle("Select Repertoire")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -411,7 +411,7 @@ struct RepertoirePickerSheet: View {
                     Button("Done") {
                         isPresented = false
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
             .sheet(isPresented: $showCreateRepertoire) {
@@ -431,11 +431,11 @@ struct SectionHeaderView: View {
         Text(letter)
             .font(ApproachNoteTheme.headline())
             .fontWeight(.bold)
-            .foregroundColor(ApproachNoteTheme.burgundy)
+            .foregroundColor(ApproachNoteTheme.brand)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
             .padding(.horizontal)
-            .background(ApproachNoteTheme.backgroundLight.opacity(0.8))
+            .background(ApproachNoteTheme.background.opacity(0.8))
     }
 }
 
@@ -443,7 +443,7 @@ struct SectionHeaderView: View {
 // Supports both tap and drag gestures for easier navigation (iOS Contacts style)
 struct AlphabetIndexView: View {
     let letters: [String]
-    var accentColor: Color = ApproachNoteTheme.burgundy
+    var accentColor: Color = ApproachNoteTheme.brand
     let onTap: (String) -> Void
 
     // Track which letter is currently being touched/dragged over
@@ -473,7 +473,7 @@ struct AlphabetIndexView: View {
         .padding(.horizontal, 4)
         .background(
             RoundedRectangle(cornerRadius: 8)
-                .fill(ApproachNoteTheme.backgroundLight.opacity(0.95))
+                .fill(ApproachNoteTheme.background.opacity(0.95))
                 .shadow(color: .black.opacity(0.15), radius: 3, x: -2, y: 0)
         )
         .gesture(

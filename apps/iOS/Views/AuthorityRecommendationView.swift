@@ -35,7 +35,7 @@ struct AuthorityRecommendationsView: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ThemedProgressView(message: "Loading...", tintColor: ApproachNoteTheme.brass)
+                    ThemedProgressView(message: "Loading...", tintColor: ApproachNoteTheme.textSecondary)
                 } else if let error = errorMessage {
                     VStack(spacing: 16) {
                         Image(systemName: "exclamationmark.triangle")
@@ -53,10 +53,10 @@ struct AuthorityRecommendationsView: View {
                     VStack(spacing: 16) {
                         Image(systemName: "doc.badge.plus")
                             .font(.system(size: 48))
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                         Text("No Authority References")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Text("This recording has no authority recommendations linked to it.")
                             .font(ApproachNoteTheme.subheadline())
                             .foregroundColor(.secondary)
@@ -103,7 +103,7 @@ struct AuthorityRecommendationsView: View {
                                             } label: {
                                                 Label("Link", systemImage: "link")
                                             }
-                                            .tint(ApproachNoteTheme.teal)
+                                            .tint(ApproachNoteTheme.accent)
                                         }
                                         .onTapGesture {
                                             if let urlString = authority.sourceUrl,
@@ -382,27 +382,27 @@ struct AuthorityRowView: View {
             if let artist = authority.artistName {
                 Text(artist)
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
             }
             
             if let album = authority.albumTitle {
                 Text(album)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             
             // Year
             if let year = authority.recordingYear {
                 Text("(\(String(year)))")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
 
             // Recommendation text
             if let text = authority.recommendationText, !text.isEmpty {
                 Text(text)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .lineLimit(3)
                     .padding(.top, 4)
             }
@@ -433,10 +433,10 @@ struct UnmatchedAuthorityRowView: View {
                     // Unmatched indicator
                     Text("Unlinked")
                         .font(ApproachNoteTheme.caption2())
-                        .foregroundColor(ApproachNoteTheme.amber)
+                        .foregroundColor(ApproachNoteTheme.accent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(ApproachNoteTheme.amber.opacity(0.15))
+                        .background(ApproachNoteTheme.accent.opacity(0.15))
                         .cornerRadius(4)
                     
                     Spacer()
@@ -452,27 +452,27 @@ struct UnmatchedAuthorityRowView: View {
                 if let artist = authority.artistName {
                     Text(artist)
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
                 
                 if let album = authority.albumTitle {
                     Text(album)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 
                 // Year
                 if let year = authority.recordingYear {
                     Text("(\(String(year)))")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
 
             // Link hint icon
             Image(systemName: "link.badge.plus")
                 .font(ApproachNoteTheme.title3())
-                .foregroundColor(ApproachNoteTheme.teal.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.accent.opacity(0.5))
         }
         .padding(.vertical, 4)
     }

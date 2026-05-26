@@ -17,7 +17,7 @@ struct OnboardingView: View {
     var body: some View {
         ZStack {
             // Background
-            ApproachNoteTheme.backgroundLight
+            ApproachNoteTheme.background
                 .ignoresSafeArea()
 
             VStack(spacing: 0) {
@@ -47,7 +47,7 @@ struct OnboardingView: View {
                     HStack(spacing: 8) {
                         ForEach(0..<totalPages, id: \.self) { index in
                             Circle()
-                                .fill(index == currentPage ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.4))
+                                .fill(index == currentPage ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.4))
                                 .frame(width: 8, height: 8)
                         }
                     }
@@ -65,7 +65,7 @@ struct OnboardingView: View {
                                     Image(systemName: "chevron.left")
                                     Text("Back")
                                 }
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         } else {
                             Spacer()
@@ -84,7 +84,7 @@ struct OnboardingView: View {
                                     Text("Next")
                                     Image(systemName: "chevron.right")
                                 }
-                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                .foregroundColor(ApproachNoteTheme.brand)
                                 .fontWeight(.semibold)
                             }
                         } else {
@@ -104,7 +104,7 @@ struct OnboardingView: View {
                     Button("Skip") {
                         isPresented = false
                     }
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding()
                 }
                 Spacer()

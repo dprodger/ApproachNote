@@ -67,10 +67,10 @@ struct MacAddToRepertoireSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Add to Repertoire")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 Text(songTitle)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                    .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                     .lineLimit(1)
             }
 
@@ -78,13 +78,13 @@ struct MacAddToRepertoireSheet: View {
 
             Button(action: { dismiss() }) {
                 Text("Cancel")
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
             }
             .buttonStyle(.plain)
             .disabled(isAdding)
         }
         .padding()
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
     }
 
     // MARK: - Auth Required View
@@ -93,15 +93,15 @@ struct MacAddToRepertoireSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 48))
-                .foregroundColor(ApproachNoteTheme.burgundy.opacity(0.6))
+                .foregroundColor(ApproachNoteTheme.brand.opacity(0.6))
 
             Text("Sign In Required")
                 .font(ApproachNoteTheme.title2())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("You need to be signed in to add songs to repertoires")
                 .font(ApproachNoteTheme.body())
-                .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
@@ -109,10 +109,10 @@ struct MacAddToRepertoireSheet: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Loading View
@@ -122,10 +122,10 @@ struct MacAddToRepertoireSheet: View {
             ProgressView()
                 .controlSize(.large)
             Text("Loading repertoires...")
-                .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Empty Repertoires View
@@ -134,15 +134,15 @@ struct MacAddToRepertoireSheet: View {
         VStack(spacing: 20) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             Text("No Repertoires Yet")
                 .font(ApproachNoteTheme.title2())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("Create a repertoire first to start organizing your songs.")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
@@ -150,10 +150,10 @@ struct MacAddToRepertoireSheet: View {
                 showCreateRepertoire = true
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Repertoire List
@@ -166,7 +166,7 @@ struct MacAddToRepertoireSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Quick Add")
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.6))
+                            .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.6))
                             .padding(.horizontal)
                             .padding(.top, 12)
 
@@ -175,18 +175,18 @@ struct MacAddToRepertoireSheet: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text("Add to \(lastUsed.name)")
                                         .font(ApproachNoteTheme.headline())
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                     Text("Last used")
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.6))
+                                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.6))
                                 }
                                 Spacer()
                                 Image(systemName: "arrow.right.circle.fill")
                                     .font(.title2)
-                                    .foregroundColor(ApproachNoteTheme.amber)
+                                    .foregroundColor(ApproachNoteTheme.accent)
                             }
                             .padding()
-                            .background(ApproachNoteTheme.amber.opacity(0.1))
+                            .background(ApproachNoteTheme.accent.opacity(0.1))
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
@@ -199,7 +199,7 @@ struct MacAddToRepertoireSheet: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("All Repertoires")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.6))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.6))
                         .padding(.horizontal)
                         .padding(.top, 16)
 
@@ -209,23 +209,23 @@ struct MacAddToRepertoireSheet: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(repertoire.name)
                                         .font(ApproachNoteTheme.headline())
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
 
                                     if let description = repertoire.description, !description.isEmpty {
                                         Text(description)
                                             .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                                            .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                                             .lineLimit(2)
                                     }
 
                                     Text("\(repertoire.songCount) songs")
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                        .foregroundColor(ApproachNoteTheme.brand)
                                 }
                                 Spacer()
                             }
                             .padding()
-                            .background(ApproachNoteTheme.cardBackground)
+                            .background(ApproachNoteTheme.surface)
                             .cornerRadius(8)
                         }
                         .buttonStyle(.plain)
@@ -238,9 +238,9 @@ struct MacAddToRepertoireSheet: View {
                 Button(action: { showCreateRepertoire = true }) {
                     HStack {
                         Image(systemName: "plus.circle.fill")
-                            .foregroundColor(ApproachNoteTheme.burgundy)
+                            .foregroundColor(ApproachNoteTheme.brand)
                         Text("Create New Repertoire")
-                            .foregroundColor(ApproachNoteTheme.burgundy)
+                            .foregroundColor(ApproachNoteTheme.brand)
                         Spacer()
                     }
                     .padding()
@@ -251,7 +251,7 @@ struct MacAddToRepertoireSheet: View {
             }
             .padding(.bottom)
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Adding Overlay
@@ -267,7 +267,7 @@ struct MacAddToRepertoireSheet: View {
                     .font(ApproachNoteTheme.headline())
             }
             .padding(30)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(12)
         }
     }

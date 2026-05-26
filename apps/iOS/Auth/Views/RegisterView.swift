@@ -40,7 +40,7 @@ struct RegisterView: View {
                         Text("Create Account")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         Text("Join ApproachNote")
                             .font(.subheadline)
@@ -117,7 +117,7 @@ struct RegisterView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                     }
-                    .tint(ApproachNoteTheme.burgundy)
+                    .tint(ApproachNoteTheme.brand)
                     
                     // Error message
                     if let error = authManager.errorMessage {
@@ -151,7 +151,7 @@ struct RegisterView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .padding()
-                    .background(isFormValid ? ApproachNoteTheme.burgundy : Color.gray)
+                    .background(isFormValid ? ApproachNoteTheme.brand : Color.gray)
                     .foregroundColor(.white)
                     .cornerRadius(10)
                     .disabled(!isFormValid || authManager.isLoading)
@@ -167,7 +167,7 @@ struct RegisterView: View {
                     Button("Close") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
             }
         }

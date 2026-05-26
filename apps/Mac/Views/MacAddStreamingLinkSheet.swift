@@ -57,7 +57,7 @@ struct MacAddStreamingLinkSheet: View {
             footerView
         }
         .frame(width: 500, height: 400)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Header
@@ -67,11 +67,11 @@ struct MacAddStreamingLinkSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Add Streaming Link")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text(releaseTitle)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .lineLimit(1)
             }
 
@@ -82,7 +82,7 @@ struct MacAddStreamingLinkSheet: View {
             } label: {
                 Image(systemName: "xmark.circle.fill")
                     .font(.title2)
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .buttonStyle(.plain)
         }
@@ -95,7 +95,7 @@ struct MacAddStreamingLinkSheet: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Paste a streaming service URL")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
@@ -104,7 +104,7 @@ struct MacAddStreamingLinkSheet: View {
                         .font(.caption)
                     Text("Spotify: https://open.spotify.com/track/...")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
                 HStack(spacing: 8) {
@@ -113,7 +113,7 @@ struct MacAddStreamingLinkSheet: View {
                         .font(.caption)
                     Text("Apple Music: https://music.apple.com/.../song/...")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
                 HStack(spacing: 8) {
@@ -122,20 +122,20 @@ struct MacAddStreamingLinkSheet: View {
                         .font(.caption)
                     Text("YouTube: https://youtube.com/watch?v=...")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
                 HStack(spacing: 8) {
                     Image(systemName: "info.circle")
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .font(.caption)
                     Text("This link will be preserved during automatic re-matching")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
             .padding(12)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
         }
     }
@@ -146,7 +146,7 @@ struct MacAddStreamingLinkSheet: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Track URL or ID")
                 .font(ApproachNoteTheme.subheadline(weight: .medium))
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             HStack {
                 TextField("Paste URL here...", text: $urlInput)
@@ -161,7 +161,7 @@ struct MacAddStreamingLinkSheet: View {
                     }
                 } label: {
                     Image(systemName: "doc.on.clipboard")
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .buttonStyle(.plain)
                 .help("Paste from clipboard")
@@ -318,7 +318,7 @@ struct MacAddStreamingLinkSheet: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .disabled(urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
             .keyboardShortcut(.defaultAction)
         }

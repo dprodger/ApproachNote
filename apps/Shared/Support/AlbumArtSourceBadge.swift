@@ -46,7 +46,7 @@ struct AlbumArtSourceBadge: View {
             } label: {
                 Image(systemName: "info.circle")
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -85,20 +85,20 @@ private struct AlbumArtSourceSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Source")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     Text(source)
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
 
                 // License info
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Usage")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     Text(licenseInfo)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
 
                 // Source link
@@ -109,7 +109,7 @@ private struct AlbumArtSourceSheet: View {
                             Text("View on \(source)")
                         }
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding(.top, 8)
                 }
@@ -125,7 +125,7 @@ private struct AlbumArtSourceSheet: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
-                        .foregroundColor(ApproachNoteTheme.amber)
+                        .foregroundColor(ApproachNoteTheme.accent)
                 }
             }
         }

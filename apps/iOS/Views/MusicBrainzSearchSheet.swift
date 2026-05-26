@@ -33,7 +33,7 @@ struct MusicBrainzSearchSheet: View {
                     resultsList
                 }
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle("MusicBrainz Search")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -41,7 +41,7 @@ struct MusicBrainzSearchSheet: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
             .task {
@@ -99,7 +99,7 @@ struct MusicBrainzSearchSheet: View {
     private var loadingView: some View {
         VStack {
             Spacer()
-            ThemedProgressView(message: "Searching MusicBrainz...", tintColor: ApproachNoteTheme.burgundy)
+            ThemedProgressView(message: "Searching MusicBrainz...", tintColor: ApproachNoteTheme.brand)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -109,15 +109,15 @@ struct MusicBrainzSearchSheet: View {
         VStack(spacing: 16) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             Text("No Results Found")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("No works matching \"\(searchQuery)\" were found on MusicBrainz.")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
@@ -128,7 +128,7 @@ struct MusicBrainzSearchSheet: View {
                 }
             }
             .buttonStyle(.bordered)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .padding(.top, 8)
         }
         .padding()
@@ -145,16 +145,16 @@ struct MusicBrainzSearchSheet: View {
                         workRowView(work: work)
                     }
                     .buttonStyle(.plain)
-                    .listRowBackground(ApproachNoteTheme.cardBackground)
+                    .listRowBackground(ApproachNoteTheme.surface)
                 }
             } header: {
                 Text("Results for \"\(searchQuery)\"")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             } footer: {
                 Text("Tap a result to import it into your library.")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
         }
         .listStyle(.insetGrouped)
@@ -169,16 +169,16 @@ struct MusicBrainzSearchSheet: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(work.title)
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text(work.composerDisplay)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
 
                 if let type = work.type {
                     Text(type)
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
 
@@ -187,7 +187,7 @@ struct MusicBrainzSearchSheet: View {
             // Link to MusicBrainz
             Link(destination: URL(string: work.musicbrainzUrl)!) {
                 Image(systemName: "arrow.up.right.square")
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
             }
             .buttonStyle(.plain)
         }
@@ -198,8 +198,8 @@ struct MusicBrainzSearchSheet: View {
         let scoreValue = score ?? 0
         let color: Color = {
             if scoreValue >= 90 { return .green }
-            if scoreValue >= 70 { return ApproachNoteTheme.amber }
-            return ApproachNoteTheme.smokeGray
+            if scoreValue >= 70 { return ApproachNoteTheme.accent }
+            return ApproachNoteTheme.textSecondary
         }()
 
         return VStack(spacing: 2) {

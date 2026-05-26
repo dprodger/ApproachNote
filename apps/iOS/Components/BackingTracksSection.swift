@@ -42,31 +42,31 @@ struct BackingTracksSection: View {
                     label: {
                         HStack {
                             Image(systemName: "play.circle.fill")
-                                .foregroundColor(ApproachNoteTheme.green)
+                                .foregroundColor(ApproachNoteTheme.accent)
                             Text("Backing Tracks")
                                 .font(ApproachNoteTheme.title2())
                                 .bold()
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
 
                             Spacer()
 
                             Text("\(videos.count)")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(ApproachNoteTheme.green.opacity(0.1))
+                                .background(ApproachNoteTheme.accent.opacity(0.1))
                                 .cornerRadius(6)
                         }
                         .padding(.vertical, 12)
                     }
                 )
-                .tint(ApproachNoteTheme.green)
+                .tint(ApproachNoteTheme.accent)
             }
 
             Spacer().frame(width: 16)
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .sheet(item: $selectedVideo) { video in
                 VideoPlayerSheet(video: video)
             }
@@ -86,12 +86,12 @@ struct VideoRowView: View {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.green.opacity(0.15))
+                        .fill(ApproachNoteTheme.accent.opacity(0.15))
                         .frame(width: 80, height: 45)
 
                     Image(systemName: "play.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.green)
+                        .foregroundColor(ApproachNoteTheme.accent)
                 }
 
                 // Video info
@@ -99,7 +99,7 @@ struct VideoRowView: View {
                     // Video title
                     Text(video.title ?? "Backing Track")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
 
@@ -108,33 +108,33 @@ struct VideoRowView: View {
                         if let duration = video.durationSeconds {
                             HStack(spacing: 4) {
                                 Image(systemName: "clock")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(formatDuration(duration))
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let tempo = video.tempo {
                             HStack(spacing: 4) {
                                 Image(systemName: "metronome")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text("\(tempo) BPM")
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let key = video.keySignature {
                             HStack(spacing: 4) {
                                 Image(systemName: "music.note")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(key)
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                     }
@@ -145,11 +145,11 @@ struct VideoRowView: View {
                 // Chevron indicator
                 Image(systemName: "chevron.right")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(10)
             .padding(.horizontal)
         }
@@ -208,36 +208,36 @@ struct VideoPlayerSheet: View {
                     if let description = video.description, !description.isEmpty {
                         Text(description)
                             .font(ApproachNoteTheme.body())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
 
                     if let duration = video.durationSeconds {
                         HStack(spacing: 4) {
                             Image(systemName: "clock")
-                                .foregroundColor(ApproachNoteTheme.brass)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Duration: \(formatDuration(duration))")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                     }
 
                     if let tempo = video.tempo {
                         HStack(spacing: 4) {
                             Image(systemName: "metronome")
-                                .foregroundColor(ApproachNoteTheme.brass)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Tempo: \(tempo) BPM")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                     }
 
                     if let key = video.keySignature {
                         HStack(spacing: 4) {
                             Image(systemName: "music.note")
-                                .foregroundColor(ApproachNoteTheme.brass)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Key: \(key)")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                     }
                 }
@@ -246,7 +246,7 @@ struct VideoPlayerSheet: View {
 
                 Spacer()
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle(video.title ?? "Backing Track")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

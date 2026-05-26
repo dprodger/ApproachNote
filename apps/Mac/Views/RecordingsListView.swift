@@ -41,8 +41,8 @@ enum RecordingAvailabilityFilter: String, CaseIterable, Identifiable {
 
     var iconColor: Color {
         switch self {
-        case .all: return ApproachNoteTheme.smokeGray
-        case .playable: return ApproachNoteTheme.burgundy
+        case .all: return ApproachNoteTheme.textSecondary
+        case .playable: return ApproachNoteTheme.brand
         case .spotify: return .green
         case .appleMusic: return .pink
         case .youtube: return .red
@@ -69,9 +69,9 @@ enum RecordingVocalFilter: String, CaseIterable, Identifiable {
 
     var iconColor: Color {
         switch self {
-        case .all: return ApproachNoteTheme.smokeGray
-        case .instrumental: return ApproachNoteTheme.brass
-        case .vocal: return ApproachNoteTheme.burgundy
+        case .all: return ApproachNoteTheme.textSecondary
+        case .instrumental: return ApproachNoteTheme.textSecondary
+        case .vocal: return ApproachNoteTheme.brand
         }
     }
 }
@@ -168,18 +168,18 @@ struct RecordingsListView: View {
                     HStack {
                         Text("\(filteredRecordings.count) of \(recordingService.recordings.count) recordings")
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                         Spacer()
                         Button("Clear Filters") {
                             clearFilters()
                         }
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                 }
 
                 // No results message
@@ -187,10 +187,10 @@ struct RecordingsListView: View {
                     VStack(spacing: 12) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 32))
-                            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                         Text("No recordings match your filters")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                         if hasActiveFilters {
                             Button("Clear Filters") {
                                 clearFilters()
@@ -199,7 +199,7 @@ struct RecordingsListView: View {
                         }
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(ApproachNoteTheme.backgroundLight)
+                    .background(ApproachNoteTheme.background)
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 0) {
@@ -207,7 +207,7 @@ struct RecordingsListView: View {
                                 RecordingRowView(recording: recording)
                                     .padding(.horizontal, 12)
                                     .padding(.vertical, 6)
-                                    .background(selectedRecordingId == recording.id ? ApproachNoteTheme.burgundy.opacity(0.15) : Color.clear)
+                                    .background(selectedRecordingId == recording.id ? ApproachNoteTheme.brand.opacity(0.15) : Color.clear)
                                     .contentShape(Rectangle())
                                     .onTapGesture {
                                         selectedRecordingId = recording.id
@@ -221,7 +221,7 @@ struct RecordingsListView: View {
                 }
             }
             .frame(minWidth: 200, idealWidth: 250, maxWidth: 300)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .environment(\.colorScheme, .light)
 
             // Recording detail (right pane)
@@ -232,13 +232,13 @@ struct RecordingsListView: View {
                 VStack {
                     Image(systemName: "opticaldisc")
                         .font(.system(size: 60))
-                        .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                        .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                     Text("Select a recording")
                         .font(ApproachNoteTheme.title2())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(ApproachNoteTheme.backgroundLight)
+                .background(ApproachNoteTheme.background)
             }
         }
         .onChange(of: searchText) { _, newValue in
@@ -260,7 +260,7 @@ struct RecordingsListView: View {
             MacSearchBar(
                 text: $searchText,
                 placeholder: "Search recordings...",
-                backgroundColor: ApproachNoteTheme.brass
+                backgroundColor: ApproachNoteTheme.textSecondary
             )
 
             // Availability row
@@ -287,13 +287,13 @@ struct RecordingsListView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: availabilityFilter.icon)
-                            .foregroundColor(availabilityFilter == .all ? ApproachNoteTheme.charcoal : availabilityFilter.iconColor)
+                            .foregroundColor(availabilityFilter == .all ? ApproachNoteTheme.textPrimary : availabilityFilter.iconColor)
                         Text(availabilityFilter.rawValue)
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Image(systemName: "chevron.down")
                             .font(ApproachNoteTheme.caption2())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -301,7 +301,7 @@ struct RecordingsListView: View {
                     .cornerRadius(8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
+                            .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
                     )
                 }
                 .menuStyle(.borderlessButton)
@@ -341,13 +341,13 @@ struct RecordingsListView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Image(systemName: vocalFilter.icon)
-                            .foregroundColor(vocalFilter == .all ? ApproachNoteTheme.charcoal : vocalFilter.iconColor)
+                            .foregroundColor(vocalFilter == .all ? ApproachNoteTheme.textPrimary : vocalFilter.iconColor)
                         Text(vocalFilter.rawValue)
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Image(systemName: "chevron.down")
                             .font(ApproachNoteTheme.caption2())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
                     .padding(.horizontal, 10)
                     .padding(.vertical, 6)
@@ -355,7 +355,7 @@ struct RecordingsListView: View {
                     .cornerRadius(8)
                     .overlay(
                         RoundedRectangle(cornerRadius: 8)
-                            .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
+                            .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
                     )
                 }
                 .menuStyle(.borderlessButton)
@@ -392,7 +392,7 @@ struct RecordingsListView: View {
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
-        .background(ApproachNoteTheme.brass)
+        .background(ApproachNoteTheme.textSecondary)
         .environment(\.colorScheme, .light)
     }
 
@@ -421,15 +421,15 @@ struct RecordingRowView: View {
                             .aspectRatio(contentMode: .fill)
                     } placeholder: {
                         Rectangle()
-                            .fill(ApproachNoteTheme.cardBackground)
+                            .fill(ApproachNoteTheme.surface)
                             .overlay { ProgressView().controlSize(.small) }
                     }
                 } else {
                     Rectangle()
-                        .fill(ApproachNoteTheme.cardBackground)
+                        .fill(ApproachNoteTheme.surface)
                         .overlay {
                             Image(systemName: "music.note")
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                 }
             }
@@ -439,14 +439,14 @@ struct RecordingRowView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(1)
                     .help("Album: \(recording.albumTitle ?? "Unknown Album")")
 
                 if let songTitle = recording.songTitle {
                     Text(songTitle)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1)
                         .help("Song: \(songTitle)")
                 }
@@ -454,7 +454,7 @@ struct RecordingRowView: View {
                 if let artistCredit = recording.artistCredit {
                     Text(artistCredit)
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1)
                         .help("Artist: \(artistCredit)")
                 }
@@ -463,16 +463,16 @@ struct RecordingRowView: View {
                     if let year = recording.recordingYear {
                         Text(String(year))
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
 
                     if let label = recording.label {
                         Text("•")
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                         Text(label)
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .lineLimit(1)
                     }
                 }

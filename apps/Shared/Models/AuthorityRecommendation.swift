@@ -100,7 +100,7 @@ struct AuthorityRecommendation: Codable, Identifiable {
         case "allmusic":
             return .orange
         default:
-            return ApproachNoteTheme.brass
+            return ApproachNoteTheme.textSecondary
         }
     }
 }

@@ -43,10 +43,10 @@ struct ResearchStatusBanner: View {
                         Text(title)
                             .font(ApproachNoteTheme.subheadline())
                             .fontWeight(.semibold)
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Text(message)
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
 
                     Spacer()
@@ -54,7 +54,7 @@ struct ResearchStatusBanner: View {
                     // Chevron to indicate expandable
                     Image(systemName: showHelperText ? "chevron.up" : "chevron.down")
                         .font(.system(size: 12))
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .padding(12)
                 .background(iconColor.opacity(0.1))
@@ -66,7 +66,7 @@ struct ResearchStatusBanner: View {
             if showHelperText {
                 Text(helperText)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding(.horizontal, 12)
                     .padding(.bottom, 4)
                     .transition(.opacity.combined(with: .move(edge: .top)))
@@ -80,7 +80,7 @@ struct ResearchStatusBanner: View {
     VStack {
         ResearchStatusBanner(
             icon: "waveform.circle.fill",
-            iconColor: ApproachNoteTheme.burgundy,
+            iconColor: ApproachNoteTheme.brand,
             title: "Researching Now",
             message: "Importing MusicBrainz recordings (3/10)",
             helperText: "We're scouring the internet to learn more about this song... Check back in a while to see what we've found.",
@@ -96,7 +96,7 @@ struct ResearchStatusBanner: View {
     VStack {
         ResearchStatusBanner(
             icon: "clock.fill",
-            iconColor: ApproachNoteTheme.amber,
+            iconColor: ApproachNoteTheme.accent,
             title: "In Research Queue",
             message: "Position 3 in queue",
             helperText: "This song is in the queue to get researched... Check back in a while to see what we've found.",

@@ -37,10 +37,10 @@ struct MacResearchStatusBanner: View {
                     Text(title)
                         .font(ApproachNoteTheme.subheadline())
                         .fontWeight(.semibold)
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text(message)
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
                 Spacer()
@@ -48,7 +48,7 @@ struct MacResearchStatusBanner: View {
                 // Info icon to indicate hoverable
                 Image(systemName: "info.circle")
                     .font(.system(size: 12))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding(10)
             .background(iconColor.opacity(0.1))
@@ -62,7 +62,7 @@ struct MacResearchStatusBanner: View {
             if isHovering {
                 Text(helperText)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding(.horizontal, 10)
                     .transition(.opacity)
             }
@@ -76,7 +76,7 @@ struct MacResearchStatusBanner: View {
     VStack {
         MacResearchStatusBanner(
             icon: "waveform.circle.fill",
-            iconColor: ApproachNoteTheme.burgundy,
+            iconColor: ApproachNoteTheme.brand,
             title: "Researching Now",
             message: "Importing MusicBrainz recordings (3/10)",
             helperText: "We're scouring the internet to learn more about this song... Check back in a while to see what we've found.",
@@ -93,7 +93,7 @@ struct MacResearchStatusBanner: View {
     VStack {
         MacResearchStatusBanner(
             icon: "clock.fill",
-            iconColor: ApproachNoteTheme.amber,
+            iconColor: ApproachNoteTheme.accent,
             title: "In Research Queue",
             message: "Position 3 in queue",
             helperText: "This song is in the queue to get researched... Check back in a while to see what we've found.",

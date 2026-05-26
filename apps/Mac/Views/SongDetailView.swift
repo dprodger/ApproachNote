@@ -123,19 +123,19 @@ struct SongDetailView: View {
                 VStack(spacing: 16) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 50))
-                        .foregroundColor(ApproachNoteTheme.amber)
+                        .foregroundColor(ApproachNoteTheme.accent)
                     Text("Unable to load song")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("There was a problem loading the song details.")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding(.top, 100)
             }
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .sheet(isPresented: $showAddToRepertoire) {
             if let song = song {
                 MacAddToRepertoireSheet(
@@ -200,10 +200,10 @@ struct SongDetailView: View {
                 // Title with composed year
                 Text(song.title)
                     .font(ApproachNoteTheme.largeTitle(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
                     .font(ApproachNoteTheme.largeTitle(weight: .regular))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
 
                 Spacer()
 
@@ -249,7 +249,7 @@ struct SongDetailView: View {
                         .padding(.vertical, 4)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(ApproachNoteTheme.burgundy)
+                .tint(ApproachNoteTheme.brand)
                 .help("Add this song to a repertoire")
             }
 
@@ -257,18 +257,18 @@ struct SongDetailView: View {
             if let composer = song.composer {
                 Text("Composed by \(composer)")
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
             }
 
             // Song Reference (if available)
             if let songRef = song.songReference {
                 HStack(alignment: .top, spacing: 8) {
                     Image(systemName: "book.closed.fill")
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .font(ApproachNoteTheme.subheadline())
                     Text(songRef)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.top, 4)
@@ -309,7 +309,7 @@ struct SongDetailView: View {
         case .currentlyResearching(let progress):
             MacResearchStatusBanner(
                 icon: "waveform.circle.fill",
-                iconColor: ApproachNoteTheme.burgundy,
+                iconColor: ApproachNoteTheme.brand,
                 title: "Researching Now",
                 message: viewModel.researchingMessage(progress: progress),
                 helperText: researchStatusHelperText,
@@ -318,7 +318,7 @@ struct SongDetailView: View {
         case .inQueue(let position):
             MacResearchStatusBanner(
                 icon: "clock.fill",
-                iconColor: ApproachNoteTheme.amber,
+                iconColor: ApproachNoteTheme.accent,
                 title: "In Research Queue",
                 message: "Position \(position) in queue",
                 helperText: researchStatusHelperText,
@@ -348,10 +348,10 @@ struct SongDetailView: View {
                     .frame(width: 24)
                 Text(label)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 Spacer()
                 Image(systemName: "arrow.up.right.square")
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .font(ApproachNoteTheme.caption())
             }
             .padding(.vertical, 6)
@@ -367,14 +367,14 @@ struct SongDetailView: View {
                     .foregroundColor(color)
                 Text(label)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 Image(systemName: "arrow.up.right")
                     .font(ApproachNoteTheme.caption2())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 8)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
         }
         .buttonStyle(.plain)
@@ -386,14 +386,14 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
                 if let wikiUrlString = song.wikipediaUrl,
                    let wikiUrl = URL(string: wikiUrlString) {
                     Link("Read more on Wikipedia", destination: wikiUrl)
                         .font(ApproachNoteTheme.body())
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -404,13 +404,13 @@ struct SongDetailView: View {
     private func composedKeyRow(_ composedKey: String) -> some View {
         HStack(spacing: 8) {
             Image(systemName: "tuningfork")
-                .foregroundColor(ApproachNoteTheme.brass)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
             Text("Original Key:")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             Text(composedKey)
                 .font(ApproachNoteTheme.body())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
         }
     }
 
@@ -419,17 +419,17 @@ struct SongDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Learn More")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             HStack(spacing: 12) {
                 if let wikipediaUrl = song.wikipediaUrl, let url = URL(string: wikipediaUrl) {
-                    compactExternalLink(icon: "book.fill", label: "Wikipedia", color: ApproachNoteTheme.teal, url: url)
+                    compactExternalLink(icon: "book.fill", label: "Wikipedia", color: ApproachNoteTheme.accent, url: url)
                 }
                 if let jazzStandardsUrl = song.externalReferences?["jazzstandards"], let url = URL(string: jazzStandardsUrl) {
-                    compactExternalLink(icon: "music.note.list", label: "JazzStandards.com", color: ApproachNoteTheme.brass, url: url)
+                    compactExternalLink(icon: "music.note.list", label: "JazzStandards.com", color: ApproachNoteTheme.textSecondary, url: url)
                 }
                 if let musicbrainzId = song.musicbrainzId, let url = URL(string: "https://musicbrainz.org/work/\(musicbrainzId)") {
-                    compactExternalLink(icon: "waveform.circle.fill", label: "MusicBrainz", color: ApproachNoteTheme.charcoal, url: url)
+                    compactExternalLink(icon: "waveform.circle.fill", label: "MusicBrainz", color: ApproachNoteTheme.textPrimary, url: url)
                 }
             }
         }
@@ -466,11 +466,11 @@ struct SongDetailView: View {
                 Text("MORE RECORDINGS")
                     .font(ApproachNoteTheme.title2())
                     .bold()
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("(\(filtered.count))")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
 
                 Spacer()
             }
@@ -484,10 +484,10 @@ struct SongDetailView: View {
                         Image(systemName: "slider.horizontal.3")
                             .font(.caption)
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -513,10 +513,10 @@ struct SongDetailView: View {
                         Image(systemName: "chevron.down")
                             .font(.caption)
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                 }
                 .menuStyle(.borderlessButton)
@@ -530,20 +530,20 @@ struct SongDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Playable only?")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("Toggle On to hide versions of this song without a linked recording to listen to.")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
 
             // Performance Type segmented (always visible)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Performance Type")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Picker("Performance Type", selection: $selectedVocalFilter) {
                     ForEach(VocalFilter.allCases) { filter in
@@ -560,7 +560,7 @@ struct SongDetailView: View {
                         .scaleEffect(1.2)
                     Text("Loading recordings...")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -568,10 +568,10 @@ struct SongDetailView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "music.note")
                         .font(.system(size: 40))
-                        .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                        .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                     Text("No recordings match the current filters")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     Button("Clear Filters") {
                         playableOnly = false
                         selectedServices.removeAll()
@@ -593,7 +593,7 @@ struct SongDetailView: View {
                         // Group header
                         Text("\(group.groupKey) (\(group.recordings.count))")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.burgundy)
+                            .foregroundColor(ApproachNoteTheme.brand)
                             .padding(.top, 8)
 
                         // Horizontal scroll of recordings in this group
@@ -649,10 +649,10 @@ struct SongDetailView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Playback availability")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("Select which service(s) you'd like to include for playback")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
                     VStack(alignment: .leading, spacing: 4) {
@@ -669,9 +669,9 @@ struct SongDetailView: View {
                             )) {
                                 Text(service.displayName)
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
-                            .tint(ApproachNoteTheme.burgundy)
+                            .tint(ApproachNoteTheme.brand)
                         }
                     }
                     .padding(.top, 4)
@@ -682,10 +682,10 @@ struct SongDetailView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("By Instrument")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Text("Select to filter for recordings that feature a specific instrument")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
 
                         LazyVGrid(columns: [
@@ -708,12 +708,12 @@ struct SongDetailView: View {
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 8)
                                     .padding(.horizontal, 8)
-                                    .background(selectedInstrument == family ? ApproachNoteTheme.brass : Color.white)
-                                    .foregroundColor(selectedInstrument == family ? .white : ApproachNoteTheme.charcoal)
+                                    .background(selectedInstrument == family ? ApproachNoteTheme.textSecondary : Color.white)
+                                    .foregroundColor(selectedInstrument == family ? .white : ApproachNoteTheme.textPrimary)
                                     .cornerRadius(8)
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 8)
-                                            .stroke(selectedInstrument == family ? Color.clear : ApproachNoteTheme.smokeGray.opacity(0.5), lineWidth: 1)
+                                            .stroke(selectedInstrument == family ? Color.clear : ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
                                     )
                                 }
                                 .buttonStyle(.plain)
@@ -730,7 +730,7 @@ struct SongDetailView: View {
                             selectedInstrument = nil
                         }
                         .buttonStyle(.link)
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                     }
                     Spacer()
                     Button("Done") { showFilterPopover = false }
@@ -751,11 +751,11 @@ struct SongDetailView: View {
             Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("Take a look at these important recordings for this song.")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
 
             let parentSongTitle = song?.title
             let carouselHasAnyDistinctTitle = recordings.contains { recording in
@@ -787,19 +787,19 @@ struct SongDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "music.quarternote.3")
-                    .foregroundColor(ApproachNoteTheme.teal)
+                    .foregroundColor(ApproachNoteTheme.accent)
                 Text("Solo Transcriptions")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Spacer()
 
                 Text("\(transcriptions.count)")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(ApproachNoteTheme.teal.opacity(0.1))
+                    .background(ApproachNoteTheme.accent.opacity(0.1))
                     .cornerRadius(6)
             }
 
@@ -808,7 +808,7 @@ struct SongDetailView: View {
             }
         }
         .padding(16)
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(12)
     }
 
@@ -819,19 +819,19 @@ struct SongDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Image(systemName: "play.circle.fill")
-                    .foregroundColor(ApproachNoteTheme.green)
+                    .foregroundColor(ApproachNoteTheme.accent)
                 Text("Backing Tracks")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Spacer()
 
                 Text("\(backingTracks.count)")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(ApproachNoteTheme.green.opacity(0.1))
+                    .background(ApproachNoteTheme.accent.opacity(0.1))
                     .cornerRadius(6)
             }
 
@@ -840,7 +840,7 @@ struct SongDetailView: View {
             }
         }
         .padding(16)
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(12)
     }
 

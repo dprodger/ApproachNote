@@ -48,7 +48,7 @@ struct SongsListView: View {
             MacSearchBar(
                 text: $searchText,
                 placeholder: "Search songs...",
-                backgroundColor: ApproachNoteTheme.burgundy
+                backgroundColor: ApproachNoteTheme.brand
             )
 
             if songService.songs.isEmpty && !searchText.isEmpty {
@@ -58,7 +58,7 @@ struct SongsListView: View {
             }
         }
         .frame(minWidth: 200, idealWidth: 250, maxWidth: 300)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .sheet(isPresented: $showMusicBrainzSearch) {
             MusicBrainzSearchSheet(
                 searchQuery: searchText,
@@ -80,8 +80,8 @@ struct SongsListView: View {
                             .tag(song.id)
                             .listRowBackground(
                                 selectedSongId == song.id
-                                    ? ApproachNoteTheme.burgundy
-                                    : ApproachNoteTheme.backgroundLight
+                                    ? ApproachNoteTheme.brand
+                                    : ApproachNoteTheme.background
                             )
                     }
                 }
@@ -89,7 +89,7 @@ struct SongsListView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .listSectionSeparator(.hidden)
     }
 
@@ -104,7 +104,7 @@ struct SongsListView: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .background(
-            ApproachNoteTheme.burgundy
+            ApproachNoteTheme.brand
                 .padding(.horizontal, -20)
                 .padding(.vertical, -4)
         )
@@ -122,13 +122,13 @@ struct SongsListView: View {
             VStack {
                 Image(systemName: "music.note")
                     .font(.system(size: 60))
-                    .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                    .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                 Text("Select a song")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
         }
     }
 
@@ -167,15 +167,15 @@ struct SongsListView: View {
         VStack(spacing: 12) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             Text("No Results")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("No songs match \"\(searchText)\"")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
             Button(action: {
@@ -188,12 +188,12 @@ struct SongsListView: View {
                 .font(ApproachNoteTheme.subheadline())
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .padding(.top, 4)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 }
 
@@ -207,11 +207,11 @@ struct SongRowView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(song.title)
                 .font(ApproachNoteTheme.headline())
-                .foregroundStyle(isSelected ? Color.white : ApproachNoteTheme.charcoal)
+                .foregroundStyle(isSelected ? Color.white : ApproachNoteTheme.textPrimary)
             if let composer = song.composer {
                 Text(composer)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.smokeGray)
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.textSecondary)
             }
         }
         .padding(.vertical, 4)

@@ -137,7 +137,7 @@ struct ExternalReferencesPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Learn More")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             
             VStack(spacing: 10) {
                 // Wikipedia
@@ -145,7 +145,7 @@ struct ExternalReferencesPanel: View {
                     ExternalLinkButton(
                         icon: "book.fill",
                         label: "Wikipedia",
-                        color: ApproachNoteTheme.teal,
+                        color: ApproachNoteTheme.accent,
                         url: wikipediaURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "Wikipedia", url: wikipediaURL)
@@ -158,7 +158,7 @@ struct ExternalReferencesPanel: View {
                     ExternalLinkButton(
                         icon: "music.note",
                         label: "Jazz Standards",
-                        color: ApproachNoteTheme.amber,
+                        color: ApproachNoteTheme.accent,
                         url: jazzStandardsURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "JazzStandards.com", url: jazzStandardsURL)
@@ -171,7 +171,7 @@ struct ExternalReferencesPanel: View {
                     ExternalLinkButton(
                         icon: "waveform.circle.fill",
                         label: "MusicBrainz",
-                        color: ApproachNoteTheme.charcoal,
+                        color: ApproachNoteTheme.textPrimary,
                         url: musicbrainzURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "MusicBrainz", url: musicbrainzURL)
@@ -182,7 +182,7 @@ struct ExternalReferencesPanel: View {
         }
         .padding(showsBackground ? EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
                                  : EdgeInsets())
-        .background(showsBackground ? ApproachNoteTheme.cardBackground : Color.clear)
+        .background(showsBackground ? ApproachNoteTheme.surface : Color.clear)
         .cornerRadius(showsBackground ? 10 : 0)
         .sheet(item: $reportingInfo) { info in
             ReportLinkIssueView(
@@ -264,11 +264,11 @@ struct ExternalLinkButton: View {
                     .foregroundColor(color)
                 Text(label)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                 Spacer()
                 Image(systemName: "arrow.up.right")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding()
             .background(Color.white)

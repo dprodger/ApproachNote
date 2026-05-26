@@ -20,52 +20,52 @@ struct BackingTrackRow: View {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.green.opacity(0.15))
+                        .fill(ApproachNoteTheme.accent.opacity(0.15))
                         .frame(width: 80, height: 45)
 
                     Image(systemName: "play.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.green)
+                        .foregroundColor(ApproachNoteTheme.accent)
                 }
 
                 // Video info
                 VStack(alignment: .leading, spacing: 4) {
                     Text(video.title ?? "Backing Track")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                         .lineLimit(2)
 
                     HStack(spacing: 8) {
                         if let duration = video.durationSeconds {
                             HStack(spacing: 4) {
                                 Image(systemName: "clock")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(formatDuration(duration))
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let tempo = video.tempo {
                             HStack(spacing: 4) {
                                 Image(systemName: "metronome")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text("\(tempo) BPM")
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let key = video.keySignature {
                             HStack(spacing: 4) {
                                 Image(systemName: "music.note")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                                 Text(key)
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                     }
@@ -81,11 +81,11 @@ struct BackingTrackRow: View {
                 }
             }
             .padding()
-            .background(isHovering ? ApproachNoteTheme.backgroundLight : Color.white)
+            .background(isHovering ? ApproachNoteTheme.background : Color.white)
             .cornerRadius(10)
             .overlay(
                 RoundedRectangle(cornerRadius: 10)
-                    .stroke(isHovering ? ApproachNoteTheme.green.opacity(0.5) : Color.clear, lineWidth: 2)
+                    .stroke(isHovering ? ApproachNoteTheme.accent.opacity(0.5) : Color.clear, lineWidth: 2)
             )
         }
         .buttonStyle(.plain)

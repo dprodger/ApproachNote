@@ -30,22 +30,22 @@ struct ReportLinkIssueView: View {
                         Text("Report a Problem")
                             .font(ApproachNoteTheme.title3())
                             .fontWeight(.semibold)
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         Text("Help us improve the quality of our external references by reporting broken or incorrect links.")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(10)
                     
                     // Entity Information Card
                     VStack(alignment: .leading, spacing: 12) {
                         Text("About This \(entityType)")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         VStack(alignment: .leading, spacing: 8) {
                             IssueInfoRow(label: "Name", value: entityName)
@@ -55,14 +55,14 @@ struct ReportLinkIssueView: View {
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(10)
                     
                     // External Reference Card
                     VStack(alignment: .leading, spacing: 12) {
                         Text("External Link")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         VStack(alignment: .leading, spacing: 8) {
                             IssueInfoRow(label: "Source", value: externalSource)
@@ -71,25 +71,25 @@ struct ReportLinkIssueView: View {
                                 Text("URL")
                                     .font(ApproachNoteTheme.caption())
                                     .fontWeight(.medium)
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 
                                 Text(externalUrl)
                                     .font(.system(.caption, design: .monospaced))
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                     .lineLimit(3)
                             }
                         }
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(10)
                     
                     // Explanation Input
                     VStack(alignment: .leading, spacing: 12) {
                         Text("What's Wrong?")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         TextEditor(text: $explanation)
                             .frame(minHeight: 120)
@@ -98,16 +98,16 @@ struct ReportLinkIssueView: View {
                             .cornerRadius(8)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 8)
-                                    .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
+                                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
                             )
                         
                         Text("Examples: broken link, incorrect information, wrong page, outdated content")
                             .font(ApproachNoteTheme.caption(italic: true))
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding()
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(10)
                 }
                 .padding()
@@ -145,11 +145,11 @@ struct IssueInfoRow: View {
             Text(label)
                 .font(ApproachNoteTheme.caption())
                 .fontWeight(.medium)
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
             
             Text(value)
                 .font(isMonospace ? .system(.body, design: .monospaced) : .body)
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
         }
     }
 }

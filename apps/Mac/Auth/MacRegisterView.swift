@@ -35,7 +35,7 @@ struct MacRegisterView: View {
             VStack(spacing: 8) {
                 Text("Create Account")
                     .font(ApproachNoteTheme.title())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("Join ApproachNote")
                     .font(ApproachNoteTheme.subheadline())
@@ -126,7 +126,7 @@ struct MacRegisterView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .disabled(!isFormValid || authManager.isLoading)
 

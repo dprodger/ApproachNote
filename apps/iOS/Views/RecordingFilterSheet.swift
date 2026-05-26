@@ -23,11 +23,11 @@ struct RecordingFilterSheet: View {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Playback availability")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
 
                         Text("Select which service(s) you'd like to include for playback")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
 
                         VStack(alignment: .leading, spacing: 4) {
                             ForEach(StreamingService.allCases) { service in
@@ -42,11 +42,11 @@ struct RecordingFilterSheet: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("By Instrument")
                                 .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
 
                             Text("Select to filter for recordings that feature a specific instrument")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
 
                             LazyVGrid(columns: [
                                 GridItem(.flexible()),
@@ -65,7 +65,7 @@ struct RecordingFilterSheet: View {
                 }
                 .padding()
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle("Filter Recordings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -74,7 +74,7 @@ struct RecordingFilterSheet: View {
                         Button("Clear All") {
                             clearAllFilters()
                         }
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                     }
                 }
 
@@ -83,7 +83,7 @@ struct RecordingFilterSheet: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
         }
@@ -107,11 +107,11 @@ struct RecordingFilterSheet: View {
             HStack(spacing: 12) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(ApproachNoteTheme.title3())
-                    .foregroundColor(isSelected ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.5))
+                    .foregroundColor(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.5))
 
                 Text(service.displayName)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Spacer()
             }
@@ -143,12 +143,12 @@ struct RecordingFilterSheet: View {
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
             .padding(.horizontal, 8)
-            .background(isSelected ? ApproachNoteTheme.brass : Color.white)
-            .foregroundColor(isSelected ? .white : ApproachNoteTheme.charcoal)
+            .background(isSelected ? ApproachNoteTheme.textSecondary : Color.white)
+            .foregroundColor(isSelected ? .white : ApproachNoteTheme.textPrimary)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.clear : ApproachNoteTheme.smokeGray.opacity(0.5), lineWidth: 1)
+                    .stroke(isSelected ? Color.clear : ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
             )
         }
         .buttonStyle(.plain)

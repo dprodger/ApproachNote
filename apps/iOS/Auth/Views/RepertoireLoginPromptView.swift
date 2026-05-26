@@ -21,7 +21,7 @@ struct RepertoireLoginPromptView: View {
                     Text("Sign up or Sign In")
                         .font(.title)
                         .fontWeight(.bold)
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
 
                     Text("To use the repertoire feature, you need to have an account. Create one now, or sign in below.")
                         .font(.subheadline)

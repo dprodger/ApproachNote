@@ -67,10 +67,10 @@ struct RecordingsSection: View {
                     VStack(spacing: 12) {
                         Image(systemName: "music.note")
                             .font(.system(size: 48))
-                            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                         Text("No recordings match the current filters")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
@@ -83,10 +83,10 @@ struct RecordingsSection: View {
                 if isReloading {
                     HStack(spacing: 8) {
                         ProgressView()
-                            .tint(ApproachNoteTheme.burgundy)
+                            .tint(ApproachNoteTheme.brand)
                         Text("Reloading...")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 10)
@@ -99,7 +99,7 @@ struct RecordingsSection: View {
             .opacity(isReloading ? 0.5 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: isReloading)
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .sheet(isPresented: $showFilterSheet) {
             RecordingFilterSheet(
                 selectedServices: $selectedServices,
@@ -117,11 +117,11 @@ struct RecordingsSection: View {
             Text("MORE RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("(\(filteredRecordings.count))")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
 
             Spacer()
         }
@@ -141,10 +141,10 @@ struct RecordingsSection: View {
                         Image(systemName: "slider.horizontal.3")
                             .font(.caption)
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
@@ -173,10 +173,10 @@ struct RecordingsSection: View {
                         Image(systemName: "chevron.down")
                             .font(.caption)
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                 }
 
@@ -188,20 +188,20 @@ struct RecordingsSection: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Playable only?")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("Toggle On to hide versions of this song without a linked recording to listen to.")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
 
             // Performance Type segmented
             VStack(alignment: .leading, spacing: 8) {
                 Text("Performance Type")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Picker("Performance Type", selection: $selectedVocalFilter) {
                     ForEach(VocalFilter.allCases) { filter in
@@ -232,10 +232,10 @@ struct RecordingsSection: View {
                 HStack {
                     Text("\(group.groupKey) (\(group.recordings.count))")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.burgundy)
+                        .foregroundColor(ApproachNoteTheme.brand)
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
@@ -269,7 +269,7 @@ struct RecordingsSection: View {
                 .padding(.bottom, 8)
             }
         }
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(8)
     }
 

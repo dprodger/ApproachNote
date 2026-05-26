@@ -28,7 +28,7 @@ enum ToastType {
         switch self {
         case .success: return .green
         case .error: return .red
-        case .info: return ApproachNoteTheme.brass
+        case .info: return ApproachNoteTheme.textSecondary
         case .warning: return .orange
         }
     }
@@ -58,7 +58,7 @@ struct ToastView: View {
             
             Text(toast.message)
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
             
             Spacer(minLength: 8)
@@ -66,7 +66,7 @@ struct ToastView: View {
             Button(action: onDismiss) {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .buttonStyle(.plain)
         }
@@ -110,7 +110,7 @@ struct ToastContainerView: View {
         Spacer()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(ApproachNoteTheme.backgroundLight)
+    .background(ApproachNoteTheme.background)
 }
 
 #Preview("Error Toast") {
@@ -122,7 +122,7 @@ struct ToastContainerView: View {
         Spacer()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(ApproachNoteTheme.backgroundLight)
+    .background(ApproachNoteTheme.background)
 }
 
 #Preview("Long Message Toast") {
@@ -134,5 +134,5 @@ struct ToastContainerView: View {
         Spacer()
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
-    .background(ApproachNoteTheme.backgroundLight)
+    .background(ApproachNoteTheme.background)
 }

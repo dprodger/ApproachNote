@@ -24,7 +24,7 @@ struct LoginView: View {
                         Text("Welcome Back")
                             .font(.largeTitle)
                             .fontWeight(.bold)
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
 
                         Text("Sign in to access your repertoire")
                             .font(.subheadline)
@@ -45,7 +45,7 @@ struct LoginView: View {
                     Button("Close") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
             }
             .onChange(of: authManager.isAuthenticated) {

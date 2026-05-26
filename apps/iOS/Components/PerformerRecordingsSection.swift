@@ -128,7 +128,7 @@ struct PerformerRecordingsSection: View {
                                         VStack(alignment: .leading, spacing: 8) {
                                             Text("\(group.groupKey) (\(group.recordings.count))")
                                                 .font(ApproachNoteTheme.headline())
-                                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                                .foregroundColor(ApproachNoteTheme.brand)
                                                 .padding(.horizontal)
                                                 .padding(.top, 8)
 
@@ -138,7 +138,7 @@ struct PerformerRecordingsSection: View {
                                                         HStack(alignment: .top, spacing: 0) {
                                                             if index > 0 {
                                                                 Rectangle()
-                                                                    .fill(ApproachNoteTheme.burgundy.opacity(0.4))
+                                                                    .fill(ApproachNoteTheme.brand.opacity(0.4))
                                                                     .frame(width: 2, height: 150)
                                                                     .padding(.horizontal, 8)
                                                             }
@@ -161,10 +161,10 @@ struct PerformerRecordingsSection: View {
                                     VStack(spacing: 12) {
                                         Image(systemName: "music.note")
                                             .font(.system(size: 48))
-                                            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                                            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                                         Text("No recordings match the current filters")
                                             .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                                            .foregroundColor(ApproachNoteTheme.textSecondary)
                                             .multilineTextAlignment(.center)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -176,10 +176,10 @@ struct PerformerRecordingsSection: View {
                                 if isReloading {
                                     HStack(spacing: 8) {
                                         ProgressView()
-                                            .tint(ApproachNoteTheme.burgundy)
+                                            .tint(ApproachNoteTheme.brand)
                                         Text("Reloading...")
                                             .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                                            .foregroundColor(ApproachNoteTheme.textSecondary)
                                     }
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 10)
@@ -196,16 +196,16 @@ struct PerformerRecordingsSection: View {
                     label: {
                         HStack(alignment: .center) {
                             Image(systemName: "music.note.list")
-                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                .foregroundColor(ApproachNoteTheme.brand)
 
                             Text("Recordings")
                                 .font(ApproachNoteTheme.title2())
                                 .bold()
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
 
                             Text("(\(filteredRecordings.count))")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
 
                             Spacer()
 
@@ -233,22 +233,22 @@ struct PerformerRecordingsSection: View {
                                     Image(systemName: "chevron.down")
                                         .font(.caption2)
                                 }
-                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                .foregroundColor(ApproachNoteTheme.brand)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 5)
-                                .background(ApproachNoteTheme.burgundy.opacity(0.1))
+                                .background(ApproachNoteTheme.brand.opacity(0.1))
                                 .cornerRadius(6)
                             }
                         }
                         .padding(.vertical, 12)
                     }
                 )
-                .tint(ApproachNoteTheme.burgundy)
+                .tint(ApproachNoteTheme.brand)
             }
 
             Spacer().frame(width: 16)
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
 
     // MARK: - Filter Bar
@@ -258,22 +258,22 @@ struct PerformerRecordingsSection: View {
             // Search Field
             HStack {
                 Image(systemName: "magnifyingglass")
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                 TextField("Search recordings...", text: $searchText)
                     .textFieldStyle(.plain)
                 if !searchText.isEmpty {
                     Button(action: { searchText = "" }) {
                         Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                 }
             }
             .padding(10)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
-                    .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
+                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
             )
 
             // Role Filter Picker
@@ -283,7 +283,7 @@ struct PerformerRecordingsSection: View {
                 }
             }
             .pickerStyle(.segmented)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
         }
     }
 }
@@ -313,9 +313,9 @@ struct PerformerRecordingCardView: View {
                         },
                         placeholder: {
                             ZStack {
-                                ApproachNoteTheme.cardBackground
+                                ApproachNoteTheme.surface
                                 ProgressView()
-                                    .tint(ApproachNoteTheme.brass)
+                                    .tint(ApproachNoteTheme.textSecondary)
                             }
                             .frame(width: 150, height: 150)
                         }
@@ -323,9 +323,9 @@ struct PerformerRecordingCardView: View {
                 } else {
                     Image(systemName: "opticaldisc")
                         .font(ApproachNoteTheme.largeTitle())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .frame(width: 150, height: 150)
-                        .background(ApproachNoteTheme.cardBackground)
+                        .background(ApproachNoteTheme.surface)
                 }
 
                 // Badges
@@ -345,7 +345,7 @@ struct PerformerRecordingCardView: View {
                             .foregroundColor(.white)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 3)
-                            .background(role.lowercased() == "leader" ? ApproachNoteTheme.brass : ApproachNoteTheme.smokeGray)
+                            .background(role.lowercased() == "leader" ? ApproachNoteTheme.textSecondary : ApproachNoteTheme.textSecondary)
                             .cornerRadius(4)
                     }
                 }
@@ -358,7 +358,7 @@ struct PerformerRecordingCardView: View {
             Text(recording.songTitle)
                 .font(ApproachNoteTheme.subheadline())
                 .fontWeight(.semibold)
-                .foregroundColor(ApproachNoteTheme.brass)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .lineLimit(1)
                 .frame(width: 150, alignment: .leading)
 
@@ -366,7 +366,7 @@ struct PerformerRecordingCardView: View {
             Text(recording.albumTitle ?? "Unknown Album")
                 .font(ApproachNoteTheme.subheadline())
                 .fontWeight(.medium)
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: 150, alignment: .leading)
 
@@ -374,7 +374,7 @@ struct PerformerRecordingCardView: View {
             if let year = recording.recordingYear {
                 Text(String(format: "%d", year))
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .frame(width: 150, alignment: .leading)
             }
         }

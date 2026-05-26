@@ -94,7 +94,7 @@ struct AboutView: View {
                         Text("View Tutorial")
                     }
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .padding(.horizontal, 24)
                     .padding(.vertical, 12)
                     .background(
@@ -228,7 +228,7 @@ struct AboutView: View {
             .dynamicTypeSize(...DynamicTypeSize.large)
         }
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(ApproachNoteTheme.burgundy, for: .navigationBar)
+        .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .task {

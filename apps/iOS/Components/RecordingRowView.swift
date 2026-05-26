@@ -75,9 +75,9 @@ struct RecordingRowView: View {
                         },
                         placeholder: {
                             ZStack {
-                                ApproachNoteTheme.cardBackground
+                                ApproachNoteTheme.surface
                                 ProgressView()
-                                    .tint(ApproachNoteTheme.brass)
+                                    .tint(ApproachNoteTheme.textSecondary)
                             }
                             .frame(width: 150, height: 150)
                         }
@@ -85,9 +85,9 @@ struct RecordingRowView: View {
                 } else {
                     Image(systemName: "opticaldisc")
                         .font(ApproachNoteTheme.largeTitle())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .frame(width: 150, height: 150)
-                        .background(ApproachNoteTheme.cardBackground)
+                        .background(ApproachNoteTheme.surface)
                 }
 
                 // Canonical star badge
@@ -108,14 +108,14 @@ struct RecordingRowView: View {
             if let year = recording.recordingYear {
                 Text(String(format: "%d", year))
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .frame(width: 150, alignment: .leading)
             }
 
             // Artist name
             Text(artistName)
                 .font(ApproachNoteTheme.subheadline(weight: .bold))
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(1)
                 .frame(width: 150, alignment: .leading)
 
@@ -123,7 +123,7 @@ struct RecordingRowView: View {
             // title below can pull up when the album fits on one line.
             Text(recording.albumTitle ?? "Unknown Album")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: 150, alignment: .leading)
 
@@ -134,7 +134,7 @@ struct RecordingRowView: View {
             if shelfHasAnyDistinctTitle {
                 Text(displayedRecordingTitle.map { "(\($0))" } ?? " ")
                     .font(ApproachNoteTheme.caption(italic: true))
-                    .foregroundColor(ApproachNoteTheme.brass)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .lineLimit(1, reservesSpace: true)
                     .frame(width: 150, alignment: .leading)
             }

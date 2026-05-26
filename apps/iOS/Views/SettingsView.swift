@@ -24,7 +24,7 @@ struct SettingsView: View {
                         VStack(spacing: 16) {
                             // Profile Icon
                             Circle()
-                                .fill(ApproachNoteTheme.burgundy.gradient)
+                                .fill(ApproachNoteTheme.brand.gradient)
                                 .frame(width: 80, height: 80)
                                 .overlay {
                                     Image(systemName: "person.fill")
@@ -37,14 +37,14 @@ struct SettingsView: View {
                                 Text(displayName)
                                     .font(ApproachNoteTheme.title2())
                                     .fontWeight(.semibold)
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
 
                             // Email
                             if let email = authManager.currentUser?.email {
                                 Text(email)
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                         .padding(.top, 32)
@@ -57,16 +57,16 @@ struct SettingsView: View {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Playback")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                             .padding(.horizontal)
 
                         VStack(spacing: 0) {
                             HStack {
                                 Image(systemName: "play.circle.fill")
-                                    .foregroundColor(ApproachNoteTheme.burgundy)
+                                    .foregroundColor(ApproachNoteTheme.brand)
                                 Text("Preferred Service")
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Picker("", selection: $preferredStreamingService) {
                                     ForEach(StreamingService.allCases) { service in
@@ -74,17 +74,17 @@ struct SettingsView: View {
                                     }
                                 }
                                 .pickerStyle(.menu)
-                                .tint(ApproachNoteTheme.burgundy)
+                                .tint(ApproachNoteTheme.brand)
                             }
                             .padding()
-                            .background(ApproachNoteTheme.cardBackground)
+                            .background(ApproachNoteTheme.surface)
                             .cornerRadius(8)
                         }
                         .padding(.horizontal)
 
                         Text("Play buttons will open this service when available")
                             .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .padding(.horizontal)
                     }
 
@@ -99,7 +99,7 @@ struct SettingsView: View {
                                     .foregroundColor(.red)
                                 Text("Favorites")
                                     .font(ApproachNoteTheme.headline())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
                             .padding(.horizontal)
 
@@ -107,14 +107,14 @@ struct SettingsView: View {
                                 HStack {
                                     Spacer()
                                     ProgressView()
-                                        .tint(ApproachNoteTheme.brass)
+                                        .tint(ApproachNoteTheme.textSecondary)
                                     Spacer()
                                 }
                                 .padding()
                             } else if favoritesManager.favoriteRecordings.isEmpty {
                                 Text("No favorite recordings yet")
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
@@ -136,19 +136,19 @@ struct SettingsView: View {
                                                             },
                                                             placeholder: {
                                                                 Rectangle()
-                                                                    .fill(ApproachNoteTheme.cardBackground)
+                                                                    .fill(ApproachNoteTheme.surface)
                                                                     .frame(width: 80, height: 80)
                                                                     .cornerRadius(8)
                                                             }
                                                         )
                                                     } else {
                                                         Rectangle()
-                                                            .fill(ApproachNoteTheme.cardBackground)
+                                                            .fill(ApproachNoteTheme.surface)
                                                             .frame(width: 80, height: 80)
                                                             .cornerRadius(8)
                                                             .overlay(
                                                                 Image(systemName: "opticaldisc")
-                                                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                                             )
                                                     }
 
@@ -156,7 +156,7 @@ struct SettingsView: View {
                                                     Text(recording.songTitle ?? "Unknown")
                                                         .font(ApproachNoteTheme.caption())
                                                         .fontWeight(.medium)
-                                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                                         .lineLimit(2)
                                                         .multilineTextAlignment(.center)
                                                 }
@@ -172,7 +172,7 @@ struct SettingsView: View {
                             if favoritesManager.favoriteCount > 0 {
                                 Text("\(favoritesManager.favoriteCount) \(favoritesManager.favoriteCount == 1 ? "recording" : "recordings")")
                                     .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .padding(.horizontal)
                             }
                         }
@@ -184,10 +184,10 @@ struct SettingsView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
                                 Image(systemName: "person.3.fill")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text("Your Contributions")
                                     .font(ApproachNoteTheme.headline())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
                             .padding(.horizontal)
 
@@ -195,7 +195,7 @@ struct SettingsView: View {
                                 HStack {
                                     Spacer()
                                     ProgressView()
-                                        .tint(ApproachNoteTheme.brass)
+                                        .tint(ApproachNoteTheme.textSecondary)
                                     Spacer()
                                 }
                                 .padding()
@@ -203,7 +203,7 @@ struct SettingsView: View {
                                 VStack(spacing: 0) {
                                     ContributionStatRow(
                                         icon: "music.note.list",
-                                        iconColor: ApproachNoteTheme.burgundy,
+                                        iconColor: ApproachNoteTheme.brand,
                                         label: "Transcriptions",
                                         count: stats.transcriptions
                                     )
@@ -223,7 +223,7 @@ struct SettingsView: View {
 
                                     ContributionStatRow(
                                         icon: "metronome",
-                                        iconColor: ApproachNoteTheme.brass,
+                                        iconColor: ApproachNoteTheme.textSecondary,
                                         label: "Tempo Markings",
                                         count: stats.tempoMarkings
                                     )
@@ -249,14 +249,14 @@ struct SettingsView: View {
                                     )
                                 }
                                 .padding(.horizontal)
-                                .background(ApproachNoteTheme.cardBackground)
+                                .background(ApproachNoteTheme.surface)
                                 .cornerRadius(8)
                                 .padding(.horizontal)
 
                                 if stats.totalContributions > 0 {
                                     Text("Total: \(stats.totalContributions) contribution\(stats.totalContributions == 1 ? "" : "s")")
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.brass)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                         .fontWeight(.medium)
                                         .padding(.horizontal)
                                 }
@@ -266,14 +266,14 @@ struct SettingsView: View {
                                         .foregroundColor(.orange)
                                     Text(error)
                                         .font(ApproachNoteTheme.body())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                                 .padding(.horizontal)
                             }
 
                             Text("Thank you for helping improve the community!")
                                 .font(ApproachNoteTheme.caption())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                                 .padding(.horizontal)
                         }
                     }
@@ -289,13 +289,13 @@ struct SettingsView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "rectangle.portrait.and.arrow.right")
-                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                        .foregroundColor(ApproachNoteTheme.brand)
                                     Text("Log Out")
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                     Spacer()
                                 }
                                 .padding()
-                                .background(ApproachNoteTheme.cardBackground)
+                                .background(ApproachNoteTheme.surface)
                                 .cornerRadius(8)
                             }
                             .padding(.horizontal)
@@ -305,13 +305,13 @@ struct SettingsView: View {
                             }) {
                                 HStack {
                                     Image(systemName: "person.crop.circle.badge.plus")
-                                        .foregroundColor(ApproachNoteTheme.burgundy)
+                                        .foregroundColor(ApproachNoteTheme.brand)
                                     Text("Sign In or Create Account")
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                     Spacer()
                                 }
                                 .padding()
-                                .background(ApproachNoteTheme.cardBackground)
+                                .background(ApproachNoteTheme.surface)
                                 .cornerRadius(8)
                             }
                             .padding(.horizontal)
@@ -321,7 +321,7 @@ struct SettingsView: View {
                     Spacer()
                 }
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .jazzNavigationBar(title: "Settings")
             .task(id: authManager.isAuthenticated) {
                 await loadContributionStats()
@@ -370,14 +370,14 @@ private struct ContributionStatRow: View {
 
             Text(label)
                 .font(ApproachNoteTheme.body())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Spacer()
 
             Text("\(count)")
                 .font(ApproachNoteTheme.title3())
                 .fontWeight(.semibold)
-                .foregroundColor(count > 0 ? ApproachNoteTheme.charcoal : ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(count > 0 ? ApproachNoteTheme.textPrimary : ApproachNoteTheme.textSecondary.opacity(0.5))
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 12)

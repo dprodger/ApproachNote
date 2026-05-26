@@ -54,7 +54,7 @@ struct PerformerDetailView: View {
                     .padding(.top, 100)
             }
         }
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .task(id: performerId) {
             await loadPerformer()
         }
@@ -87,22 +87,22 @@ struct PerformerDetailView: View {
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Rectangle()
-                        .fill(ApproachNoteTheme.cardBackground)
+                        .fill(ApproachNoteTheme.surface)
                         .overlay {
                             Image(systemName: "person.fill")
                                 .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                 }
                 .frame(width: 150, height: 150)
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
                 Rectangle()
-                    .fill(ApproachNoteTheme.cardBackground)
+                    .fill(ApproachNoteTheme.surface)
                     .overlay {
                         Image(systemName: "person.fill")
                             .font(.system(size: 40))
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .frame(width: 150, height: 150)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -111,7 +111,7 @@ struct PerformerDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(performer.name)
                     .font(ApproachNoteTheme.largeTitle())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 if let birthDate = performer.birthDate {
                     HStack(spacing: 4) {
@@ -122,7 +122,7 @@ struct PerformerDetailView: View {
                         }
                     }
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
                 // Primary instruments
@@ -131,7 +131,7 @@ struct PerformerDetailView: View {
                     if !instrumentNames.isEmpty {
                         Text(instrumentNames)
                             .font(ApproachNoteTheme.title3())
-                            .foregroundColor(ApproachNoteTheme.brass)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                 }
             }
@@ -154,13 +154,13 @@ struct PerformerDetailView: View {
                 HStack {
                     Text("Biographical Information")
                         .font(ApproachNoteTheme.title3())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
                     Spacer()
                     Image(systemName: isBiographicalInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .padding()
-                .background(ApproachNoteTheme.cardBackground)
+                .background(ApproachNoteTheme.surface)
             }
             .buttonStyle(.plain)
 
@@ -168,7 +168,7 @@ struct PerformerDetailView: View {
             if let biography = performer.biography, !biography.isEmpty {
                 Text(biography)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineSpacing(4)
                     .lineLimit(isBiographicalInfoExpanded ? nil : 3)
                     .padding(.horizontal)
@@ -184,19 +184,19 @@ struct PerformerDetailView: View {
                             if let birthDate = performer.birthDate {
                                 HStack(spacing: 8) {
                                     Image(systemName: "calendar")
-                                        .foregroundColor(ApproachNoteTheme.brass)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                     Text("Born: \(birthDate)")
                                         .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                             }
                             if let deathDate = performer.deathDate {
                                 HStack(spacing: 8) {
                                     Image(systemName: "calendar")
-                                        .foregroundColor(ApproachNoteTheme.brass)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                     Text("Died: \(deathDate)")
                                         .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                             }
                         }
@@ -207,7 +207,7 @@ struct PerformerDetailView: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Text("Instruments")
                                 .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
 
                             FlowLayout(spacing: 8) {
                                 ForEach(instruments, id: \.name) { instrument in
@@ -215,8 +215,8 @@ struct PerformerDetailView: View {
                                         .font(ApproachNoteTheme.caption())
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 6)
-                                        .background(instrument.isPrimary == true ? ApproachNoteTheme.burgundy : ApproachNoteTheme.cardBackground)
-                                        .foregroundColor(instrument.isPrimary == true ? .white : ApproachNoteTheme.charcoal)
+                                        .background(instrument.isPrimary == true ? ApproachNoteTheme.brand : ApproachNoteTheme.surface)
+                                        .foregroundColor(instrument.isPrimary == true ? .white : ApproachNoteTheme.textPrimary)
                                         .cornerRadius(16)
                                 }
                             }
@@ -229,7 +229,7 @@ struct PerformerDetailView: View {
                 .padding()
             }
         }
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(10)
     }
 
@@ -244,7 +244,7 @@ struct PerformerDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Learn More")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 VStack(spacing: 8) {
                     // Wikipedia
@@ -252,14 +252,14 @@ struct PerformerDetailView: View {
                         Link(destination: url) {
                             HStack {
                                 Image(systemName: "book.fill")
-                                    .foregroundColor(ApproachNoteTheme.teal)
+                                    .foregroundColor(ApproachNoteTheme.accent)
                                     .frame(width: 24)
                                 Text("Wikipedia")
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right.square")
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                             }
                             .padding(.vertical, 8)
@@ -276,14 +276,14 @@ struct PerformerDetailView: View {
                         Link(destination: mbUrl) {
                             HStack {
                                 Image(systemName: "waveform.circle.fill")
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                     .frame(width: 24)
                                 Text("MusicBrainz")
                                     .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right.square")
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
                             }
                             .padding(.vertical, 8)
@@ -296,7 +296,7 @@ struct PerformerDetailView: View {
                 }
             }
             .padding()
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(10)
         }
     }
@@ -312,14 +312,14 @@ struct PerformerDetailView: View {
             // Header with count and sort
             HStack {
                 Image(systemName: "music.note.list")
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 Text("Recordings")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("(\(filtered.count))")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
 
                 Spacer()
 
@@ -342,10 +342,10 @@ struct PerformerDetailView: View {
                         Image(systemName: "chevron.down")
                             .font(.caption2)
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
-                    .background(ApproachNoteTheme.burgundy.opacity(0.1))
+                    .background(ApproachNoteTheme.brand.opacity(0.1))
                     .cornerRadius(6)
                 }
                 .menuStyle(.borderlessButton)
@@ -356,23 +356,23 @@ struct PerformerDetailView: View {
                 // Search Field
                 HStack {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     TextField("Search recordings...", text: $searchText)
                         .textFieldStyle(.plain)
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                         .buttonStyle(.plain)
                     }
                 }
                 .padding(10)
-                .background(ApproachNoteTheme.cardBackground)
+                .background(ApproachNoteTheme.surface)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1)
+                        .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
                 )
 
                 // Role Filter Picker
@@ -391,7 +391,7 @@ struct PerformerDetailView: View {
                         .scaleEffect(1.2)
                     Text("Loading recordings...")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
@@ -399,10 +399,10 @@ struct PerformerDetailView: View {
                 VStack(spacing: 12) {
                     Image(systemName: "music.note")
                         .font(.system(size: 40))
-                        .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                        .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                     Text("No recordings match the current filters")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                     if selectedFilter != .all || !searchText.isEmpty {
                         Button("Clear Filters") {
                             selectedFilter = .all
@@ -420,7 +420,7 @@ struct PerformerDetailView: View {
                         // Group header
                         Text("\(group.groupKey) (\(group.recordings.count))")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.burgundy)
+                            .foregroundColor(ApproachNoteTheme.brand)
                             .padding(.top, 8)
 
                         // Horizontal scroll of recordings
@@ -575,11 +575,11 @@ struct PerformerRecordingCard: View {
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     Rectangle()
-                        .fill(ApproachNoteTheme.cardBackground)
+                        .fill(ApproachNoteTheme.surface)
                         .overlay {
                             Image(systemName: "music.note")
                                 .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                 }
                 .frame(width: artworkSize, height: artworkSize)
@@ -601,14 +601,14 @@ struct PerformerRecordingCard: View {
             // Song title
             Text(recording.songTitle)
                 .font(ApproachNoteTheme.subheadline(weight: .semibold))
-                .foregroundColor(ApproachNoteTheme.brass)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .lineLimit(1)
                 .frame(width: artworkSize, alignment: .leading)
 
             // Album title
             Text(recording.albumTitle ?? "Unknown Album")
                 .font(ApproachNoteTheme.body(weight: .medium))
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: artworkSize, alignment: .leading)
 
@@ -616,16 +616,16 @@ struct PerformerRecordingCard: View {
             if let year = recording.recordingYear {
                 Text(String(year))
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .frame(width: artworkSize, alignment: .leading)
             }
         }
         .padding(12)
-        .background(isHovering ? ApproachNoteTheme.backgroundLight : ApproachNoteTheme.cardBackground)
+        .background(isHovering ? ApproachNoteTheme.background : ApproachNoteTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(
             RoundedRectangle(cornerRadius: 12)
-                .stroke(isHovering ? ApproachNoteTheme.burgundy.opacity(0.5) : Color.clear, lineWidth: 2)
+                .stroke(isHovering ? ApproachNoteTheme.brand.opacity(0.5) : Color.clear, lineWidth: 2)
         )
         .onHover { hovering in
             isHovering = hovering

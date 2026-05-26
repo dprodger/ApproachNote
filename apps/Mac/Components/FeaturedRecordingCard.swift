@@ -48,7 +48,7 @@ struct FeaturedRecordingCard: View {
                         switch phase {
                         case .empty:
                             Rectangle()
-                                .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                                .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                                 .overlay { ProgressView() }
                         case .success(let image):
                             image
@@ -56,11 +56,11 @@ struct FeaturedRecordingCard: View {
                                 .aspectRatio(contentMode: .fill)
                         case .failure:
                             Rectangle()
-                                .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                                .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                                 .overlay {
                                     Image(systemName: "music.note")
                                         .font(.system(size: 40))
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                         @unknown default:
                             EmptyView()
@@ -68,11 +68,11 @@ struct FeaturedRecordingCard: View {
                     }
                 } else {
                     Rectangle()
-                        .fill(ApproachNoteTheme.smokeGray.opacity(0.2))
+                        .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
                         .overlay {
                             Image(systemName: "music.note")
                                 .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                 }
             }
@@ -85,19 +85,19 @@ struct FeaturedRecordingCard: View {
                 // Year
                 Text(recording.recordingYear.map { String($0) } ?? " ")
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 // Artist
                 Text(artistName)
                     .font(ApproachNoteTheme.subheadline(weight: .bold))
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(1)
 
                 // Album — wraps naturally to 1-2 lines so the title below
                 // can pull up when the album fits on one line.
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(2)
 
                 // Recording title — only allocated when some card in the
@@ -105,7 +105,7 @@ struct FeaturedRecordingCard: View {
                 if shelfHasAnyDistinctTitle {
                     Text(recording.displayTitle(comparedTo: parentSongTitle).map { "(\($0))" } ?? " ")
                         .font(ApproachNoteTheme.caption(italic: true))
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1, reservesSpace: true)
                 }
             }

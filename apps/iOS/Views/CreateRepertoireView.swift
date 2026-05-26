@@ -28,7 +28,7 @@ struct CreateRepertoireView: View {
                     Text("Name")
                 } footer: {
                     Text("Give your repertoire a descriptive name")
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 
                 Section {
@@ -38,11 +38,11 @@ struct CreateRepertoireView: View {
                     Text("Description")
                 } footer: {
                     Text("Add notes about what this repertoire contains")
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle("Create Repertoire")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -50,14 +50,14 @@ struct CreateRepertoireView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Create") {
                         createRepertoire()
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                 }
             }
@@ -70,12 +70,12 @@ struct CreateRepertoireView: View {
                         
                         VStack(spacing: 16) {
                             ProgressView()
-                                .tint(ApproachNoteTheme.burgundy)
+                                .tint(ApproachNoteTheme.brand)
                             Text("Creating repertoire...")
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                         }
                         .padding(24)
-                        .background(ApproachNoteTheme.cardBackground)
+                        .background(ApproachNoteTheme.surface)
                         .cornerRadius(12)
                     }
                 }

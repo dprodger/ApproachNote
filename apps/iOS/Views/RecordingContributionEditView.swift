@@ -87,7 +87,7 @@ struct RecordingContributionEditView: View {
                             Spacer()
                         }
                     }
-                    .listRowBackground(hasChanges ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.5))
+                    .listRowBackground(hasChanges ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.5))
                     .foregroundColor(.white)
                     .disabled(isSaving || isDeleting || !hasChanges)
                 } footer: {
@@ -120,7 +120,7 @@ struct RecordingContributionEditView: View {
                 }
             }
             .scrollContentBackground(.hidden)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle("Contribute Data")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -128,14 +128,14 @@ struct RecordingContributionEditView: View {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .disabled(isSaving || isDeleting)
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Save") {
                         saveContribution()
                     }
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .fontWeight(.semibold)
                     .disabled(isSaving || isDeleting || !hasChanges)
                 }

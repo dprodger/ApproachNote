@@ -22,7 +22,7 @@ struct ArtistImageCarousel: View {
             
             if images.isEmpty {
                 Text("No images available")
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .padding()
             } else {
                 // Carousel with border wrapper
@@ -41,7 +41,7 @@ struct ArtistImageCarousel: View {
                 .frame(height: carouselHeight + 24) // Account for vertical padding
                 .background(
                     RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(ApproachNoteTheme.smokeGray.opacity(0.3), lineWidth: 1.5)
+                        .strokeBorder(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1.5)
                         .background(
                             RoundedRectangle(cornerRadius: 16)
                                 .fill(Color.white.opacity(0.5))
@@ -85,7 +85,7 @@ private struct ImageThumbnail: View {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.2))
                     .frame(width: cardWidth, height: 280)
-                    .overlay(ProgressView().tint(ApproachNoteTheme.amber))
+                    .overlay(ProgressView().tint(ApproachNoteTheme.accent))
             } else {
                 RoundedRectangle(cornerRadius: 12)
                     .fill(Color.gray.opacity(0.3))
@@ -149,7 +149,7 @@ private struct ImageDetailSheet: View {
                     } else {
                         ProgressView()
                             .frame(height: 300)
-                            .tint(ApproachNoteTheme.amber)
+                            .tint(ApproachNoteTheme.accent)
                     }
                     
                     // Image info
@@ -164,10 +164,10 @@ private struct ImageDetailSheet: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("Attribution")
                                     .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(cleanHTML(attribution))
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.charcoal)
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
                         }
                         
@@ -184,7 +184,7 @@ private struct ImageDetailSheet: View {
                                     Image(systemName: "arrow.up.forward.square")
                                         .font(ApproachNoteTheme.caption())
                                 }
-                                .foregroundColor(ApproachNoteTheme.brass)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                     }
@@ -202,7 +202,7 @@ private struct ImageDetailSheet: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.brass)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
         }
@@ -248,10 +248,10 @@ private struct InfoRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(title)
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
             Text(value)
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
         }
     }
 }

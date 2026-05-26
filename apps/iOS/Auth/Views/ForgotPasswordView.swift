@@ -25,12 +25,12 @@ struct ForgotPasswordView: View {
                         VStack(spacing: 16) {
                             Image(systemName: "envelope.circle.fill")
                                 .font(.system(size: 60))
-                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                .foregroundColor(ApproachNoteTheme.brand)
                             
                             Text("Check Your Email")
                                 .font(.title2)
                                 .fontWeight(.bold)
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                             
                             Text("We've sent password reset instructions to:")
                                 .font(.subheadline)
@@ -40,7 +40,7 @@ struct ForgotPasswordView: View {
                             Text(email)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                             
                             Text("Please check your email and follow the link to reset your password.")
                                 .font(.subheadline)
@@ -55,7 +55,7 @@ struct ForgotPasswordView: View {
                                     .fontWeight(.semibold)
                                     .frame(maxWidth: .infinity)
                                     .padding()
-                                    .background(ApproachNoteTheme.burgundy)
+                                    .background(ApproachNoteTheme.brand)
                                     .foregroundColor(.white)
                                     .cornerRadius(10)
                             }
@@ -68,7 +68,7 @@ struct ForgotPasswordView: View {
                             Text("Reset Password")
                                 .font(.largeTitle)
                                 .fontWeight(.bold)
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                             
                             Text("Enter your email address and we'll send you instructions to reset your password.")
                                 .font(.subheadline)
@@ -122,7 +122,7 @@ struct ForgotPasswordView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding()
-                        .background(email.isEmpty ? Color.gray : ApproachNoteTheme.burgundy)
+                        .background(email.isEmpty ? Color.gray : ApproachNoteTheme.brand)
                         .foregroundColor(.white)
                         .cornerRadius(10)
                         .disabled(email.isEmpty || authManager.isLoading)
@@ -133,7 +133,7 @@ struct ForgotPasswordView: View {
                         }) {
                             Text("Back to Sign In")
                                 .font(.subheadline)
-                                .foregroundColor(ApproachNoteTheme.burgundy)
+                                .foregroundColor(ApproachNoteTheme.brand)
                         }
                         .padding(.top, 8)
                     }
@@ -149,7 +149,7 @@ struct ForgotPasswordView: View {
                     Button("Close") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
             }
         }

@@ -50,7 +50,7 @@ struct MacOnboardingView: View {
                     }
                 }
                 .buttonStyle(.plain)
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .opacity(currentPage > 0 ? 1 : 0)
                 .disabled(currentPage == 0)
 
@@ -60,7 +60,7 @@ struct MacOnboardingView: View {
                 HStack(spacing: 8) {
                     ForEach(0..<totalPages, id: \.self) { index in
                         Circle()
-                            .fill(index == currentPage ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray.opacity(0.4))
+                            .fill(index == currentPage ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.4))
                             .frame(width: 8, height: 8)
                     }
                 }
@@ -80,7 +80,7 @@ struct MacOnboardingView: View {
                         }
                     }
                     .buttonStyle(.plain)
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .fontWeight(.semibold)
                 } else {
                     // Invisible placeholder to balance layout
@@ -90,10 +90,10 @@ struct MacOnboardingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
         }
         .frame(width: 650, height: 580)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Skip") {

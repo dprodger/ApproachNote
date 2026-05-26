@@ -39,8 +39,8 @@ struct RecordingsListView: View {
     var body: some View {
         NavigationStack {
             contentView
-                .background(ApproachNoteTheme.backgroundLight)
-                .jazzNavigationBar(title: "Recordings (\(recordingService.recordingsCount.formatted()))", color: ApproachNoteTheme.brass)
+                .background(ApproachNoteTheme.background)
+                .jazzNavigationBar(title: "Recordings (\(recordingService.recordingsCount.formatted()))")
                 .searchable(text: $searchText, prompt: "Artist, album, or song")
                 .onChange(of: searchText) { oldValue, newValue in
                     searchTask?.cancel()
@@ -60,7 +60,7 @@ struct RecordingsListView: View {
                     }
                 }
         }
-        .tint(ApproachNoteTheme.brass)
+        .tint(ApproachNoteTheme.textSecondary)
     }
     
     // MARK: - Content Views
@@ -86,39 +86,39 @@ struct RecordingsListView: View {
     private var searchHintBanner: some View {
         HStack(spacing: 8) {
             Image(systemName: "magnifyingglass")
-                .foregroundColor(ApproachNoteTheme.brass)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .font(ApproachNoteTheme.caption())
             Text("Search by artist, album name, or song title")
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
             Spacer()
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
-        .background(ApproachNoteTheme.brass.opacity(0.1))
+        .background(ApproachNoteTheme.textSecondary.opacity(0.1))
     }
     
     private var loadingView: some View {
         VStack {
             Spacer()
-            ThemedProgressView(message: "Loading recordings...", tintColor: ApproachNoteTheme.brass)
+            ThemedProgressView(message: "Loading recordings...", tintColor: ApproachNoteTheme.textSecondary)
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
     
     private func errorView(error: String) -> some View {
         VStack(spacing: 16) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
-                .foregroundColor(ApproachNoteTheme.amber)
+                .foregroundColor(ApproachNoteTheme.accent)
             Text("Error")
                 .font(ApproachNoteTheme.headline())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
             Text(error)
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
             Button("Retry") {
@@ -127,39 +127,39 @@ struct RecordingsListView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brass)
+            .tint(ApproachNoteTheme.textSecondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
     
     private var emptyStateView: some View {
         VStack(spacing: 16) {
             Image(systemName: searchText.isEmpty ? "magnifyingglass" : "opticaldisc")
                 .font(.system(size: 60))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             if searchText.isEmpty {
                 Text("Search to Browse")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 Text("Enter an artist, album, or song title to find recordings")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
             } else {
                 Text("No Results")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 Text("No recordings match \"\(searchText)\"")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(ApproachNoteTheme.backgroundLight)
+        .background(ApproachNoteTheme.background)
     }
     
     private var recordingsListView: some View {
@@ -171,7 +171,7 @@ struct RecordingsListView: View {
                             NavigationLink(destination: RecordingDetailView(recordingId: recording.id)) {
                                 recordingRowView(recording: recording)
                             }
-                            .listRowBackground(ApproachNoteTheme.cardBackground)
+                            .listRowBackground(ApproachNoteTheme.surface)
                         }
                     }
                     .id(letter)
@@ -179,12 +179,12 @@ struct RecordingsListView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .overlay(alignment: .trailing) {
                 if sectionLetters.count > 5 {
                     AlphabetIndexView(
                         letters: sectionLetters,
-                        accentColor: ApproachNoteTheme.brass,
+                        accentColor: ApproachNoteTheme.textSecondary,
                         onTap: { letter in
                             // Use short animation to prevent conflicts during rapid scrubbing
                             withAnimation(.easeOut(duration: 0.1)) {
@@ -228,13 +228,13 @@ struct RecordingsListView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(1)
                 
                 if let songTitle = recording.songTitle {
                     Text(songTitle)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1)
                 }
                 
@@ -243,7 +243,7 @@ struct RecordingsListView: View {
                    let leader = performers.first(where: { $0.role?.lowercased() == "leader" }) ?? performers.first {
                     Text(leader.name)
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.brass)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                         .lineLimit(1)
                 }
             }
@@ -255,13 +255,13 @@ struct RecordingsListView: View {
                 if let year = recording.recordingYear {
                     Text(String(year))
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
                 
                 if recording.isCanonical == true {
                     Image(systemName: "star.fill")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.gold)
+                        .foregroundColor(ApproachNoteTheme.accent)
                 }
             }
         }
@@ -271,9 +271,9 @@ struct RecordingsListView: View {
     private var albumPlaceholder: some View {
         Image(systemName: "opticaldisc")
             .font(ApproachNoteTheme.title2())
-            .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
             .frame(width: 50, height: 50)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(6)
     }
 }
@@ -287,11 +287,11 @@ struct RecordingSectionHeaderView: View {
         Text(letter)
             .font(ApproachNoteTheme.headline())
             .fontWeight(.bold)
-            .foregroundColor(ApproachNoteTheme.brass)
+            .foregroundColor(ApproachNoteTheme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
             .padding(.horizontal)
-            .background(ApproachNoteTheme.backgroundLight.opacity(0.8))
+            .background(ApproachNoteTheme.background.opacity(0.8))
     }
 }
 

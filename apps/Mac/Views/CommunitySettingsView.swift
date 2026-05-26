@@ -37,12 +37,12 @@ struct CommunitySettingsView: View {
                     HStack(spacing: 12) {
                         Image(systemName: "person.3.fill")
                             .font(.system(size: 32))
-                            .foregroundColor(ApproachNoteTheme.brass)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Your Contributions")
                                 .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                             Text("Thank you for helping improve the community!")
                                 .font(ApproachNoteTheme.subheadline())
                                 .foregroundColor(.secondary)
@@ -60,7 +60,7 @@ struct CommunitySettingsView: View {
                             ProgressView()
                                 .scaleEffect(0.8)
                             Text("Loading...")
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Spacer()
                         }
                         .padding(.vertical, 8)
@@ -71,7 +71,7 @@ struct CommunitySettingsView: View {
                             Image(systemName: "exclamationmark.triangle")
                                 .foregroundColor(.orange)
                             Text(error)
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                         .padding(.vertical, 8)
                     }
@@ -89,7 +89,7 @@ struct CommunitySettingsView: View {
         VStack(spacing: 0) {
             ContributionStatRow(
                 icon: "music.note.list",
-                iconColor: ApproachNoteTheme.burgundy,
+                iconColor: ApproachNoteTheme.brand,
                 label: "Transcriptions",
                 count: stats.transcriptions,
                 description: "Solo transcription videos submitted"
@@ -111,7 +111,7 @@ struct CommunitySettingsView: View {
 
             ContributionStatRow(
                 icon: "metronome",
-                iconColor: ApproachNoteTheme.brass,
+                iconColor: ApproachNoteTheme.textSecondary,
                 label: "Tempo Markings",
                 count: stats.tempoMarkings,
                 description: "Recording tempo contributions"
@@ -146,7 +146,7 @@ struct CommunitySettingsView: View {
                 Spacer()
                 Text("Total: \(stats.totalContributions) contribution\(stats.totalContributions == 1 ? "" : "s")")
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.brass)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .fontWeight(.medium)
             }
             .padding(.top, 8)
@@ -162,23 +162,23 @@ struct CommunitySettingsView: View {
 
             Image(systemName: "person.3.fill")
                 .font(.system(size: 60))
-                .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
             VStack(spacing: 8) {
                 Text("Sign In to View Contributions")
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("Track your contributions to the community including transcriptions, backing tracks, and recording metadata.")
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
             }
 
             Text("Sign in using the Account tab")
                 .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.burgundy)
+                .foregroundColor(ApproachNoteTheme.brand)
 
             Spacer()
         }
@@ -226,11 +226,11 @@ struct ContributionStatRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(ApproachNoteTheme.body())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text(description)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
 
             Spacer()
@@ -238,7 +238,7 @@ struct ContributionStatRow: View {
             Text("\(count)")
                 .font(ApproachNoteTheme.title2())
                 .fontWeight(.semibold)
-                .foregroundColor(count > 0 ? ApproachNoteTheme.charcoal : ApproachNoteTheme.smokeGray.opacity(0.5))
+                .foregroundColor(count > 0 ? ApproachNoteTheme.textPrimary : ApproachNoteTheme.textSecondary.opacity(0.5))
         }
         .padding(.vertical, 8)
     }

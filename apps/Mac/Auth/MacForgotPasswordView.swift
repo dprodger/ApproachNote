@@ -35,11 +35,11 @@ struct MacForgotPasswordView: View {
         VStack(spacing: 16) {
             Image(systemName: "envelope.circle.fill")
                 .font(.system(size: 60))
-                .foregroundColor(ApproachNoteTheme.burgundy)
+                .foregroundColor(ApproachNoteTheme.brand)
 
             Text("Check Your Email")
                 .font(ApproachNoteTheme.title2())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("We've sent password reset instructions to:")
                 .font(ApproachNoteTheme.subheadline())
@@ -48,7 +48,7 @@ struct MacForgotPasswordView: View {
 
             Text(email)
                 .font(ApproachNoteTheme.subheadline(weight: .semibold))
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Text("Please check your email and follow the link to reset your password.")
                 .font(ApproachNoteTheme.subheadline())
@@ -60,7 +60,7 @@ struct MacForgotPasswordView: View {
                 dismiss()
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .padding(.top, 16)
         }
@@ -74,7 +74,7 @@ struct MacForgotPasswordView: View {
             VStack(spacing: 8) {
                 Text("Reset Password")
                     .font(ApproachNoteTheme.title())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("Enter your email address and we'll send you instructions to reset your password.")
                     .font(ApproachNoteTheme.subheadline())
@@ -116,7 +116,7 @@ struct MacForgotPasswordView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .disabled(email.isEmpty || authManager.isLoading)
 

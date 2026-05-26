@@ -20,16 +20,16 @@ struct DetailRow: View {
             Label {
                 Text(label)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             } icon: {
                 Image(systemName: icon)
-                    .foregroundColor(ApproachNoteTheme.brass)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             Spacer()
             Text(value)
                 .font(ApproachNoteTheme.subheadline())
                 .bold()
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
         }
     }
 }
@@ -43,14 +43,14 @@ struct StreamingButton: View {
         VStack(spacing: 8) {
             Image(systemName: icon)
                 .font(ApproachNoteTheme.title2())
-                .foregroundColor(ApproachNoteTheme.cream)
+                .foregroundColor(ApproachNoteTheme.textOnDark)
                 .frame(width: 60, height: 60)
                 .background(color)
                 .clipShape(Circle())
             
             Text(label)
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.smokeGray)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
         }
     }
 }
@@ -63,12 +63,12 @@ struct PerformerRowView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(performer.name)
                     .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 
                 if let instrument = performer.instrument {
                     Text(instrument)
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
             
@@ -77,15 +77,15 @@ struct PerformerRowView: View {
             if let role = performer.role {
                 Text(role.capitalized)
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.cream)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 4)
-                    .background(role == "leader" ? ApproachNoteTheme.burgundy : ApproachNoteTheme.brass.opacity(0.7))
+                    .background(role == "leader" ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.7))
                     .cornerRadius(8)
             }
         }
         .padding()
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(10)
         .padding(.horizontal)
     }
@@ -103,24 +103,24 @@ struct ExternalReferenceRow: View {
                 // Icon
                 Image(systemName: reference.iconName)
                     .font(ApproachNoteTheme.title3())
-                    .foregroundColor(ApproachNoteTheme.burgundy)
+                    .foregroundColor(ApproachNoteTheme.brand)
                     .frame(width: 32)
                 
                 // Source name
                 Text(reference.displayName)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                 
                 Spacer()
                 
                 // External link indicator
                 Image(systemName: "arrow.up.right.square")
                     .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding(.horizontal)
             .padding(.vertical, 12)
-            .background(ApproachNoteTheme.cardBackground)
+            .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
             .padding(.horizontal)
         }
@@ -145,7 +145,7 @@ struct AuthorityRecordingRow: View {
                         
                         Text(recording.albumTitle ?? "Unknown Album")
                             .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
                     
                     // Year and label
@@ -153,15 +153,15 @@ struct AuthorityRecordingRow: View {
                         if let year = recording.recordingYear {
                             Text(String(year))
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                         
                         if let label = recording.label {
                             Text("•")
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text(label)
                                 .font(ApproachNoteTheme.caption())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                     }
                 }
@@ -175,7 +175,7 @@ struct AuthorityRecordingRow: View {
             }
         }
         .padding()
-        .background(ApproachNoteTheme.cardBackground)
+        .background(ApproachNoteTheme.surface)
         .cornerRadius(10)
         .padding(.horizontal)
     }
@@ -203,7 +203,7 @@ struct AuthorityBadge: View {
     
     private var badgeColor: Color {
         // Color code by source
-        guard let source = source else { return ApproachNoteTheme.burgundy }
+        guard let source = source else { return ApproachNoteTheme.brand }
         
         switch source.lowercased() {
         case "jazzstandards.com":
@@ -213,7 +213,7 @@ struct AuthorityBadge: View {
         case "discogs":
             return Color(red: 0.4, green: 0.7, blue: 0.4) // Green
         default:
-            return ApproachNoteTheme.burgundy
+            return ApproachNoteTheme.brand
         }
     }
 }

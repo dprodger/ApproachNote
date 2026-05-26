@@ -84,7 +84,7 @@ struct ArtistsListView: View {
             MacSearchBar(
                 text: $searchText,
                 placeholder: "Search artists...",
-                backgroundColor: ApproachNoteTheme.amber
+                backgroundColor: ApproachNoteTheme.accent
             )
 
             List(selection: $selectedPerformerId) {
@@ -95,8 +95,8 @@ struct ArtistsListView: View {
                                 .tag(performer.id)
                                 .listRowBackground(
                                     selectedPerformerId == performer.id
-                                        ? ApproachNoteTheme.burgundy
-                                        : ApproachNoteTheme.backgroundLight
+                                        ? ApproachNoteTheme.brand
+                                        : ApproachNoteTheme.background
                                 )
                         }
                     }
@@ -104,7 +104,7 @@ struct ArtistsListView: View {
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .listSectionSeparator(.hidden)
         }
         .frame(minWidth: 200, idealWidth: 250, maxWidth: 300)
@@ -122,7 +122,7 @@ struct ArtistsListView: View {
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .background(
-            ApproachNoteTheme.amber
+            ApproachNoteTheme.accent
                 .padding(.horizontal, -20)
                 .padding(.vertical, -4)
         )
@@ -138,13 +138,13 @@ struct ArtistsListView: View {
             VStack {
                 Image(systemName: "person.2")
                     .font(.system(size: 60))
-                    .foregroundColor(ApproachNoteTheme.smokeGray.opacity(0.5))
+                    .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
                 Text("Select an artist")
                     .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
         }
     }
 
@@ -189,7 +189,7 @@ struct ArtistRowView: View {
 
     /// Build formatted name with sort key bolded
     private func formattedName(for performer: Performer) -> Text {
-        let textColor = isSelected ? Color.white : ApproachNoteTheme.charcoal
+        let textColor = isSelected ? Color.white : ApproachNoteTheme.textPrimary
 
         guard let key = sortKey(for: performer),
               let range = performer.name.range(of: key, options: .caseInsensitive) else {
@@ -222,7 +222,7 @@ struct ArtistRowView: View {
             if let instrument = performer.instrument {
                 Text(instrument)
                     .font(ApproachNoteTheme.subheadline())
-                    .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.smokeGray)
+                    .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.textSecondary)
             }
         }
         .padding(.vertical, 4)

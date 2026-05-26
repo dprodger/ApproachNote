@@ -26,7 +26,7 @@ struct MacCreateRepertoireView: View {
             // Header
             Text("Create Repertoire")
                 .font(ApproachNoteTheme.title())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .padding(.top, 20)
 
             // Form
@@ -35,21 +35,21 @@ struct MacCreateRepertoireView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Name")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
 
                     TextField("Repertoire Name", text: $name)
                         .textFieldStyle(.roundedBorder)
 
                     Text("Give your repertoire a descriptive name")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                 }
 
                 // Description field
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Description (optional)")
                         .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
 
                     TextEditor(text: $description)
                         .frame(height: 80)
@@ -61,7 +61,7 @@ struct MacCreateRepertoireView: View {
 
                     Text("Add notes about what this repertoire contains")
                         .font(ApproachNoteTheme.caption())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                 }
             }
             .padding(.horizontal)
@@ -88,7 +88,7 @@ struct MacCreateRepertoireView: View {
                     createRepertoire()
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(ApproachNoteTheme.burgundy)
+                .tint(ApproachNoteTheme.brand)
                 .controlSize(.large)
                 .disabled(!isFormValid || isCreating)
             }
@@ -107,7 +107,7 @@ struct MacCreateRepertoireView: View {
                             .font(ApproachNoteTheme.subheadline())
                     }
                     .padding(24)
-                    .background(ApproachNoteTheme.cardBackground)
+                    .background(ApproachNoteTheme.surface)
                     .cornerRadius(12)
                 }
             }

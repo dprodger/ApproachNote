@@ -91,7 +91,7 @@ struct ContentView: View {
                         VStack(spacing: 16) {
                             Text("Create and select repertoires to focus on a subset of songs.")
                                 .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                                 .multilineTextAlignment(.center)
 
                             Button(action: {
@@ -104,7 +104,7 @@ struct ContentView: View {
                                     .frame(minWidth: 100)
                                     .padding(.horizontal, 16)
                                     .padding(.vertical, 8)
-                                    .background(ApproachNoteTheme.burgundy)
+                                    .background(ApproachNoteTheme.brand)
                                     .cornerRadius(6)
                             }
                             .buttonStyle(.plain)
@@ -189,13 +189,13 @@ struct AboutSettingsView: View {
                 Link(destination: URL(string: "https://approachnote.com/terms")!) {
                     HStack {
                         Image(systemName: "doc.plaintext")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .frame(width: 20)
                         Text("Terms of Service")
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Spacer()
                         Image(systemName: "arrow.up.right.square")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -204,13 +204,13 @@ struct AboutSettingsView: View {
                 Link(destination: URL(string: "https://approachnote.com/privacy")!) {
                     HStack {
                         Image(systemName: "lock.shield")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                             .frame(width: 20)
                         Text("Privacy Policy")
-                            .foregroundColor(ApproachNoteTheme.charcoal)
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
                         Spacer()
                         Image(systemName: "arrow.up.right.square")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .contentShape(Rectangle())
                 }
@@ -251,20 +251,20 @@ struct AccountSettingsView: View {
                             } placeholder: {
                                 Image(systemName: "person.circle.fill")
                                     .font(.system(size: 40))
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                             .frame(width: 50, height: 50)
                             .clipShape(Circle())
                         } else {
                             Image(systemName: "person.circle.fill")
                                 .font(.system(size: 50))
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
 
                         VStack(alignment: .leading, spacing: 4) {
                             Text(authManager.currentUser?.displayName ?? "User")
                                 .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
                             Text(authManager.currentUser?.email ?? "")
                                 .font(ApproachNoteTheme.subheadline())
                                 .foregroundColor(.secondary)
@@ -289,12 +289,12 @@ struct AccountSettingsView: View {
                         .foregroundColor(.red)
                     Text("Favorite Recordings")
                         .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.charcoal)
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
 
                     if !favoritesManager.favoriteRecordings.isEmpty {
                         Text("(\(favoritesManager.favoriteRecordings.count))")
                             .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                            .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                     }
 
                     Spacer()
@@ -311,7 +311,7 @@ struct AccountSettingsView: View {
                 } else if favoritesManager.favoriteRecordings.isEmpty {
                     Text("No favorite recordings yet")
                         .font(ApproachNoteTheme.body())
-                        .foregroundColor(ApproachNoteTheme.charcoal.opacity(0.7))
+                        .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                         .padding(.horizontal)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
@@ -328,7 +328,7 @@ struct AccountSettingsView: View {
                 }
             }
             .padding(.vertical)
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
         }
         .sheet(isPresented: Binding(
             get: { selectedRecordingId != nil },
@@ -362,10 +362,10 @@ struct FavoriteRecordingCard: View {
                     .aspectRatio(contentMode: .fill)
             } placeholder: {
                 Rectangle()
-                    .fill(ApproachNoteTheme.cardBackground)
+                    .fill(ApproachNoteTheme.surface)
                     .overlay {
                         Image(systemName: "music.note")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
             }
             .frame(width: 80, height: 80)
@@ -374,12 +374,12 @@ struct FavoriteRecordingCard: View {
             // Song title
             Text(recording.songTitle ?? "Unknown")
                 .font(ApproachNoteTheme.caption())
-                .foregroundColor(ApproachNoteTheme.charcoal)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: 80, alignment: .leading)
         }
         .padding(8)
-        .background(isHovering ? ApproachNoteTheme.cardBackground : Color.clear)
+        .background(isHovering ? ApproachNoteTheme.surface : Color.clear)
         .cornerRadius(8)
         .onHover { hovering in
             isHovering = hovering
@@ -428,12 +428,12 @@ struct GeneralSettingsView: View {
                         ProgressView()
                             .scaleEffect(0.7)
                         Text("Loading...")
-                            .foregroundColor(ApproachNoteTheme.smokeGray)
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                 } else {
                     HStack {
                         Image(systemName: workerActive ? "arrow.triangle.2.circlepath" : "clock")
-                            .foregroundColor(workerActive ? ApproachNoteTheme.burgundy : ApproachNoteTheme.smokeGray)
+                            .foregroundColor(workerActive ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary)
 
                         Text("Queue Size: \(queueSize)")
 
@@ -458,7 +458,7 @@ struct GeneralSettingsView: View {
                         if let songName = currentSongName {
                             HStack {
                                 Text("Processing:")
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(songName)
                                     .lineLimit(1)
                                     .truncationMode(.tail)
@@ -470,15 +470,15 @@ struct GeneralSettingsView: View {
                                 HStack {
                                     Text(progress.phaseLabel)
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.smokeGray)
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
                                     Spacer()
                                     Text("\(progress.current)/\(progress.total)")
                                         .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.charcoal)
+                                        .foregroundColor(ApproachNoteTheme.textPrimary)
                                 }
 
                                 ProgressView(value: progress.progressFraction)
-                                    .tint(ApproachNoteTheme.burgundy)
+                                    .tint(ApproachNoteTheme.brand)
                             }
                         }
                     }

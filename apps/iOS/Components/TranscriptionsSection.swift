@@ -41,31 +41,31 @@ struct TranscriptionsSection: View {
                     label: {
                         HStack {
                             Image(systemName: "music.quarternote.3")
-                                .foregroundColor(ApproachNoteTheme.teal)
+                                .foregroundColor(ApproachNoteTheme.accent)
                             Text("Solo Transcriptions")
                                 .font(ApproachNoteTheme.title2())
                                 .bold()
-                                .foregroundColor(ApproachNoteTheme.charcoal)
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
 
                             Spacer()
 
                             Text("\(transcriptions.count)")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 4)
-                                .background(ApproachNoteTheme.teal.opacity(0.1))
+                                .background(ApproachNoteTheme.accent.opacity(0.1))
                                 .cornerRadius(6)
                         }
                         .padding(.vertical, 12)
                     }
                 )
-                .tint(ApproachNoteTheme.teal)
+                .tint(ApproachNoteTheme.accent)
             }
 
             Spacer().frame(width: 16)
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .sheet(item: $selectedTranscription) { transcription in
                 TranscriptionPlayerSheet(transcription: transcription)
             }
@@ -120,20 +120,20 @@ struct TranscriptionPlayerSheet: View {
                         if let year = transcription.recordingYear {
                             HStack(spacing: 4) {
                                 Image(systemName: "calendar")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(String(format: "%d", year))
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
 
                         if let label = transcription.label {
                             HStack(spacing: 4) {
                                 Image(systemName: "opticaldisc")
-                                    .foregroundColor(ApproachNoteTheme.brass)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(label)
                                     .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.smokeGray)
+                                    .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
                     }
@@ -141,10 +141,10 @@ struct TranscriptionPlayerSheet: View {
                     if let composer = transcription.composer {
                         HStack(spacing: 4) {
                             Image(systemName: "music.note.list")
-                                .foregroundColor(ApproachNoteTheme.brass)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Composed by \(composer)")
                                 .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.smokeGray)
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                     }
                 }
@@ -153,7 +153,7 @@ struct TranscriptionPlayerSheet: View {
 
                 Spacer()
             }
-            .background(ApproachNoteTheme.backgroundLight)
+            .background(ApproachNoteTheme.background)
             .navigationTitle(transcription.albumTitle ?? "Solo Transcription")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

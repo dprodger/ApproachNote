@@ -27,7 +27,7 @@ struct MacLoginView: View {
             VStack(spacing: 8) {
                 Text("Welcome Back")
                     .font(ApproachNoteTheme.title())
-                    .foregroundColor(ApproachNoteTheme.charcoal)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text("Sign in to access your repertoire")
                     .font(ApproachNoteTheme.subheadline())
@@ -123,7 +123,7 @@ struct MacLoginView: View {
                     viewModel.showingForgotPassword = true
                 }
                 .buttonStyle(.link)
-                .foregroundColor(ApproachNoteTheme.burgundy)
+                .foregroundColor(ApproachNoteTheme.brand)
                 .font(ApproachNoteTheme.subheadline())
             }
 
@@ -148,7 +148,7 @@ struct MacLoginView: View {
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.burgundy)
+            .tint(ApproachNoteTheme.brand)
             .controlSize(.large)
             .disabled(!viewModel.canSubmit || authManager.isLoading)
 
