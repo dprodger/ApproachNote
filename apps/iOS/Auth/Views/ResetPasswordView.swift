@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import PostHog
 
 struct ResetPasswordView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -173,8 +174,9 @@ struct ResetPasswordView: View {
                 }
             }
         }
+        .postHogMask()
     }
-    
+
     private func checkPasswordsMatch() {
         passwordsMatch = confirmPassword.isEmpty || newPassword == confirmPassword
     }

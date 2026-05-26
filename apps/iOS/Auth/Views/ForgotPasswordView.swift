@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import PostHog
 
 struct ForgotPasswordView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -152,6 +153,7 @@ struct ForgotPasswordView: View {
                 }
             }
         }
+        .postHogMask()
     }
 }
 

@@ -1,12 +1,17 @@
 // ApproachNoteApp.swift
 // Main app entry point with deep link handling
 
+
+import Foundation
+import PostHog
+import UIKit
 import SwiftUI
 import GoogleSignIn
 import os
 
 @main
 struct ApproachNoteApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @State private var showingArtistCreation = false
     @State private var importedArtistData: ImportedArtistData?
     @Environment(\.scenePhase) var scenePhase
@@ -268,6 +273,64 @@ struct ApproachNoteApp: App {
 
 }
 
+
+
+
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_: UIApplication, didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        let POSTHOG_PROJECT_TOKEN = "phc_x5LR6pDRx6iPpXuSkKGh2NuteruD86yFY4YnEJeWyYoF"
+        let POSTHOG_HOST = "https://us.i.posthog.com"
+
+        let config = PostHogConfig(projectToken: POSTHOG_PROJECT_TOKEN, host: POSTHOG_HOST)
+
+        NSLog("within posthog app delegate")
+        // Enable session recording. Requires enabling in your project settings as well.
+        // Default is false.
+        config.sessionReplay = true
+
+        // We opt-out of the aggressive global masking. PostHog still auto-masks
+        // password/OTP/credit-card fields via heuristics; login/signup views are
+        // additionally wrapped in .postHogMask() at the view layer.
+        config.sessionReplayConfig.maskAllTextInputs = false
+        config.sessionReplayConfig.maskAllImages = false
+
+        // Whether logs are captured in recordings. Default is false.
+        //
+        // Support for remote configuration
+        // in the [session replay settings](https://app.posthog.com/settings/project-replay#replay-log-capture)
+        // requires SDK version 3.41.1 or higher.
+        config.sessionReplayConfig.captureLogs = false
+
+        // Whether network requests are captured in recordings. Default is true
+        // Only metric-like data like speed, size, and response code are captured.
+        // No data is captured from the request or response body.
+        //
+        // Support for remote configuration
+        // in the [session replay settings](https://app.posthog.com/settings/project-replay#replay-network)
+        // requires SDK version 3.41.1 or higher.
+        config.sessionReplayConfig.captureNetworkTelemetry = true
+
+        // Whether replays are created using high quality screenshots. Default is false.
+        // Required for SwiftUI.
+        // If disabled, replays are created using wireframes instead.
+        // The screenshot may contain sensitive information, so use with caution
+        config.sessionReplayConfig.screenshotMode = true
+
+        // Sample rate for session recordings. A value between 0.0 and 1.0.
+        // 1.0 means 100% of sessions will be recorded. 0.5 means 50%, and so on.
+        // Default is nil (all sessions are recorded).
+        //
+        // Support for remote configuration
+        // in the [session replay triggers](https://us.posthog.com/settings/project-replay#replay-triggers)
+        // requires SDK version 3.42.0 or higher.
+        config.sessionReplayConfig.sampleRate = nil
+
+        PostHogSDK.shared.setup(config)
+
+        return true
+    }
+}
 // MARK: - Helper Structs
 
 // Helper struct for password reset sheet binding

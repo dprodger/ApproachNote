@@ -12,6 +12,7 @@
 
 import SwiftUI
 import AuthenticationServices
+import PostHog
 
 struct LoginFormBody: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -151,6 +152,7 @@ struct LoginFormBody: View {
         .sheet(isPresented: $viewModel.showingForgotPassword) {
             ForgotPasswordView()
         }
+        .postHogMask()
     }
 
     private var orDivider: some View {

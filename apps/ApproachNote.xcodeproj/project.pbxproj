@@ -24,6 +24,7 @@
 		B41D0FB62EE633EE00DB427C /* RecordingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FAA2EE633EE00DB427C /* RecordingsListView.swift */; };
 		B41D0FB72EE633EE00DB427C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FA32EE633EE00DB427C /* ContentView.swift */; };
 		B4201ACB2F19551400CEA2CF /* CommunitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4201ACA2F19551400CEA2CF /* CommunitySettingsView.swift */; };
+		B42DA62C2FBCEC4C00A812C8 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = B42DA62B2FBCEC4C00A812C8 /* PostHog */; };
 		B42E87D42F09B5F20012F32C /* MacOnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B42E87D32F09B5F20012F32C /* MacOnboardingView.swift */; };
 		B45A16A52F08800600259452 /* MacResetPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45A16A42F08800600259452 /* MacResetPasswordView.swift */; };
 		B45A16A62F08800600259452 /* MacForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B45A16A12F08800600259452 /* MacForgotPasswordView.swift */; };
@@ -175,6 +176,20 @@
 			);
 			target = B486B2F12F1D922B005E6644 /* ShareImporterMac */;
 		};
+		B48EE64E2FC61E2D00580AD9 /* Exceptions for "Shared" folder in "ShareImporter" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ApproachNote.icon,
+			);
+			target = B4911D292EB316F600326CA7 /* ShareImporter */;
+		};
+		B48EE64F2FC61E2D00580AD9 /* Exceptions for "Shared" folder in "ShareImporterMac" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				ApproachNote.icon,
+			);
+			target = B486B2F12F1D922B005E6644 /* ShareImporterMac */;
+		};
 		B4911D382EB316F700326CA7 /* Exceptions for "ShareImporter" folder in "ShareImporter" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -212,6 +227,10 @@
 		};
 		B4SHARED012F10C00000000001 /* Shared */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B48EE64E2FC61E2D00580AD9 /* Exceptions for "Shared" folder in "ShareImporter" target */,
+				B48EE64F2FC61E2D00580AD9 /* Exceptions for "Shared" folder in "ShareImporterMac" target */,
+			);
 			path = Shared;
 			sourceTree = "<group>";
 		};
@@ -248,6 +267,7 @@
 				B4C535862ECE5FFF0030A127 /* GoogleSignInSwift in Frameworks */,
 				B4F38C242EC166A800231130 /* YouTubePlayerKit in Frameworks */,
 				B4C535842ECE5FFF0030A127 /* GoogleSignIn in Frameworks */,
+				B42DA62C2FBCEC4C00A812C8 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -485,6 +505,7 @@
 				B4F38C232EC166A800231130 /* YouTubePlayerKit */,
 				B4C535832ECE5FFF0030A127 /* GoogleSignIn */,
 				B4C535852ECE5FFF0030A127 /* GoogleSignInSwift */,
+				B42DA62B2FBCEC4C00A812C8 /* PostHog */,
 			);
 			productName = ApproachNote;
 			productReference = B4C160402E91B03600EB8D2C /* ApproachNote.app */;
@@ -574,6 +595,7 @@
 			packageReferences = (
 				B4F38C222EC166A800231130 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 				B4C535822ECE5FFF0030A127 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				B42DA62A2FBCEC4C00A812C8 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B4C160412E91B03600EB8D2C /* Products */;
@@ -740,8 +762,9 @@
 		B41D0F9F2EE6337500DB427C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ApproachNote;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = Mac/App/ApproachNoteMac.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -768,7 +791,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
 				PRODUCT_NAME = ApproachNote;
@@ -793,8 +816,9 @@
 		B41D0FA02EE6337500DB427C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_APPICON_NAME = ApproachNote;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				AUTOMATION_APPLE_EVENTS = NO;
 				CODE_SIGN_ENTITLEMENTS = Mac/App/ApproachNoteMacRelease.entitlements;
 				CODE_SIGN_IDENTITY = "Apple Development";
@@ -821,7 +845,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MACOSX_DEPLOYMENT_TARGET = 14.6;
+				MACOSX_DEPLOYMENT_TARGET = 26.0;
 				MARKETING_VERSION = 1.7;
 				PRODUCT_BUNDLE_IDENTIFIER = com.approachnote.mac;
 				PRODUCT_NAME = ApproachNote;
@@ -1103,8 +1127,8 @@
 		B4C160622E91B03700EB8D2C /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = iOS/App/ApproachNote.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1137,8 +1161,8 @@
 		B4C160632E91B03700EB8D2C /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = YES;
 				CODE_SIGN_ENTITLEMENTS = iOS/App/ApproachNote.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -1317,6 +1341,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		B42DA62A2FBCEC4C00A812C8 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.58.3;
+			};
+		};
 		B4C535822ECE5FFF0030A127 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
@@ -1336,6 +1368,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		B42DA62B2FBCEC4C00A812C8 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B42DA62A2FBCEC4C00A812C8 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
+		};
 		B45A16AA2F08802C00259452 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = B4C535822ECE5FFF0030A127 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;

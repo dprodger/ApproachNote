@@ -7,6 +7,7 @@
 //
 
 import SwiftUI
+import PostHog
 
 struct RegisterView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -170,6 +171,7 @@ struct RegisterView: View {
                 }
             }
         }
+        .postHogMask()
     }
 }
 
