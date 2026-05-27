@@ -40,14 +40,13 @@ struct PerformerDetailView: View {
                 .background(ApproachNoteTheme.background)
             } else if let performer = performer {
                 VStack(alignment: .leading, spacing: 0) {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
                         // Artist Name - MOVED TO TOP
                         Text(performer.name)
                             .font(ApproachNoteTheme.largeTitle())
                             .bold()
                             .foregroundColor(ApproachNoteTheme.textPrimary)
-                            .padding(.horizontal)
-                            .padding(.top, 12)
+                            .padding(.horizontal, 20)
                             .onScrollVisibilityChange(threshold: 0.1) { visible in
                                 isHeaderNameVisible = visible
                             }
@@ -159,9 +158,9 @@ struct PerformerDetailView: View {
                         }
                         .background(ApproachNoteTheme.surface)
                         .cornerRadius(10)
-                        .padding(.horizontal)
+                        .padding(.horizontal, 20)
                         .padding(.top, 8)
-                        
+
                         Divider()
 
                         // Recordings Section (mirrors SongDetailView layout)
@@ -184,7 +183,8 @@ struct PerformerDetailView: View {
                         )
                     }
                 }
-                .padding(.vertical)
+                .padding(.top, 24)
+                .padding(.bottom, 16)
             } else {
                 VStack {
                     Spacer()
