@@ -105,11 +105,10 @@ struct MacAddToRepertoireSheet: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button("Close") {
+            ApproachNoteButton("Close") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
+            .fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ApproachNoteTheme.background)
@@ -146,11 +145,10 @@ struct MacAddToRepertoireSheet: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button("Create Repertoire") {
+            ApproachNoteButton("Create Repertoire", leadingSystemImage: "plus") {
                 showCreateRepertoire = true
             }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
+            .fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ApproachNoteTheme.background)

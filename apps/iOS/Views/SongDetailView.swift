@@ -183,6 +183,7 @@ struct SongDetailView: View {
                         entityName: song.title,
                         showsBackground: false
                     )
+                    .padding(.top, 8)
                 }
 
                 // MARK: - Authoritative Recordings Carousel
@@ -190,7 +191,9 @@ struct SongDetailView: View {
                     authoritativeRecordingsSection(for: song)
                 }
             }
-            .padding()
+            .padding(.horizontal, 20)
+            .padding(.top, 24)
+            .padding(.bottom, 16)
 
             // MARK: - RECORDINGS SECTION
                 RecordingsSection(
@@ -283,7 +286,7 @@ struct SongDetailView: View {
                 }
             }
         }
-        .padding(.top, 8)
+        .padding(.top, 16)
     }
     
     // MARK: - Body (broken into smaller chunks to avoid type-checker timeout)

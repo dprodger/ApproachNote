@@ -41,16 +41,8 @@ struct ResetPasswordView: View {
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                             
-                            Button(action: {
+                            ApproachNoteButton("Go to Sign In") {
                                 dismiss()
-                            }) {
-                                Text("Go to Sign In")
-                                    .fontWeight(.semibold)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(ApproachNoteTheme.brand)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(10)
                             }
                             .padding(.top, 16)
                         }
@@ -132,31 +124,22 @@ struct ResetPasswordView: View {
                         }
                         
                         // Reset button
-                        Button(action: {
-                            Task {
-                                let success = await authManager.resetPassword(
-                                    token: token,
-                                    newPassword: newPassword
-                                )
-                                if success {
-                                    resetSuccess = true
+                        ApproachNoteButton(
+                            "Reset Password",
+                            isLoading: authManager.isLoading,
+                            action: {
+                                Task {
+                                    let success = await authManager.resetPassword(
+                                        token: token,
+                                        newPassword: newPassword
+                                    )
+                                    if success {
+                                        resetSuccess = true
+                                    }
                                 }
                             }
-                        }) {
-                            if authManager.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Reset Password")
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(isFormValid ? ApproachNoteTheme.brand : Color.gray)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .disabled(!isFormValid || authManager.isLoading)
+                        )
+                        .disabled(!isFormValid)
                         
                         Spacer()
                     }

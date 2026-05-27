@@ -24,17 +24,17 @@ struct ApproachNoteTheme {
     // MARK: - Heading Fonts
 
     /// Font for large titles (e.g., screen titles, hero text)
-    static func largeTitle(size: CGFloat = 34, weight: Font.Weight = .bold) -> Font {
+    static func largeTitle(size: CGFloat = 32, weight: Font.Weight = .bold) -> Font {
         .custom(headingFontName(for: weight), size: size)
     }
 
     /// Font for titles (e.g., section headers, card titles)
-    static func title(size: CGFloat = 28, weight: Font.Weight = .bold) -> Font {
+    static func title(size: CGFloat = 29, weight: Font.Weight = .bold) -> Font {
         .custom(headingFontName(for: weight), size: size)
     }
 
     /// Font for titles level 2
-    static func title2(size: CGFloat = 22, weight: Font.Weight = .semibold) -> Font {
+    static func title2(size: CGFloat = 23, weight: Font.Weight = .semibold) -> Font {
         .custom(headingFontName(for: weight), size: size)
     }
 
@@ -44,14 +44,14 @@ struct ApproachNoteTheme {
     }
 
     /// Font for headlines
-    static func headline(size: CGFloat = 17, weight: Font.Weight = .semibold) -> Font {
+    static func headline(size: CGFloat = 18, weight: Font.Weight = .semibold) -> Font {
         .custom(headingFontName(for: weight), size: size)
     }
 
     // MARK: - Body Fonts
 
     /// Font for body text
-    static func body(size: CGFloat = 17, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+    static func body(size: CGFloat = 16, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
         .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
@@ -61,7 +61,7 @@ struct ApproachNoteTheme {
     }
 
     /// Font for subheadlines
-    static func subheadline(size: CGFloat = 15, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+    static func subheadline(size: CGFloat = 14, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
         .custom(bodyFontName(for: weight, italic: italic), size: size)
     }
 
@@ -244,13 +244,13 @@ struct ApproachNoteTheme {
 
         // Large title font (used when scrolled to top)
         appearance.largeTitleTextAttributes = [
-            .font: uiHeadingFont(size: 34, weight: .bold),
+            .font: uiHeadingFont(size: 32, weight: .bold),
             .foregroundColor: UIColor(textOnDark)
         ]
 
         // Inline title font (used when scrolled or in compact mode)
         appearance.titleTextAttributes = [
-            .font: uiHeadingFont(size: 17, weight: .semibold),
+            .font: uiHeadingFont(size: 18, weight: .semibold),
             .foregroundColor: UIColor(textOnDark)
         ]
 

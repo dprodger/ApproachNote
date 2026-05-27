@@ -135,43 +135,37 @@ struct ExternalReferencesPanel: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Learn More")
-                .font(ApproachNoteTheme.headline())
+            Text("Learn More:")
+                .font(ApproachNoteTheme.body(weight: .semibold))
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             
             VStack(spacing: 10) {
                 // Wikipedia
                 if let wikipediaURL = wikipediaURL {
                     ExternalLinkButton(
-                        icon: "book.fill",
                         label: "Wikipedia",
-                        color: ApproachNoteTheme.accent,
                         url: wikipediaURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "Wikipedia", url: wikipediaURL)
                         }
                     )
                 }
-                
+
                 // Jazz Standards
                 if let jazzStandardsURL = jazzStandardsURL {
                     ExternalLinkButton(
-                        icon: "music.note",
                         label: "Jazz Standards",
-                        color: ApproachNoteTheme.accent,
                         url: jazzStandardsURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "JazzStandards.com", url: jazzStandardsURL)
                         }
                     )
                 }
-                
+
                 // MusicBrainz
                 if let musicbrainzURL = musicbrainzURL {
                     ExternalLinkButton(
-                        icon: "waveform.circle.fill",
                         label: "MusicBrainz",
-                        color: ApproachNoteTheme.textPrimary,
                         url: musicbrainzURL,
                         onLongPress: {
                             reportingInfo = ReportingInfo(source: "MusicBrainz", url: musicbrainzURL)
@@ -245,34 +239,21 @@ struct ExternalReferencesPanel: View {
 // MARK: - External Link Button
 
 struct ExternalLinkButton: View {
-    let icon: String
     let label: String
-    let color: Color
     let url: String
     let onLongPress: () -> Void
-    
+
     @Environment(\.openURL) var openURL
-    
+
     var body: some View {
-        Button(action: {
+        ApproachNoteButton(
+            label,
+            style: .secondary,
+            trailingSystemImage: "arrow.up.right.square"
+        ) {
             if let url = URL(string: url) {
                 openURL(url)
             }
-        }) {
-            HStack {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(label)
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                Spacer()
-                Image(systemName: "arrow.up.right")
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-            }
-            .padding()
-            .background(Color.white)
-            .cornerRadius(8)
         }
         .simultaneousGesture(
             LongPressGesture(minimumDuration: 0.5)

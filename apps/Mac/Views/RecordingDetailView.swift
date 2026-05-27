@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct RecordingDetailView: View {
+    @Environment(\.openURL) private var openURL
     let recordingId: String
 
     // Shared data + network state lives on the view model; layout/presentation
@@ -467,27 +468,17 @@ struct RecordingDetailView: View {
                                 .padding(.vertical, 4)
 
                             VStack(alignment: .leading, spacing: 8) {
-                                Text("Learn More")
-                                    .font(ApproachNoteTheme.headline())
+                                Text("Learn More:")
+                                    .font(ApproachNoteTheme.body(weight: .semibold))
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                                Link(destination: url) {
-                                    HStack {
-                                        Image(systemName: "waveform.circle.fill")
-                                            .foregroundColor(ApproachNoteTheme.textPrimary)
-                                        Text("MusicBrainz")
-                                            .font(ApproachNoteTheme.caption())
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                        Spacer()
-                                        Image(systemName: "arrow.up.right")
-                                            .font(ApproachNoteTheme.caption())
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    }
-                                    .padding(10)
-                                    .background(ApproachNoteTheme.background)
-                                    .cornerRadius(8)
+                                ApproachNoteButton(
+                                    "MusicBrainz",
+                                    style: .secondary,
+                                    trailingSystemImage: "arrow.up.right.square"
+                                ) {
+                                    openURL(url)
                                 }
-                                .buttonStyle(.plain)
                             }
                         }
                     }

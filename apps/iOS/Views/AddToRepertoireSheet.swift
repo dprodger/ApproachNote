@@ -110,23 +110,15 @@ struct AddToRepertoireSheet: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
             
-            Button(action: {
+            ApproachNoteButton("Close") {
                 isPresented = false
-            }) {
-                Text("Close")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(ApproachNoteTheme.brand)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
             }
             .padding(.horizontal, 32)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ApproachNoteTheme.background)
     }
-    
+
     // MARK: - Loading View
     
     private var loadingView: some View {
@@ -160,17 +152,10 @@ struct AddToRepertoireSheet: View {
                 .padding(.horizontal, 40)
             
             // TODO: Add "Create Repertoire" button when that feature is implemented
-            Button(action: {
+            ApproachNoteButton("Close") {
                 isPresented = false
-            }) {
-                Text("Close")
-                    .fontWeight(.semibold)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(ApproachNoteTheme.brand)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
             }
+            .fixedSize(horizontal: true, vertical: false)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(ApproachNoteTheme.background)

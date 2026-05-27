@@ -56,12 +56,9 @@ struct MacForgotPasswordView: View {
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
 
-            Button("Done") {
+            ApproachNoteButton("Done") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
             .padding(.top, 16)
         }
         .padding(.top, 40)
@@ -105,27 +102,17 @@ struct MacForgotPasswordView: View {
             }
 
             // Send button
-            Button(action: sendResetLink) {
-                if authManager.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("Send Reset Link")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
-            .disabled(email.isEmpty || authManager.isLoading)
+            ApproachNoteButton(
+                "Send Reset Link",
+                isLoading: authManager.isLoading,
+                action: sendResetLink
+            )
+            .disabled(email.isEmpty)
 
             // Back button
-            Button("Cancel") {
+            ApproachNoteButton("Cancel", style: .secondary) {
                 dismiss()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
         }
     }
 

@@ -28,6 +28,7 @@ struct SongDetailView: View {
     @State private var errorMessage: String?
     @EnvironmentObject var repertoireManager: RepertoireManager
     @EnvironmentObject var authManager: AuthenticationManager
+    @Environment(\.openURL) private var openURL
 
     // Read-only aliases so existing reference sites in this view can keep
     // using the short names unchanged.
@@ -361,24 +362,15 @@ struct SongDetailView: View {
     }
 
     @ViewBuilder
-    private func compactExternalLink(icon: String, label: String, color: Color, url: URL) -> some View {
-        Link(destination: url) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .foregroundColor(color)
-                Text(label)
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                Image(systemName: "arrow.up.right")
-                    .font(ApproachNoteTheme.caption2())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(ApproachNoteTheme.surface)
-            .cornerRadius(8)
+    private func compactExternalLink(label: String, url: URL) -> some View {
+        ApproachNoteButton(
+            label,
+            style: .secondary,
+            trailingSystemImage: "arrow.up.right.square"
+        ) {
+            openURL(url)
         }
-        .buttonStyle(.plain)
+        .fixedSize(horizontal: true, vertical: false)
     }
 
     @ViewBuilder
@@ -418,19 +410,19 @@ struct SongDetailView: View {
     @ViewBuilder
     private func learnMoreSection(_ song: Song) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Learn More")
-                .font(ApproachNoteTheme.headline())
+            Text("Learn More:")
+                .font(ApproachNoteTheme.body(weight: .semibold))
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
             HStack(spacing: 12) {
                 if let wikipediaUrl = song.wikipediaUrl, let url = URL(string: wikipediaUrl) {
-                    compactExternalLink(icon: "book.fill", label: "Wikipedia", color: ApproachNoteTheme.accent, url: url)
+                    compactExternalLink(label: "Wikipedia", url: url)
                 }
                 if let jazzStandardsUrl = song.externalReferences?["jazzstandards"], let url = URL(string: jazzStandardsUrl) {
-                    compactExternalLink(icon: "music.note.list", label: "JazzStandards.com", color: ApproachNoteTheme.textSecondary, url: url)
+                    compactExternalLink(label: "JazzStandards.com", url: url)
                 }
                 if let musicbrainzId = song.musicbrainzId, let url = URL(string: "https://musicbrainz.org/work/\(musicbrainzId)") {
-                    compactExternalLink(icon: "waveform.circle.fill", label: "MusicBrainz", color: ApproachNoteTheme.textPrimary, url: url)
+                    compactExternalLink(label: "MusicBrainz", url: url)
                 }
             }
         }

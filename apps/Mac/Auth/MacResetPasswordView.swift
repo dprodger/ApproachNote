@@ -59,12 +59,9 @@ struct MacResetPasswordView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            Button("Done") {
+            ApproachNoteButton("Done") {
                 dismiss()
             }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
             .padding(.top, 16)
         }
         .padding(.top, 40)
@@ -135,27 +132,17 @@ struct MacResetPasswordView: View {
             }
 
             // Reset button
-            Button(action: resetPassword) {
-                if authManager.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("Reset Password")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
-            .disabled(!isFormValid || authManager.isLoading)
+            ApproachNoteButton(
+                "Reset Password",
+                isLoading: authManager.isLoading,
+                action: resetPassword
+            )
+            .disabled(!isFormValid)
 
             // Cancel button
-            Button("Cancel") {
+            ApproachNoteButton("Cancel", style: .secondary) {
                 dismiss()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
         }
     }
 

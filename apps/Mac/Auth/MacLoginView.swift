@@ -137,20 +137,12 @@ struct MacLoginView: View {
             }
 
             // Sign In button
-            Button(action: signIn) {
-                if authManager.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("Sign In")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
-            .disabled(!viewModel.canSubmit || authManager.isLoading)
+            ApproachNoteButton(
+                "Sign In",
+                isLoading: authManager.isLoading,
+                action: signIn
+            )
+            .disabled(!viewModel.canSubmit)
 
             // Divider
             HStack {
@@ -167,14 +159,9 @@ struct MacLoginView: View {
             .padding(.vertical, 8)
 
             // Create account button
-            Button(action: {
+            ApproachNoteButton("Create Account", style: .secondary) {
                 viewModel.showingRegister = true
-            }) {
-                Text("Create Account")
-                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
 
             if !isInline {
                 Spacer()

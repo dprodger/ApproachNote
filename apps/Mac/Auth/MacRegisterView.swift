@@ -115,27 +115,17 @@ struct MacRegisterView: View {
             }
 
             // Register button
-            Button(action: register) {
-                if authManager.isLoading {
-                    ProgressView()
-                        .controlSize(.small)
-                        .frame(maxWidth: .infinity)
-                } else {
-                    Text("Create Account")
-                        .frame(maxWidth: .infinity)
-                }
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(ApproachNoteTheme.brand)
-            .controlSize(.large)
-            .disabled(!isFormValid || authManager.isLoading)
+            ApproachNoteButton(
+                "Create Account",
+                isLoading: authManager.isLoading,
+                action: register
+            )
+            .disabled(!isFormValid)
 
             // Cancel button
-            Button("Cancel") {
+            ApproachNoteButton("Cancel", style: .secondary) {
                 dismiss()
             }
-            .buttonStyle(.bordered)
-            .controlSize(.large)
 
             Spacer()
         }

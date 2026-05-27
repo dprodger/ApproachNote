@@ -48,16 +48,8 @@ struct ForgotPasswordView: View {
                                 .multilineTextAlignment(.center)
                                 .padding(.top, 8)
                             
-                            Button(action: {
+                            ApproachNoteButton("Done") {
                                 dismiss()
-                            }) {
-                                Text("Done")
-                                    .fontWeight(.semibold)
-                                    .frame(maxWidth: .infinity)
-                                    .padding()
-                                    .background(ApproachNoteTheme.brand)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(10)
                             }
                             .padding(.top, 16)
                         }
@@ -102,30 +94,21 @@ struct ForgotPasswordView: View {
                         }
                         
                         // Send button
-                        Button(action: {
-                            Task {
-                                let success = await authManager.requestPasswordReset(
-                                    email: email.trimmingCharacters(in: .whitespacesAndNewlines)
-                                )
-                                if success {
-                                    resetEmailSent = true
+                        ApproachNoteButton(
+                            "Send Reset Link",
+                            isLoading: authManager.isLoading,
+                            action: {
+                                Task {
+                                    let success = await authManager.requestPasswordReset(
+                                        email: email.trimmingCharacters(in: .whitespacesAndNewlines)
+                                    )
+                                    if success {
+                                        resetEmailSent = true
+                                    }
                                 }
                             }
-                        }) {
-                            if authManager.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                            } else {
-                                Text("Send Reset Link")
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(email.isEmpty ? Color.gray : ApproachNoteTheme.brand)
-                        .foregroundColor(.white)
-                        .cornerRadius(10)
-                        .disabled(email.isEmpty || authManager.isLoading)
+                        )
+                        .disabled(email.isEmpty)
                         
                         // Back to login
                         Button(action: {

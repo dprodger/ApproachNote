@@ -129,32 +129,23 @@ struct RegisterView: View {
                     }
                     
                     // Register button
-                    Button(action: {
-                        Task {
-                            let success = await authManager.register(
-                                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
-                                password: password.trimmingCharacters(in: .whitespacesAndNewlines),
-                                displayName: (displayName.isEmpty ? email : displayName).trimmingCharacters(in: .whitespacesAndNewlines)
-                            )
-                            if success {
-                                dismiss()
+                    ApproachNoteButton(
+                        "Create Account",
+                        isLoading: authManager.isLoading,
+                        action: {
+                            Task {
+                                let success = await authManager.register(
+                                    email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    password: password.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    displayName: (displayName.isEmpty ? email : displayName).trimmingCharacters(in: .whitespacesAndNewlines)
+                                )
+                                if success {
+                                    dismiss()
+                                }
                             }
                         }
-                    }) {
-                        if authManager.isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                        } else {
-                            Text("Create Account")
-                                .fontWeight(.semibold)
-                        }
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(isFormValid ? ApproachNoteTheme.brand : Color.gray)
-                    .foregroundColor(.white)
-                    .cornerRadius(10)
-                    .disabled(!isFormValid || authManager.isLoading)
+                    )
+                    .disabled(!isFormValid)
                     
                     Spacer()
                 }

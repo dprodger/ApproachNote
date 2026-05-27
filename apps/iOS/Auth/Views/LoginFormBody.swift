@@ -108,42 +108,25 @@ struct LoginFormBody: View {
             }
 
             // Email/password Sign In button
-            Button(action: {
-                Task {
-                    let success = await viewModel.signIn(using: authManager)
-                    if success { onAuthenticated?() }
+            ApproachNoteButton(
+                "Sign In",
+                isLoading: authManager.isLoading,
+                action: {
+                    Task {
+                        let success = await viewModel.signIn(using: authManager)
+                        if success { onAuthenticated?() }
+                    }
                 }
-            }) {
-                if authManager.isLoading {
-                    ProgressView()
-                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                } else {
-                    Text("Sign In")
-                        .fontWeight(.semibold)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding()
-            .background(viewModel.canSubmit ? ApproachNoteTheme.brand : Color.gray)
-            .foregroundColor(.white)
-            .cornerRadius(10)
-            .disabled(!viewModel.canSubmit || authManager.isLoading)
+            )
+            .disabled(!viewModel.canSubmit)
 
             // Divider
             orDivider
                 .padding(.vertical, 8)
 
             // Create account button
-            Button(action: {
+            ApproachNoteButton("Create Account", style: .secondary) {
                 viewModel.showingRegister = true
-            }) {
-                Text("Create Account")
-                    .fontWeight(.semibold)
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color(.systemGray6))
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                    .cornerRadius(10)
             }
         }
         .sheet(isPresented: $viewModel.showingRegister) {
