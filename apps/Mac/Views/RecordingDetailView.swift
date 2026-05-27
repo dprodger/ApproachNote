@@ -15,12 +15,10 @@ struct RecordingDetailView: View {
     // state stays here.
     @StateObject private var viewModel = RecordingDetailViewModel()
 
-    @State private var showingBackCover = false
     @State private var showingContributionSheet = false
     @State private var showingStreamingLinkSheet = false
     @State private var streamingLinkReleaseId: String?
     @State private var streamingLinkReleaseTitle: String?
-    @State private var isRecordingDetailsExpanded = false
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var favoritesManager: FavoritesManager
@@ -49,52 +47,18 @@ struct RecordingDetailView: View {
         return recording?.bestAlbumArtLarge ?? recording?.bestAlbumArtMedium
     }
 
-    /// Back cover art URL - uses selected release if user picked one, otherwise uses recording defaults
-    private var displayBackCoverArtLarge: String? {
+    /// Release year for the currently selected (or default) release.
+    private var displayReleaseYear: Int? {
         if let release = selectedRelease {
-            return release.backCoverArtLarge ?? release.backCoverArtMedium
+            return release.releaseYear
         }
-        return recording?.backCoverArtLarge ?? recording?.backCoverArtMedium
-    }
-
-    /// Whether a back cover is available for flipping (from selected release or recording)
-    private var canFlipToBackCover: Bool {
-        if let release = selectedRelease {
-            return release.canFlipToBackCover
+        guard let releases = recording?.releases else { return nil }
+        if let defaultId = recording?.defaultReleaseId,
+           let defaultRelease = releases.first(where: { $0.id == defaultId }),
+           let year = defaultRelease.releaseYear {
+            return year
         }
-        return recording?.canFlipToBackCover ?? false
-    }
-
-    /// Back cover source for attribution (from selected release or recording)
-    private var displayBackCoverSource: String? {
-        if let release = selectedRelease {
-            return release.backCoverSource
-        }
-        return recording?.backCoverSource
-    }
-
-    /// Back cover source URL for attribution (from selected release or recording)
-    private var displayBackCoverSourceUrl: String? {
-        if let release = selectedRelease {
-            return release.backCoverSourceUrl
-        }
-        return recording?.backCoverSourceUrl
-    }
-
-    /// Image source for the currently displayed album art (for watermark badge)
-    private var displayAlbumArtSource: String? {
-        if let release = selectedRelease {
-            return release.coverArtSource
-        }
-        return recording?.displayAlbumArtSource
-    }
-
-    /// Source URL for the currently displayed album art (for watermark badge)
-    private var displayAlbumArtSourceUrl: String? {
-        if let release = selectedRelease {
-            return release.coverArtSourceUrl
-        }
-        return recording?.displayAlbumArtSourceUrl
+        return releases.compactMap(\.releaseYear).first
     }
 
     /// Display title - selected release title or recording album title
@@ -134,9 +98,6 @@ struct RecordingDetailView: View {
                     recordingHeader(recording)
 
                     Divider()
-
-                    // Recording info
-                    recordingInfo(recording)
 
                     // Streaming links
                     streamingSection(recording)
@@ -245,105 +206,48 @@ struct RecordingDetailView: View {
     @ViewBuilder
     private func recordingHeader(_ recording: Recording) -> some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Full-width album art with flip support
-            ZStack(alignment: .topTrailing) {
-                // Card-flip container
-                ZStack {
-                    // Front cover
-                    if let frontUrl = displayAlbumArtLarge {
-                        AsyncImage(url: URL(string: frontUrl)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        } placeholder: {
-                            Rectangle()
-                                .fill(ApproachNoteTheme.surface)
-                                .aspectRatio(1, contentMode: .fit)
-                                .overlay {
-                                    ProgressView()
-                                        .tint(ApproachNoteTheme.textSecondary)
-                                }
-                        }
-                        .opacity(showingBackCover ? 0 : 1)
-                    } else {
-                        albumArtPlaceholder
+            // Full-width album art
+            Group {
+                if let frontUrl = displayAlbumArtLarge {
+                    AsyncImage(url: URL(string: frontUrl)) { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                    } placeholder: {
+                        Rectangle()
+                            .fill(ApproachNoteTheme.surface)
                             .aspectRatio(1, contentMode: .fit)
-                            .opacity(showingBackCover ? 0 : 1)
+                            .overlay {
+                                ProgressView()
+                                    .tint(ApproachNoteTheme.textSecondary)
+                            }
                     }
-
-                    // Back cover (pre-rotated so it appears correct after flip)
-                    if let backUrl = displayBackCoverArtLarge {
-                        AsyncImage(url: URL(string: backUrl)) { image in
-                            image
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                        } placeholder: {
-                            Rectangle()
-                                .fill(ApproachNoteTheme.surface)
-                                .aspectRatio(1, contentMode: .fit)
-                                .overlay {
-                                    ProgressView()
-                                        .tint(ApproachNoteTheme.textSecondary)
-                                }
-                        }
-                        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
-                        .opacity(showingBackCover ? 1 : 0)
-                    }
+                } else {
+                    albumArtPlaceholder
+                        .aspectRatio(1, contentMode: .fit)
                 }
-                .frame(maxWidth: .infinity)
-                .cornerRadius(8)
-                .rotation3DEffect(
-                    .degrees(showingBackCover ? 180 : 0),
-                    axis: (x: 0, y: 1, z: 0)
-                )
-                .shadow(radius: 4)
-                .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
-
-                // Flip button badge (shown when back cover available)
-                if canFlipToBackCover {
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.4)) {
-                            showingBackCover.toggle()
-                        }
-                    } label: {
-                        Image(systemName: showingBackCover ? "arrow.uturn.backward" : "arrow.trianglehead.2.clockwise.rotate.90")
-                            .foregroundColor(.white)
-                            .font(.system(size: 14, weight: .semibold))
-                            .padding(10)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .padding(12)
-                    .help(showingBackCover ? "Show front cover" : "Show back cover")
-                }
-
             }
+            .frame(maxWidth: .infinity)
+            .cornerRadius(8)
+            .shadow(radius: 4)
+            .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
 
             // Song title, album title, and artist below the image
             VStack(alignment: .leading, spacing: 8) {
-                // Recording Name (Year) + image-source ⓘ button
-                HStack {
+                // Recording Name (Year) — matches SongDetailView title pattern
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     if recording.isCanonical == true {
                         Image(systemName: "star.fill")
                             .foregroundColor(ApproachNoteTheme.accent)
                     }
                     if let songTitle = recording.songTitle {
-                        let yearSuffix = recording.recordingYear.map { " (\($0))" } ?? ""
-                        Text("\(songTitle)\(yearSuffix)")
-                            .font(ApproachNoteTheme.largeTitle())
-                            .foregroundColor(ApproachNoteTheme.textPrimary)
-                    }
-                    Spacer()
-                    if showingBackCover {
-                        AlbumArtSourceBadge(
-                            source: displayBackCoverSource,
-                            sourceUrl: displayBackCoverSourceUrl
-                        )
-                    } else {
-                        AlbumArtSourceBadge(
-                            source: displayAlbumArtSource,
-                            sourceUrl: displayAlbumArtSourceUrl
+                        (
+                            Text(songTitle)
+                                .font(ApproachNoteTheme.largeTitle(weight: .bold))
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
+                            + Text(recording.recordingYear.map { " (\(String($0)))" } ?? "")
+                                .font(ApproachNoteTheme.largeTitle(weight: .regular))
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
                         )
                     }
                 }
@@ -371,20 +275,69 @@ struct RecordingDetailView: View {
                     }
                 }
 
-                // Label and Authority badge on the same row
-                HStack(spacing: 12) {
-                    if let label = recording.label {
-                        Label(label, systemImage: "building.2")
-                            .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
+                if let composer = recording.composer {
+                    Text("Composed by \(composer)")
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+                }
 
-                    if recording.hasAuthority, let badgeText = recording.authorityBadgeText {
-                        AuthorityBadge(text: badgeText, source: recording.primaryAuthoritySource)
-                    }
+                // Recording metadata surfaced from the old collapsible section
+                recordingMetadataBlock(recording)
+
+                if recording.hasAuthority, let badgeText = recording.authorityBadgeText {
+                    AuthorityBadge(text: badgeText, source: recording.primaryAuthoritySource)
                 }
             }
         }
+    }
+
+    @ViewBuilder
+    private func recordingMetadataBlock(_ recording: Recording) -> some View {
+        let hasMetadata = displayReleaseYear != nil ||
+                          recording.recordingDate != nil ||
+                          recording.label != nil ||
+                          recording.notes != nil ||
+                          recording.musicbrainzId != nil
+
+        if hasMetadata {
+            VStack(alignment: .leading, spacing: 4) {
+                if let year = displayReleaseYear {
+                    metadataLine(label: "RELEASE YEAR", value: String(year))
+                }
+                if let date = recording.recordingDate {
+                    metadataLine(label: "RECORDED", value: date)
+                }
+                if let label = recording.label {
+                    metadataLine(label: "LABEL", value: label)
+                }
+                if let notes = recording.notes, !notes.isEmpty {
+                    Text(notes)
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.top, 4)
+                }
+                if let mbId = recording.musicbrainzId,
+                   let mbUrl = URL(string: "https://musicbrainz.org/recording/\(mbId)") {
+                    Link("Learn more on MusicBrainz", destination: mbUrl)
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                        .padding(.top, 4)
+                }
+            }
+            .padding(.top, 4)
+        }
+    }
+
+    private func metadataLine(label: String, value: String) -> some View {
+        (
+            Text("\(label): ")
+                .font(ApproachNoteTheme.subheadline(weight: .bold))
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+            + Text(value)
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+        )
     }
 
     private var albumArtPlaceholder: some View {
@@ -395,99 +348,6 @@ struct RecordingDetailView: View {
                     .font(.system(size: 50))
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
-    }
-
-    @ViewBuilder
-    private func recordingInfo(_ recording: Recording) -> some View {
-        let hasContent = recording.recordingYear != nil ||
-                         recording.recordingDate != nil ||
-                         recording.label != nil ||
-                         recording.notes != nil ||
-                         recording.musicbrainzId != nil
-
-        if hasContent {
-            VStack(alignment: .leading, spacing: 0) {
-                // Collapsible header
-                Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        isRecordingDetailsExpanded.toggle()
-                    }
-                } label: {
-                    HStack {
-                        Text("Recording Details")
-                            .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                        Spacer()
-
-                        Image(systemName: isRecordingDetailsExpanded ? "chevron.up" : "chevron.down")
-                            .font(ApproachNoteTheme.subheadline())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
-                    .padding(12)
-                    .background(ApproachNoteTheme.surface)
-                }
-                .buttonStyle(.plain)
-
-                // Expandable content
-                if isRecordingDetailsExpanded {
-                    VStack(alignment: .leading, spacing: 12) {
-                        if let year = recording.recordingYear {
-                            DetailRow(icon: "calendar", label: "Year", value: String(year))
-                        }
-
-                        if let date = recording.recordingDate {
-                            DetailRow(icon: "calendar.badge.clock", label: "Recorded", value: date)
-                        }
-
-                        if let label = recording.label {
-                            DetailRow(icon: "music.note.house", label: "Label", value: label)
-                        }
-
-                        if let notes = recording.notes, !notes.isEmpty {
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Image(systemName: "note.text")
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                        .frame(width: 24)
-                                    Text("Notes")
-                                        .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
-                                Text(notes)
-                                    .font(ApproachNoteTheme.body())
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                                    .padding(.leading, 32)
-                            }
-                        }
-
-                        // MusicBrainz link
-                        if let mbId = recording.musicbrainzId,
-                           let url = URL(string: "https://musicbrainz.org/recording/\(mbId)") {
-                            Divider()
-                                .padding(.vertical, 4)
-
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Learn More:")
-                                    .font(ApproachNoteTheme.body(weight: .semibold))
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                                ApproachNoteButton(
-                                    "MusicBrainz",
-                                    style: .secondary,
-                                    trailingSystemImage: "arrow.up.right.square"
-                                ) {
-                                    openURL(url)
-                                }
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(ApproachNoteTheme.surface)
-                }
-            }
-            .cornerRadius(8)
-        }
     }
 
     /// Get Spotify URL - uses selected release if available, otherwise falls back to streaming links or legacy field
@@ -630,8 +490,6 @@ struct RecordingDetailView: View {
                         } else {
                             viewModel.selectedReleaseId = release.id
                         }
-                        // Reset back cover when changing release
-                        showingBackCover = false
                     }
                 } label: {
                     HStack(spacing: 12) {
