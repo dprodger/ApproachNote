@@ -318,91 +318,102 @@ struct RepertoirePickerSheet: View {
     @Binding var isPresented: Bool
     @EnvironmentObject var authManager: AuthenticationManager
     @State private var showCreateRepertoire = false
-    
+    @State private var repertoireToDelete: Repertoire?
+    @State private var deleteErrorMessage: String?
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 0) {
-                    ForEach(repertoireManager.repertoires) { repertoire in
-                        Button(action: {
-                            repertoireManager.selectRepertoire(repertoire)
-                            isPresented = false
-                        }) {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(repertoire.name)
-                                        .font(ApproachNoteTheme.headline())
-                                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                                    
-                                    if let description = repertoire.description {
-                                        Text(description)
-                                            .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                            .lineLimit(2)
-                                    }
-                                    
-                                    if repertoire.id != "all" {
-                                        Text("\(repertoire.songCount) songs")
-                                            .font(ApproachNoteTheme.caption())
-                                            .foregroundColor(ApproachNoteTheme.brand)
-                                    }
+            List {
+                ForEach(repertoireManager.repertoires) { repertoire in
+                    Button(action: {
+                        repertoireManager.selectRepertoire(repertoire)
+                        isPresented = false
+                    }) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(repertoire.name)
+                                    .font(ApproachNoteTheme.headline())
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
+
+                                if let description = repertoire.description {
+                                    Text(description)
+                                        .font(ApproachNoteTheme.subheadline())
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                                        .lineLimit(2)
                                 }
-                                
-                                Spacer()
-                                
-                                if repertoire.id == repertoireManager.selectedRepertoire.id {
-                                    Image(systemName: "checkmark.circle.fill")
+
+                                if repertoire.id != "all" {
+                                    Text("\(repertoire.songCount) songs")
+                                        .font(ApproachNoteTheme.caption())
                                         .foregroundColor(ApproachNoteTheme.brand)
-                                        .font(ApproachNoteTheme.title3())
                                 }
                             }
-                            .contentShape(Rectangle())
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(
-                                repertoire.id == repertoireManager.selectedRepertoire.id ?
-                                    ApproachNoteTheme.brand.opacity(0.1) :
-                                    ApproachNoteTheme.surface
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        
-                        if repertoire.id != repertoireManager.repertoires.last?.id {
-                            Divider()
-                                .background(ApproachNoteTheme.textSecondary.opacity(0.3))
-                        }
-                    }
-                    
-                    // Add "Create New Repertoire" button for authenticated users
-                    if authManager.isAuthenticated {
-                        Divider()
-                            .background(ApproachNoteTheme.textSecondary.opacity(0.3))
-                        
-                        Button(action: {
-                            showCreateRepertoire = true
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
+
+                            Spacer()
+
+                            if repertoire.id == repertoireManager.selectedRepertoire.id {
+                                Image(systemName: "checkmark.circle.fill")
                                     .foregroundColor(ApproachNoteTheme.brand)
                                     .font(ApproachNoteTheme.title3())
-                                
-                                Text("Create New Repertoire")
-                                    .font(ApproachNoteTheme.headline())
-                                    .foregroundColor(ApproachNoteTheme.brand)
-                                
-                                Spacer()
                             }
-                            .contentShape(Rectangle())
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 12)
-                            .frame(maxWidth: .infinity)
-                            .background(ApproachNoteTheme.surface)
                         }
-                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(
+                            repertoire.id == repertoireManager.selectedRepertoire.id ?
+                                ApproachNoteTheme.brand.opacity(0.1) :
+                                ApproachNoteTheme.surface
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.visible)
+                    .listRowSeparatorTint(ApproachNoteTheme.textSecondary.opacity(0.3))
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        if repertoire.id != "all" {
+                            Button(role: .destructive) {
+                                repertoireToDelete = repertoire
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
                 }
+
+                // Add "Create New Repertoire" button for authenticated users
+                if authManager.isAuthenticated {
+                    Button(action: {
+                        showCreateRepertoire = true
+                    }) {
+                        HStack {
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundColor(ApproachNoteTheme.brand)
+                                .font(ApproachNoteTheme.title3())
+
+                            Text("Create New Repertoire")
+                                .font(ApproachNoteTheme.headline())
+                                .foregroundColor(ApproachNoteTheme.brand)
+
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .frame(maxWidth: .infinity)
+                        .background(ApproachNoteTheme.surface)
+                    }
+                    .buttonStyle(.plain)
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.visible)
+                    .listRowSeparatorTint(ApproachNoteTheme.textSecondary.opacity(0.3))
+                    .listRowBackground(Color.clear)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
             .background(ApproachNoteTheme.background)
             .navigationTitle("Select Repertoire")
             .navigationBarTitleDisplayMode(.inline)
@@ -416,6 +427,33 @@ struct RepertoirePickerSheet: View {
             }
             .sheet(isPresented: $showCreateRepertoire) {
                 CreateRepertoireView(repertoireManager: repertoireManager)
+            }
+            .alert("Delete Repertoire?",
+                   isPresented: Binding(
+                    get: { repertoireToDelete != nil },
+                    set: { if !$0 { repertoireToDelete = nil } }
+                   ),
+                   presenting: repertoireToDelete) { repertoire in
+                Button("Delete", role: .destructive) {
+                    Task {
+                        let success = await repertoireManager.deleteRepertoire(id: repertoire.id)
+                        if !success {
+                            deleteErrorMessage = "Couldn't delete \"\(repertoire.name)\". Please try again."
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: { repertoire in
+                Text("Delete \u{201C}\(repertoire.name)\u{201D}? This removes the repertoire and all its song entries. This cannot be undone.")
+            }
+            .alert("Delete Failed",
+                   isPresented: Binding(
+                    get: { deleteErrorMessage != nil },
+                    set: { if !$0 { deleteErrorMessage = nil } }
+                   )) {
+                Button("OK", role: .cancel) { }
+            } message: {
+                Text(deleteErrorMessage ?? "")
             }
         }
     }
