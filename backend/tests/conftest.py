@@ -271,6 +271,12 @@ def _clean_research_tables():
     source_quotas isn't truncated — the migration seeds the youtube/day row
     and tests rely on it being present. Reset to a known clean state instead.
     """
+    # Snapshot the migration-seeded units_limit per row so tests that mutate
+    # it (boundary cases for consume) don't leak the change to other tests.
+    with psycopg.connect(**_test_db_dsn()) as conn:
+        with conn.cursor() as cur:
+            cur.execute("SELECT source, window_name, units_limit FROM source_quotas")
+            limits = cur.fetchall()
     yield
     with psycopg.connect(**_test_db_dsn()) as conn:
         with conn.cursor() as cur:
@@ -281,6 +287,12 @@ def _clean_research_tables():
                 "UPDATE source_quotas "
                 "SET units_used = 0, resets_at = now() + interval '1 day'"
             )
+            for source, window, limit in limits:
+                cur.execute(
+                    "UPDATE source_quotas SET units_limit = %s "
+                    "WHERE source = %s AND window_name = %s",
+                    (limit, source, window),
+                )
         conn.commit()
 
 
@@ -353,12 +365,15 @@ def quota_row(db):
                 'resets_at': row[2],
             }
 
-        def set(self, *, units_used=None, resets_at=None) -> None:
+        def set(self, *, units_used=None, units_limit=None, resets_at=None) -> None:
             sets = []
             params = []
             if units_used is not None:
                 sets.append("units_used = %s")
                 params.append(units_used)
+            if units_limit is not None:
+                sets.append("units_limit = %s")
+                params.append(units_limit)
             if resets_at is not None:
                 sets.append("resets_at = %s")
                 params.append(resets_at)

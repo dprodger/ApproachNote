@@ -39,7 +39,7 @@ class TestConsume:
 
     def test_raises_when_would_exceed_limit(self, quota_row):
         # 9750 used, asking for 301 → would push to 10051 > 10000.
-        quota_row.set(units_used=9750)
+        quota_row.set(units_used=9750, units_limit=10000)
         with pytest.raises(QuotaExhausted) as exc:
             quota.consume('youtube', 'day', 301)
         assert exc.value.source == 'youtube'
@@ -48,12 +48,12 @@ class TestConsume:
 
     def test_exact_fit_at_limit_succeeds(self, quota_row):
         # Boundary: units_used + cost == units_limit must succeed.
-        quota_row.set(units_used=9699)
+        quota_row.set(units_used=9699, units_limit=10000)
         quota.consume('youtube', 'day', 301)
         assert quota_row.snapshot()['units_used'] == 10000
 
     def test_one_over_limit_raises(self, quota_row):
-        quota_row.set(units_used=9700)
+        quota_row.set(units_used=9700, units_limit=10000)
         with pytest.raises(QuotaExhausted):
             quota.consume('youtube', 'day', 301)
 
