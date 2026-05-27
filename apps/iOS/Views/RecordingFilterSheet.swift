@@ -111,6 +111,7 @@ struct RecordingFilterSheet: View {
 
                 Text(service.displayName)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Spacer()

@@ -152,6 +152,7 @@ struct MacAddStreamingLinkSheet: View {
                 TextField("Paste URL here...", text: $urlInput)
                     .textFieldStyle(.roundedBorder)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .disabled(isSaving)
 
                 // Paste button

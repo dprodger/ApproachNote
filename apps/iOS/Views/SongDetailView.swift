@@ -148,6 +148,7 @@ struct SongDetailView: View {
                 if let composer = song.composer {
                     Text("Composed by \(composer)")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                 }
 
@@ -229,6 +230,7 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineLimit(5)
                     .fixedSize(horizontal: false, vertical: true)
@@ -237,6 +239,7 @@ struct SongDetailView: View {
                    let wikiUrl = URL(string: wikiUrlString) {
                     Link("Read more on Wikipedia", destination: wikiUrl)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
             }

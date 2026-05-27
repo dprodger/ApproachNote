@@ -101,6 +101,7 @@ struct MacAddToRepertoireSheet: View {
 
             Text("You need to be signed in to add songs to repertoires")
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)

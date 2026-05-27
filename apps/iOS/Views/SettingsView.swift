@@ -6,6 +6,7 @@ import SwiftUI
 struct SettingsView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var favoritesManager: FavoritesManager
+    @EnvironmentObject var themeManager: ThemeManager
     @AppStorage("preferredStreamingService") private var preferredStreamingService: String = StreamingService.spotify.rawValue
 
     @State private var contributionStats: UserContributionStats?
@@ -44,6 +45,7 @@ struct SettingsView: View {
                             if let email = authManager.currentUser?.email {
                                 Text(email)
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                             }
                         }
@@ -66,6 +68,7 @@ struct SettingsView: View {
                                     .foregroundColor(ApproachNoteTheme.brand)
                                 Text("Preferred Service")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Picker("", selection: $preferredStreamingService) {
@@ -114,6 +117,7 @@ struct SettingsView: View {
                             } else if favoritesManager.favoriteRecordings.isEmpty {
                                 Text("No favorite recordings yet")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .padding(.horizontal)
                             } else {
@@ -266,6 +270,7 @@ struct SettingsView: View {
                                         .foregroundColor(.orange)
                                     Text(error)
                                         .font(ApproachNoteTheme.body())
+                                        .bodyLineSpacing()
                                         .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                                 .padding(.horizontal)
@@ -316,6 +321,45 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal)
                         }
+                    }
+
+                    // Theme Palette (temporary — runtime palette switcher)
+                    Divider()
+                        .padding(.horizontal)
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("Appearance (Preview)")
+                            .font(ApproachNoteTheme.headline())
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
+                            .padding(.horizontal)
+
+                        VStack(spacing: 0) {
+                            HStack {
+                                Image(systemName: "paintpalette.fill")
+                                    .foregroundColor(ApproachNoteTheme.brand)
+                                Text("Palette")
+                                    .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
+                                    .foregroundColor(ApproachNoteTheme.textPrimary)
+                                Spacer()
+                                Picker("", selection: $themeManager.palette) {
+                                    ForEach(PaletteChoice.allCases) { choice in
+                                        Text(choice.displayName).tag(choice)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+                                .tint(ApproachNoteTheme.brand)
+                            }
+                            .padding()
+                            .background(ApproachNoteTheme.surface)
+                            .cornerRadius(8)
+                        }
+                        .padding(.horizontal)
+
+                        Text("Temporary picker for evaluating design palettes. Switching reloads the view tree.")
+                            .font(ApproachNoteTheme.caption())
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                            .padding(.horizontal)
                     }
 
                     Spacer()
@@ -370,6 +414,7 @@ private struct ContributionStatRow: View {
 
             Text(label)
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
             Spacer()
@@ -388,4 +433,5 @@ private struct ContributionStatRow: View {
     SettingsView()
         .environmentObject(AuthenticationManager())
         .environmentObject(FavoritesManager())
+        .environmentObject(ThemeManager.shared)
 }

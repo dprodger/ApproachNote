@@ -175,6 +175,7 @@ struct YouTubeImportView: View {
 
                 Text("You need to be signed in to import YouTube videos")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 32)
@@ -294,6 +295,7 @@ struct YouTubeImportView: View {
 
                     Text("No songs found")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textSecondary)
 
                     Text("Try different keywords")
@@ -496,6 +498,7 @@ struct RecordingPickerView: View {
                             .foregroundColor(.orange)
                         Text(error)
                             .font(ApproachNoteTheme.body())
+                            .bodyLineSpacing()
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     Spacer()
@@ -507,6 +510,7 @@ struct RecordingPickerView: View {
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                         Text("No recordings found")
                             .font(ApproachNoteTheme.body())
+                            .bodyLineSpacing()
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                         Text("This song doesn't have any recordings yet")
                             .font(ApproachNoteTheme.caption())
@@ -556,6 +560,7 @@ struct RecordingPickerView: View {
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("No matching recordings")
                                 .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
                         Spacer()

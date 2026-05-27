@@ -70,14 +70,17 @@ struct AboutView: View {
                 VStack(spacing: 12) {
                     Text("Explore thousands of jazz standards")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(.white)
 
                     Text("Discover legendary artists and recordings")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(.white)
 
                     Text("Build your jazz knowledge")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(.white)
                 }
                 .padding(.horizontal, 40)
@@ -116,10 +119,12 @@ struct AboutView: View {
                             Image(systemName: workerActive ? "arrow.triangle.2.circlepath" : "clock")
                                 .foregroundColor(.white.opacity(0.9))
                                 .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
                                 .rotationEffect(.degrees(isRefreshing ? rotationAngle : 0))
 
                             Text("Research Queue: \(queueSize)")
                                 .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
                                 .foregroundColor(.white.opacity(0.9))
 
                             if isRefreshing {

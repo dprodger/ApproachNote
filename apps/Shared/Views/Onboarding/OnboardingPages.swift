@@ -41,17 +41,20 @@ struct OnboardingWelcomePage: View {
 
                 Text("I'm going to give you a brief description of what is available here so you can get yourself oriented.")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
 
                 #if os(iOS)
                 Text("You can always re-run this tutorial by going to the About section and tapping \"View Tutorial\".")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
                 #else
                 Text("You can always re-run this tutorial from Settings.")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
                 #endif
@@ -70,6 +73,7 @@ struct OnboardingWelcomePage: View {
 
                 Text("When it comes to music, the data are complicated.\nI'll walk you through the definitions.")
                     .font(ApproachNoteTheme.body(italic: true))
+                    .bodyLineSpacing()
                     .multilineTextAlignment(.center)
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
@@ -117,6 +121,7 @@ struct OnboardingSongPage: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .font(ApproachNoteTheme.body())
+            .bodyLineSpacing()
             .foregroundColor(ApproachNoteTheme.textPrimary)
             .multilineTextAlignment(.leading)
             .padding(.horizontal, OnboardingLayout.horizontalPadding)
@@ -188,6 +193,7 @@ struct OnboardingRecordingPage: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .font(ApproachNoteTheme.body())
+            .bodyLineSpacing()
             .foregroundColor(ApproachNoteTheme.textPrimary)
             .multilineTextAlignment(.leading)
             .padding(.horizontal, OnboardingLayout.horizontalPadding)
@@ -262,6 +268,7 @@ struct OnboardingReleasesPage: View {
                 Text("The same piece of audio often appears on multiple releases.")
             }
             .font(ApproachNoteTheme.body())
+            .bodyLineSpacing()
             .foregroundColor(ApproachNoteTheme.textSecondary)
             .multilineTextAlignment(.leading)
             .padding(.horizontal, OnboardingLayout.horizontalPadding)
@@ -286,6 +293,7 @@ struct OnboardingReleasesPage: View {
                 Text("Oftentimes, releases are restricted by geographic region; or they may no longer be available at all.")
             }
             .font(ApproachNoteTheme.body())
+            .bodyLineSpacing()
             .foregroundColor(ApproachNoteTheme.textSecondary)
             .padding(.horizontal, OnboardingLayout.horizontalPadding)
             #endif

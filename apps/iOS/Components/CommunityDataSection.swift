@@ -95,6 +95,7 @@ struct CommunityDataSection: View {
                         VStack(alignment: .center, spacing: 8) {
                             Text("No community data yet")
                                 .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
 
                             if isAuthenticated {
@@ -163,6 +164,7 @@ struct CommunityDataRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(value)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .fontWeight(isEmpty ? .regular : .medium)
                     .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textPrimary)
 

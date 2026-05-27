@@ -91,6 +91,7 @@ struct ContentView: View {
                         VStack(spacing: 16) {
                             Text("Create and select repertoires to focus on a subset of songs.")
                                 .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
                                 .multilineTextAlignment(.center)
 
@@ -100,6 +101,7 @@ struct ContentView: View {
                             }) {
                                 Text("Sign In")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(.white)
                                     .frame(minWidth: 100)
                                     .padding(.horizontal, 16)
@@ -311,6 +313,7 @@ struct AccountSettingsView: View {
                 } else if favoritesManager.favoriteRecordings.isEmpty {
                     Text("No favorite recordings yet")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
                         .padding(.horizontal)
                 } else {

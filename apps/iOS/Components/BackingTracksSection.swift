@@ -208,6 +208,7 @@ struct VideoPlayerSheet: View {
                     if let description = video.description, !description.isEmpty {
                         Text(description)
                             .font(ApproachNoteTheme.body())
+                            .bodyLineSpacing()
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
 

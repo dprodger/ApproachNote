@@ -50,6 +50,12 @@ struct ApproachNoteTheme {
 
     // MARK: - Body Fonts
 
+    /// Extra line spacing for body text, as a fraction of font size.
+    /// `.lineSpacing(fontSize * bodyLineSpacingRatio)` adds breathing room on
+    /// top of the font's natural line height. 0.2 ≈ designer-spec "120%".
+    /// Tune to taste — lower is tighter, higher is airier.
+    static let bodyLineSpacingRatio: CGFloat = 0.2
+
     /// Font for body text
     static func body(size: CGFloat = 16, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
         .custom(bodyFontName(for: weight, italic: italic), size: size)
@@ -338,6 +344,16 @@ extension View {
 }
 #endif
 
+// MARK: - Body Line Spacing
+
+extension View {
+    /// Adds the project's standard body line spacing for the given font size.
+    /// Pair with `.font(ApproachNoteTheme.body(...))` for prose readability.
+    func bodyLineSpacing(size: CGFloat = 16) -> some View {
+        self.lineSpacing(size * ApproachNoteTheme.bodyLineSpacingRatio)
+    }
+}
+
 // MARK: - Semantic Color Tokens
 //
 // Colors are organized by *role*, not pigment. Pick the token that matches
@@ -352,60 +368,40 @@ extension View {
 
 extension ApproachNoteTheme {
 
+    // Color tokens are computed properties that resolve through the current
+    // palette selected via `ThemeManager` (see `ThemePalette.swift`). This is
+    // a temporary affordance for evaluating multiple palettes at runtime; to
+    // lock in a single palette, restore these to `static let` and inline the
+    // chosen values.
+
     // MARK: - Brand
 
-    /// Brand identity color. Navigation chrome, section headers, app identity.
-    /// Deep blue (#363A87). Shares its hex with `accent` — same hue serves two
-    /// roles (filled surface vs. interactive foreground) and is intentionally
-    /// kept as separate tokens so they can diverge later without a rename pass.
-    static let brand = Color(red: 0.212, green: 0.227, blue: 0.529)
+    static var brand: Color { currentPaletteColors.brand }
 
     // MARK: - Surfaces
 
-    /// App background. Off-white (#FFFCF7).
-    static let background = Color(red: 1.0, green: 0.988, blue: 0.969)
-
-    /// Elevated surface — cards, sheets, modals. White (#FFFFFF).
-    static let surface = Color.white
-
-    /// Recessed / grouped surface. Light gray (#D9D7D7). Also useful for divider fills.
-    static let surfaceMuted = Color(red: 0.851, green: 0.843, blue: 0.843)
+    static var background: Color   { currentPaletteColors.background }
+    static var surface: Color      { currentPaletteColors.surface }
+    static var surfaceMuted: Color { currentPaletteColors.surfaceMuted }
 
     // MARK: - Text
 
-    /// Primary text on light surfaces. Warm near-black (#413737).
-    static let textPrimary = Color(red: 0.255, green: 0.216, blue: 0.216)
-
-    /// Secondary text — captions, supporting copy, metadata. (#675F5F)
-    static let textSecondary = Color(red: 0.404, green: 0.373, blue: 0.373)
-
-    /// Tertiary text — disabled, hint, placeholder. (#B3AFAF)
-    static let textTertiary = Color(red: 0.702, green: 0.686, blue: 0.686)
-
-    /// Text/icons on dark surfaces (brand chrome, nav bar titles). Off-white (#FFFCF7).
-    static let textOnDark = Color(red: 1.0, green: 0.988, blue: 0.969)
-
-    /// Text/icons on filled accent buttons. Pure white.
-    static let textOnAccent = Color.white
+    static var textPrimary: Color    { currentPaletteColors.textPrimary }
+    static var textSecondary: Color  { currentPaletteColors.textSecondary }
+    static var textTertiary: Color   { currentPaletteColors.textTertiary }
+    static var textOnDark: Color     { currentPaletteColors.textOnDark }
+    static var textOnAccent: Color   { currentPaletteColors.textOnAccent }
 
     // MARK: - Accent (interactive)
 
-    /// Primary interactive color — links, action buttons, selection, ratings. Blue (#363A87).
-    static let accent = Color(red: 0.212, green: 0.227, blue: 0.529)
-
-    /// Pressed / hover state of accent. Slightly lighter blue (#5D619F).
-    static let accentMuted = Color(red: 0.365, green: 0.380, blue: 0.624)
-
-    /// Tinted background for accent-themed regions (e.g. selected row, info panels). (#ECEDFF)
-    static let accentBackground = Color(red: 0.925, green: 0.929, blue: 1.0)
+    static var accent: Color            { currentPaletteColors.accent }
+    static var accentMuted: Color       { currentPaletteColors.accentMuted }
+    static var accentBackground: Color  { currentPaletteColors.accentBackground }
 
     // MARK: - Status
 
-    /// Warnings, alerts, destructive actions. Red (#FF3A4E).
-    static let warning = Color(red: 1.0, green: 0.227, blue: 0.306)
-
-    /// Tinted background for warning regions. (#FFEBED)
-    static let warningBackground = Color(red: 1.0, green: 0.922, blue: 0.929)
+    static var warning: Color           { currentPaletteColors.warning }
+    static var warningBackground: Color { currentPaletteColors.warningBackground }
 
 }
 

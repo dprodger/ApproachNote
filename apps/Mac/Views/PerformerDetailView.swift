@@ -168,6 +168,7 @@ struct PerformerDetailView: View {
             if let biography = performer.biography, !biography.isEmpty {
                 Text(biography)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
                     .lineSpacing(4)
                     .lineLimit(isBiographicalInfoExpanded ? nil : 3)
@@ -256,6 +257,7 @@ struct PerformerDetailView: View {
                                     .frame(width: 24)
                                 Text("Wikipedia")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right.square")
@@ -280,6 +282,7 @@ struct PerformerDetailView: View {
                                     .frame(width: 24)
                                 Text("MusicBrainz")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
                                 Spacer()
                                 Image(systemName: "arrow.up.right.square")
@@ -608,6 +611,7 @@ struct PerformerRecordingCard: View {
             // Album title
             Text(recording.albumTitle ?? "Unknown Album")
                 .font(ApproachNoteTheme.body(weight: .medium))
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: artworkSize, alignment: .leading)

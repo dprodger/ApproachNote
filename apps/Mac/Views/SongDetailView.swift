@@ -259,6 +259,7 @@ struct SongDetailView: View {
             if let composer = song.composer {
                 Text("Composed by \(composer)")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
             }
 
@@ -350,6 +351,7 @@ struct SongDetailView: View {
                     .frame(width: 24)
                 Text(label)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
                 Spacer()
                 Image(systemName: "arrow.up.right.square")
@@ -379,6 +381,7 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -386,6 +389,7 @@ struct SongDetailView: View {
                    let wikiUrl = URL(string: wikiUrlString) {
                     Link("Read more on Wikipedia", destination: wikiUrl)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
             }
@@ -403,6 +407,7 @@ struct SongDetailView: View {
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             Text(composedKey)
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textSecondary)
         }
     }
@@ -412,6 +417,7 @@ struct SongDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Learn More:")
                 .font(ApproachNoteTheme.body(weight: .semibold))
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
             HStack(spacing: 12) {
@@ -662,6 +668,7 @@ struct SongDetailView: View {
                             )) {
                                 Text(service.displayName)
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
                             .tint(ApproachNoteTheme.brand)

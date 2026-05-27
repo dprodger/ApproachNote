@@ -19,6 +19,7 @@ struct MacSearchBar: View {
             TextField(placeholder, text: $text)
                 .textFieldStyle(.plain)
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             if !text.isEmpty {
                 Button(action: { text = "" }) {

@@ -106,6 +106,7 @@ struct AddToRepertoireSheet: View {
             
             Text("You need to be signed in to add songs to repertoires")
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)

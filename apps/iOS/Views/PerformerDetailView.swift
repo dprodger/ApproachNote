@@ -86,6 +86,7 @@ struct PerformerDetailView: View {
                                         ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
                                             Text(paragraph)
                                                 .font(ApproachNoteTheme.body())
+                                                .bodyLineSpacing()
                                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                                         }
                                     }

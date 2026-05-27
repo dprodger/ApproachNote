@@ -171,6 +171,7 @@ struct CommunitySettingsView: View {
 
                 Text("Track your contributions to the community including transcriptions, backing tracks, and recording metadata.")
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 40)
@@ -226,6 +227,7 @@ struct ContributionStatRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(label)
                     .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
                 Text(description)

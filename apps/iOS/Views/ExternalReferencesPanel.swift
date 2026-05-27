@@ -137,6 +137,7 @@ struct ExternalReferencesPanel: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Learn More:")
                 .font(ApproachNoteTheme.body(weight: .semibold))
+                .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             
             VStack(spacing: 10) {

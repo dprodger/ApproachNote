@@ -155,6 +155,7 @@ struct MacYouTubeImportView: View {
 
             Text("You need to be signed in to import YouTube videos")
                 .font(ApproachNoteTheme.body())
+                .bodyLineSpacing()
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
@@ -291,6 +292,7 @@ struct MacYouTubeImportView: View {
 
                     Text("No songs found")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(.secondary)
 
                     Text("Try different keywords")

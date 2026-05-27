@@ -243,6 +243,7 @@ struct RecordingDetailView: View {
                             if let composer = recording.composer {
                                 Text("Composed by \(composer)")
                                     .font(ApproachNoteTheme.body())
+                                    .bodyLineSpacing()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
                             }
 
@@ -725,6 +726,7 @@ struct RecordingDetailView: View {
                 if let notes = recording.notes {
                     Text(notes)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.top, 4)
@@ -733,6 +735,7 @@ struct RecordingDetailView: View {
                    let mbUrl = URL(string: "https://musicbrainz.org/recording/\(mbId)") {
                     Link("Learn more on MusicBrainz", destination: mbUrl)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.brand)
                         .padding(.top, 4)
                 }

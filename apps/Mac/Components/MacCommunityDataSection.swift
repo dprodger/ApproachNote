@@ -85,6 +85,7 @@ struct MacCommunityDataSection: View {
                 VStack(alignment: .center, spacing: 8) {
                     Text("No community data yet")
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textSecondary)
 
                     if isAuthenticated {
@@ -150,12 +151,14 @@ struct MacCommunityDataRow: View {
                 if let help = helpText {
                     Text(value)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .fontWeight(isEmpty ? .regular : .medium)
                         .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textPrimary)
                         .help(help)
                 } else {
                     Text(value)
                         .font(ApproachNoteTheme.body())
+                        .bodyLineSpacing()
                         .fontWeight(isEmpty ? .regular : .medium)
                         .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textPrimary)
                 }
