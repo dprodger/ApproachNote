@@ -41,4 +41,17 @@ regexes = [
   # ever rotate credentials again, DO NOT add the new value here.
   # --------------------------------------------------------------------
   '''jovpeW-pukgu0-nifron''',
+
+  # --------------------------------------------------------------------
+  # 3. PostHog public project token.
+  #
+  # `phc_…` tokens are PostHog's client-side project identifiers,
+  # meant to be embedded in client apps (same category as a Google
+  # Analytics ID or a Stripe publishable key). They ship in the iOS
+  # binary regardless of where they live in the repo. Not a secret.
+  #
+  # Source: apps/iOS/App/ApproachNoteApp.swift — AppDelegate PostHog
+  # initialization.
+  # --------------------------------------------------------------------
+  '''phc_[A-Za-z0-9]{40,}''',
 ]
