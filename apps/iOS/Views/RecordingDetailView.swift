@@ -199,7 +199,7 @@ struct RecordingDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     ThemedSectionHeader("Recording")
 
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: 16) {
                         // Album Information
                         VStack(alignment: .leading, spacing: 12) {
                             // Album artwork with play button overlay and flip support
@@ -215,13 +215,13 @@ struct RecordingDetailView: View {
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxWidth: .infinity)
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(12)
                                             },
                                             placeholder: {
                                                 Rectangle()
                                                     .fill(ApproachNoteTheme.surface)
                                                     .aspectRatio(1, contentMode: .fit)
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(12)
                                                     .overlay(
                                                         ProgressView()
                                                             .tint(ApproachNoteTheme.textSecondary)
@@ -243,13 +243,13 @@ struct RecordingDetailView: View {
                                                     .resizable()
                                                     .aspectRatio(contentMode: .fit)
                                                     .frame(maxWidth: .infinity)
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(12)
                                             },
                                             placeholder: {
                                                 Rectangle()
                                                     .fill(ApproachNoteTheme.surface)
                                                     .aspectRatio(1, contentMode: .fit)
-                                                    .cornerRadius(8)
+                                                    .cornerRadius(12)
                                                     .overlay(
                                                         ProgressView()
                                                             .tint(ApproachNoteTheme.textSecondary)
@@ -275,7 +275,7 @@ struct RecordingDetailView: View {
                                         Image(systemName: showingBackCover ? "arrow.uturn.backward" : "arrow.trianglehead.2.clockwise.rotate.90")
                                             .foregroundColor(.white)
                                             .font(.system(size: 14, weight: .semibold))
-                                            .padding(10)
+                                            .padding(8)
                                             .background(Color.black.opacity(0.6))
                                             .clipShape(Circle())
                                     }
@@ -339,8 +339,9 @@ struct RecordingDetailView: View {
                                 streamingServicesIndicator
                             }
                         }
-                        .padding()
-                        
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 16)
+
                         // Recording Details Section (Collapsible)
                         learnMoreSection(recording)
                         
@@ -350,8 +351,8 @@ struct RecordingDetailView: View {
                         }
                         
                         Divider()
-                            .padding(.horizontal)
-                        
+                            .padding(.horizontal, 20)
+
                         // Performers Section
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
@@ -359,7 +360,7 @@ struct RecordingDetailView: View {
                                     .font(ApproachNoteTheme.title2())
                                     .bold()
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                                
+
                                 // Indicator when showing release-specific performers
                                 if selectedRelease != nil, let releasePerformers = selectedRelease?.performers, !releasePerformers.isEmpty {
                                     Text("(from selected release)")
@@ -367,7 +368,7 @@ struct RecordingDetailView: View {
                                         .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
                             }
-                            .padding(.horizontal)
+                            .padding(.horizontal, 20)
                             
                             if let performers = displayPerformers, !performers.isEmpty {
                                 ForEach(performers) { performer in
@@ -405,7 +406,7 @@ struct RecordingDetailView: View {
                                         .font(ApproachNoteTheme.headline())
                                         .foregroundColor(ApproachNoteTheme.textPrimary)
                                 }
-                                .padding(.horizontal)
+                                .padding(.horizontal, 20)
 
                                 ScrollView(.horizontal, showsIndicators: false) {
                                     HStack(spacing: 12) {
@@ -427,7 +428,7 @@ struct RecordingDetailView: View {
                                             .frame(width: 60)
                                         }
                                     }
-                                    .padding(.horizontal)
+                                    .padding(.horizontal, 20)
                                 }
                             }
                             .padding(.vertical, 8)
@@ -438,7 +439,7 @@ struct RecordingDetailView: View {
                             TranscriptionsSection(transcriptions: transcriptions)
                         }
                     }
-                    .padding(.vertical)
+                    .padding(.vertical, 16)
                 }
             } else {
                 VStack {
@@ -637,9 +638,9 @@ struct RecordingDetailView: View {
         .padding()
         .background(ApproachNoteTheme.surface)
         .cornerRadius(10)
-        .padding(.horizontal)
+        .padding(.horizontal, 20)
     }
-    
+
     @ViewBuilder
     private func releaseRow(_ release: Release, isSelected: Bool) -> some View {
         HStack(alignment: .top, spacing: 12) {
@@ -744,7 +745,7 @@ struct RecordingDetailView: View {
                     .foregroundColor(ApproachNoteTheme.accent)
             }
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 8)
         .padding(.horizontal, 8)
         .background(isSelected ? ApproachNoteTheme.brand.opacity(0.1) : Color.clear)
         .cornerRadius(8)
@@ -782,7 +783,7 @@ struct RecordingDetailView: View {
             .fill(ApproachNoteTheme.surface)
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
-            .cornerRadius(8)
+            .cornerRadius(12)
             .overlay(
                 Image(systemName: "music.note")
                     .font(.system(size: 80))
@@ -886,7 +887,7 @@ struct RecordingDetailView: View {
                 }
             }
             .cornerRadius(10)
-            .padding(.horizontal)
+            .padding(.horizontal, 20)
         }
     }
 }
