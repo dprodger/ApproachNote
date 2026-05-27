@@ -138,6 +138,136 @@ class TestEnqueue:
 
 
 # ---------------------------------------------------------------------------
+# enqueue_many_for_targets — bulk INSERT path for backfill sweeps
+# ---------------------------------------------------------------------------
+
+class TestEnqueueMany:
+    """Bulk path: one multi-row INSERT per batch, ON CONFLICT DO NOTHING.
+
+    DB end-state must match what an equivalent loop of enqueue() would
+    produce; only the round-trip count differs.
+    """
+
+    def _count_jobs_for_targets(self, db, target_ids):
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT target_id, COUNT(*) FROM research_jobs "
+                "WHERE target_id = ANY(%s::uuid[]) GROUP BY target_id",
+                (target_ids,),
+            )
+            return {str(row[0]): row[1] for row in cur.fetchall()}
+
+    def test_empty_input_returns_zeros_without_db_call(self, mocker):
+        # Defensive: don't issue an INSERT with empty VALUES.
+        get_conn = mocker.patch('core.research_jobs.get_db_connection')
+        result = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=[],
+        )
+        assert result == {'requested': 0, 'inserted': 0, 'skipped': 0}
+        get_conn.assert_not_called()
+
+    def test_inserts_all_rows_in_single_batch(self, db):
+        target_ids = [str(uuid4()) for _ in range(5)]
+        result = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=target_ids,
+        )
+        assert result == {'requested': 5, 'inserted': 5, 'skipped': 0}
+
+        counts = self._count_jobs_for_targets(db, target_ids)
+        for tid in target_ids:
+            assert counts.get(tid) == 1
+
+    def test_second_call_dedups_via_unique_index(self, db):
+        target_ids = [str(uuid4()) for _ in range(3)]
+        first = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=target_ids,
+        )
+        second = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=target_ids,
+        )
+        assert first['inserted'] == 3
+        assert second['inserted'] == 0
+        assert second['skipped'] == 3
+
+        # Exactly one job per target, not two — same end-state as the
+        # single-row enqueue() path.
+        counts = self._count_jobs_for_targets(db, target_ids)
+        for tid in target_ids:
+            assert counts.get(tid) == 1
+
+    def test_mixed_new_and_existing_targets(self, db):
+        # Pre-enqueue 2 targets via the single-row path; then bulk-enqueue
+        # those 2 plus 3 new ones. Bulk path should insert 3, skip 2.
+        existing = [str(uuid4()) for _ in range(2)]
+        new = [str(uuid4()) for _ in range(3)]
+        for tid in existing:
+            research_jobs.enqueue(
+                source='musicbrainz',
+                job_type='backfill_release_label',
+                target_type='release',
+                target_id=tid,
+            )
+
+        result = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=existing + new,
+        )
+        assert result == {'requested': 5, 'inserted': 3, 'skipped': 2}
+
+    def test_batches_when_input_exceeds_batch_size(self, db):
+        # 7 rows across batch_size=3 → batches of 3, 3, 1.
+        target_ids = [str(uuid4()) for _ in range(7)]
+        result = research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=target_ids,
+            batch_size=3,
+        )
+        assert result == {'requested': 7, 'inserted': 7, 'skipped': 0}
+
+        counts = self._count_jobs_for_targets(db, target_ids)
+        for tid in target_ids:
+            assert counts.get(tid) == 1
+
+    def test_payload_priority_max_attempts_persist(self, db):
+        target_ids = [str(uuid4())]
+        research_jobs.enqueue_many_for_targets(
+            source='musicbrainz',
+            job_type='backfill_release_label',
+            target_type='release',
+            target_ids=target_ids,
+            payload={'note': 'bulk-test'},
+            priority=42,
+            max_attempts=9,
+        )
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT payload, priority, max_attempts FROM research_jobs "
+                "WHERE target_id = %s",
+                (target_ids[0],),
+            )
+            row = cur.fetchone()
+        assert row[0] == {'note': 'bulk-test'}
+        assert row[1] == 42
+        assert row[2] == 9
+
+
+# ---------------------------------------------------------------------------
 # get_job + status_for_target
 # ---------------------------------------------------------------------------
 

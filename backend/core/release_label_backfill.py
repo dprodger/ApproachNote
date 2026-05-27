@@ -69,55 +69,47 @@ def find_candidate_release_ids(limit: Optional[int] = None) -> list[str]:
 
 
 def enqueue_sweep(limit: Optional[int] = None,
-                  priority: int = 110) -> dict[str, int]:
+                  priority: int = 110,
+                  batch_size: int = 1000) -> dict[str, int]:
     """Find candidate releases and enqueue one backfill job per row.
 
     Priority 110 sits behind user-driven work (50) and the normal
     research-pipeline default (100), so a 71k-row sweep won't starve
     interactive jobs.
 
+    Uses research_jobs.enqueue_many_for_targets so 71k rows enqueue in
+    ~71 round-trips (default batch_size=1000) instead of ~150k. With a
+    remote pooler the wall-time difference is roughly latency × batch
+    size — minutes instead of hours.
+
     Returns:
-        {'candidates': N, 'enqueued': M, 'errors': E}
-        The unique index on research_jobs collapses re-enqueues against
-        in-flight (queued/running) rows, so calling this twice in a row
-        is safe and idempotent.
+        {'candidates': N, 'enqueued': M, 'skipped': S}
+        - candidates: how many releases the SELECT found.
+        - enqueued:   how many new research_jobs rows were inserted.
+        - skipped:    how many collapsed against an existing in-flight
+                      job via the dedup index — safe and expected on
+                      re-runs.
     """
     release_ids = find_candidate_release_ids(limit=limit)
     if not release_ids:
-        return {'candidates': 0, 'enqueued': 0, 'errors': 0}
+        return {'candidates': 0, 'enqueued': 0, 'skipped': 0}
 
-    enqueued = 0
-    errors = 0
-    for release_id in release_ids:
-        try:
-            job_id = research_jobs.enqueue(
-                source=research_jobs.SOURCE_MUSICBRAINZ,
-                job_type='backfill_release_label',
-                target_type=research_jobs.TARGET_RELEASE,
-                target_id=release_id,
-                payload={},
-                priority=priority,
-            )
-        except Exception:
-            logger.exception(
-                "release_label_backfill: failed to enqueue release %s",
-                release_id,
-            )
-            errors += 1
-            continue
-
-        if job_id is None:
-            errors += 1
-            continue
-
-        enqueued += 1
+    result = research_jobs.enqueue_many_for_targets(
+        source=research_jobs.SOURCE_MUSICBRAINZ,
+        job_type='backfill_release_label',
+        target_type=research_jobs.TARGET_RELEASE,
+        target_ids=release_ids,
+        payload={},
+        priority=priority,
+        batch_size=batch_size,
+    )
 
     logger.info(
-        "release_label_backfill: candidates=%d enqueued=%d errors=%d",
-        len(release_ids), enqueued, errors,
+        "release_label_backfill: candidates=%d enqueued=%d skipped=%d",
+        result['requested'], result['inserted'], result['skipped'],
     )
     return {
-        'candidates': len(release_ids),
-        'enqueued': enqueued,
-        'errors': errors,
+        'candidates': result['requested'],
+        'enqueued': result['inserted'],
+        'skipped': result['skipped'],
     }

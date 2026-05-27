@@ -305,7 +305,10 @@ class TestSweep:
         result = release_label_backfill.enqueue_sweep()
         assert result['candidates'] >= 2
         assert result['enqueued'] >= 2
-        assert result['errors'] == 0
+        # First sweep: nothing should dedup-skip for our fresh fixture rows.
+        # (`skipped` may be > 0 if the wider dev DB had stragglers, but our
+        # fixture cleanup wiped any prior jobs for these target_ids.)
+        assert 'skipped' in result
 
         with db.cursor() as cur:
             cur.execute(
@@ -354,4 +357,19 @@ class TestSweep:
             return_value=[],
         )
         result = release_label_backfill.enqueue_sweep()
-        assert result == {'candidates': 0, 'enqueued': 0, 'errors': 0}
+        assert result == {'candidates': 0, 'enqueued': 0, 'skipped': 0}
+
+    def test_second_sweep_reports_skipped_via_dedup(
+        self, backfill_fixture, db,
+    ):
+        # First sweep enqueues both candidates; second sweep should report
+        # them as skipped (dedup hit), not as new enqueues.
+        first = release_label_backfill.enqueue_sweep()
+        second = release_label_backfill.enqueue_sweep()
+
+        assert first['enqueued'] >= 2
+        # Second sweep finds the same candidates but ON CONFLICT DO NOTHING
+        # collapses all inserts; the bulk path reports them as skipped.
+        assert second['candidates'] == first['candidates']
+        assert second['enqueued'] == 0
+        assert second['skipped'] == second['candidates']

@@ -63,13 +63,15 @@ Examples:
         script.print_summary({
             'candidates': len(release_ids),
             'enqueued': 0,
-            'errors': 0,
+            'skipped': 0,
         })
         return True
 
     stats = enqueue_sweep(limit=args.limit)
     script.print_summary(stats)
-    return stats['errors'] == 0
+    # No per-row error count — enqueue_many propagates DB failures and
+    # the script exits non-zero via the uncaught exception.
+    return True
 
 
 if __name__ == "__main__":
