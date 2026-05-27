@@ -293,7 +293,6 @@ def get_recordings():
                     def_rel.artist_credit,
                     r.recording_date,
                     r.recording_year,
-                    r.label,
                     r.default_release_id,
                     -- Get Spotify track URL from default release or best available
                     COALESCE(
@@ -360,7 +359,6 @@ def get_recordings():
                     def_rel.artist_credit,
                     r.recording_date,
                     r.recording_year,
-                    r.label,
                     r.default_release_id,
                     -- Spotify URL from streaming links table
                     def_rrsl.service_url as spotify_url,
@@ -447,7 +445,6 @@ def get_recording_detail(recording_id):
                     def_rel.title as album_title,
                     r.recording_date,
                     r.recording_year,
-                    r.label,
                     r.default_release_id,
                     -- Get Spotify track URL from default release or best available
                     -- Check normalized streaming_links first, then legacy column

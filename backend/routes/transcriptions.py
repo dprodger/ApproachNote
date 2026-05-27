@@ -103,8 +103,7 @@ def get_transcription_detail(transcription_id):
                 s.title as song_title,
                 s.composer,
                 def_rel.title as album_title,
-                r.recording_year,
-                r.label
+                r.recording_year
             FROM solo_transcriptions st
             JOIN songs s ON st.song_id = s.id
             LEFT JOIN recordings r ON st.recording_id = r.id

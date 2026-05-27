@@ -12,7 +12,6 @@ struct Recording: Codable, Identifiable {
     let artistCredit: String?
     let recordingDate: String?
     let recordingYear: Int?
-    let label: String?
 
     let defaultReleaseId: String?
 
@@ -105,7 +104,7 @@ struct Recording: Codable, Identifiable {
     let isInstrumentalConsensus: Bool?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, label, notes, composer, performers, releases, transcriptions
+        case id, title, notes, composer, performers, releases, transcriptions
         case songId = "song_id"
         case songTitle = "song_title"
         case albumTitle = "album_title"

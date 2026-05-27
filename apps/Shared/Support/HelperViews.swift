@@ -148,21 +148,11 @@ struct AuthorityRecordingRow: View {
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
                     
-                    // Year and label
-                    HStack(spacing: 8) {
-                        if let year = recording.recordingYear {
-                            Text(String(year))
-                                .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
-                        
-                        if let label = recording.label {
-                            Text("•")
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                            Text(label)
-                                .font(ApproachNoteTheme.caption())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
+                    // Year
+                    if let year = recording.recordingYear {
+                        Text(String(year))
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                 }
                 

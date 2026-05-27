@@ -139,7 +139,6 @@ CREATE TABLE recordings (
     recording_date_source VARCHAR(50),          -- 'mb_performer_relation', 'mb_first_release', 'earliest_release', 'manual'
     recording_date_precision VARCHAR(10),       -- 'day', 'month', 'year'
     mb_first_release_date VARCHAR(10),          -- MusicBrainz first-release-date (YYYY, YYYY-MM, or YYYY-MM-DD)
-    label VARCHAR(255),
     is_canonical BOOLEAN DEFAULT false,
     notes TEXT,
     default_release_id UUID REFERENCES releases(id) ON DELETE SET NULL,

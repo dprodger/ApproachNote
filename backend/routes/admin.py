@@ -5180,7 +5180,7 @@ def recordings_browse_detail(recording_id):
             cur.execute(
                 """
                 SELECT r.id, r.title, r.musicbrainz_id AS mb_recording_id,
-                       r.recording_year, r.recording_date, r.label, r.is_canonical,
+                       r.recording_year, r.recording_date, r.is_canonical,
                        r.song_id, s.title AS song_title,
                        r.source_mb_work_id, r.duration_ms
                 FROM recordings r

@@ -103,7 +103,6 @@ FORBIDDEN_SHELL_FIELDS = frozenset({
     "musicbrainz_id",
     "default_release_id",
     "recording_date",
-    "label",
     "notes",
 })
 

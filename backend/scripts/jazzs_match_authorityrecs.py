@@ -443,7 +443,6 @@ class AuthorityRecommendationMatcher:
                             r.id,
                             def_rel.title as album_title,
                             r.recording_year,
-                            r.label,
                             -- Get ALL performers on the recording (not just matched ones)
                             (SELECT STRING_AGG(DISTINCT p2.name, ' / ' ORDER BY p2.name)
                              FROM recording_performers rp2
@@ -489,7 +488,6 @@ class AuthorityRecommendationMatcher:
                                 r.id,
                                 def_rel.title as album_title,
                                 r.recording_year,
-                                r.label,
                                 def_rel.artist_credit as artist_names,
                                 def_rel.artist_credit as primary_artist
                             FROM recordings r
@@ -522,7 +520,6 @@ class AuthorityRecommendationMatcher:
                                 r.id,
                                 def_rel.title as album_title,
                                 r.recording_year,
-                                r.label,
                                 def_rel.artist_credit as artist_names,
                                 def_rel.artist_credit as primary_artist
                             FROM recordings r

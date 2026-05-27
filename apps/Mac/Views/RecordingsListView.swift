@@ -459,22 +459,10 @@ struct RecordingRowView: View {
                         .help("Artist: \(artistCredit)")
                 }
 
-                HStack(spacing: 4) {
-                    if let year = recording.recordingYear {
-                        Text(String(year))
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
-
-                    if let label = recording.label {
-                        Text("•")
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                        Text(label)
-                            .font(ApproachNoteTheme.caption())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                            .lineLimit(1)
-                    }
+                if let year = recording.recordingYear {
+                    Text(String(year))
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
 

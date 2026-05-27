@@ -68,7 +68,6 @@ extension Recording {
         artistCredit: "The Dave Brubeck Quartet",
         recordingDate: "1959-07-01",
         recordingYear: 1959,
-        label: "Columbia Records",
         defaultReleaseId: "blah",
         // Placeholder images for previews (picsum.photos)
         bestCoverArtSmall: "https://picsum.photos/id/145/64/64",
@@ -141,7 +140,6 @@ extension Recording {
         artistCredit: "The Dave Brubeck Quartet",
         recordingDate: nil,
         recordingYear: 1964,
-        label: "Columbia",
         defaultReleaseId: "blah",
         // Placeholder images for previews (picsum.photos)
         bestCoverArtSmall: "https://picsum.photos/id/160/64/64",
@@ -210,7 +208,6 @@ extension Recording {
         artistCredit: nil,
         recordingDate: nil,
         recordingYear: 1959,
-        label: nil,
         defaultReleaseId: "blah",
         bestCoverArtSmall: nil,
         bestCoverArtMedium: nil,

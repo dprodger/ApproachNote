@@ -151,7 +151,7 @@ def run_explain(song_id, sort_by='year'):
             r.id, r.title,
             def_rel.title as album_title,
             def_rel.artist_credit as artist_credit,
-            r.recording_date, r.recording_year, r.label, r.default_release_id,
+            r.recording_date, r.recording_year, r.default_release_id,
             su.best_spotify_url,
             fa.image_url_small as best_cover_art_small,
             fa.image_url_medium as best_cover_art_medium,
@@ -197,7 +197,7 @@ def run_explain(song_id, sort_by='year'):
         LEFT JOIN community cm ON cm.recording_id = r.id
         WHERE r.song_id = %s
         GROUP BY r.id, def_rel.title, def_rel.artist_credit, r.recording_date, r.recording_year,
-                 r.label, r.default_release_id,
+                 r.default_release_id,
                  r.musicbrainz_id, r.is_canonical, r.notes,
                  su.best_spotify_url,
                  fa.image_url_small, fa.image_url_medium, fa.image_url_large, fa.source, fa.source_url,

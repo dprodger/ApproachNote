@@ -61,6 +61,20 @@ struct RecordingDetailView: View {
         return releases.compactMap(\.releaseYear).first
     }
 
+    /// Label for the currently selected (or default) release.
+    private var displayLabel: String? {
+        if let release = selectedRelease {
+            return release.label
+        }
+        guard let releases = recording?.releases else { return nil }
+        if let defaultId = recording?.defaultReleaseId,
+           let defaultRelease = releases.first(where: { $0.id == defaultId }),
+           let label = defaultRelease.label {
+            return label
+        }
+        return releases.compactMap(\.label).first
+    }
+
     /// Display title - selected release title or recording album title
     private var displayAlbumTitle: String {
         selectedRelease?.title ?? recording?.albumTitle ?? "Unknown Album"
@@ -295,7 +309,7 @@ struct RecordingDetailView: View {
     private func recordingMetadataBlock(_ recording: Recording) -> some View {
         let hasMetadata = displayReleaseYear != nil ||
                           recording.recordingDate != nil ||
-                          recording.label != nil ||
+                          displayLabel != nil ||
                           recording.notes != nil ||
                           recording.musicbrainzId != nil
 
@@ -307,7 +321,7 @@ struct RecordingDetailView: View {
                 if let date = recording.recordingDate {
                     metadataLine(label: "RECORDED", value: date)
                 }
-                if let label = recording.label {
+                if let label = displayLabel {
                     metadataLine(label: "LABEL", value: label)
                 }
                 if let notes = recording.notes, !notes.isEmpty {

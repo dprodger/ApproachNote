@@ -288,7 +288,6 @@ def get_song_summary(song_id):
                     def_rel.artist_credit as artist_credit,
                     r.recording_date,
                     r.recording_year,
-                    r.label,
                     r.default_release_id,
                     -- Spotify track URL from normalized streaming_links table
                     COALESCE(
@@ -358,7 +357,7 @@ def get_song_summary(song_id):
                 LEFT JOIN instruments i ON rp.instrument_id = i.id
                 WHERE r.song_id = %s
                 GROUP BY r.id, def_rel.title, def_rel.artist_credit, r.recording_date, r.recording_year,
-                         r.label, r.default_release_id,
+                         r.default_release_id,
                          r.musicbrainz_id, r.is_canonical, r.notes
                 ORDER BY r.recording_year ASC NULLS LAST
             ),
@@ -532,7 +531,7 @@ def fetch_song_recordings_listing(song_id, sort_by='year'):
         -- no list-row view reads them (recording detail re-fetches via
         -- /api/recordings/<id>, which carries the full payload):
         --   r.musicbrainz_id, r.default_release_id, r.recording_date,
-        --   r.label, r.notes
+        --   r.notes
         -- See backend/tests/test_song_recordings.py for the field contract.
         SELECT
             r.id,
@@ -893,7 +892,6 @@ def get_song_detail(song_id):
                     def_rel.artist_credit as artist_credit,
                     r.recording_date,
                     r.recording_year,
-                    r.label,
                     r.default_release_id,
                     -- Spotify track URL from normalized streaming_links table
                     COALESCE(
@@ -951,7 +949,7 @@ def get_song_detail(song_id):
                     ON r.id = sar.recording_id
                 WHERE r.song_id = %s
                 GROUP BY r.id, def_rel.title, def_rel.artist_credit, r.recording_date, r.recording_year,
-                         r.label, r.default_release_id,
+                         r.default_release_id,
                          r.musicbrainz_id, r.is_canonical, r.notes
                 ORDER BY {recordings_order}
             ),
