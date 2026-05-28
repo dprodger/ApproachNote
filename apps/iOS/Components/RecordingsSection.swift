@@ -114,8 +114,8 @@ struct RecordingsSection: View {
     @ViewBuilder
     private var sectionHeader: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text("MORE RECORDINGS")
-                .font(ApproachNoteTheme.title2())
+            Text("ALL RECORDINGS")
+                .font(ApproachNoteTheme.title3())
                 .bold()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
@@ -132,12 +132,12 @@ struct RecordingsSection: View {
     @ViewBuilder
     private var controlsBar: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Filter + Sort row
+            // Filter + Sort row: Filter on the left, Sort right-justified.
             HStack(spacing: 10) {
                 Button(action: { showFilterSheet = true }) {
                     HStack(spacing: 6) {
                         Text("Filter")
-                            .font(ApproachNoteTheme.subheadline())
+                            .font(ApproachNoteTheme.subheadline(weight: .bold))
                         Image(systemName: "slider.horizontal.3")
                             .font(.caption)
                     }
@@ -146,8 +146,14 @@ struct RecordingsSection: View {
                     .padding(.vertical, 8)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
+
+                Spacer()
 
                 Menu {
                     ForEach(RecordingSortOrder.allCases) { sortOrder in
@@ -168,8 +174,12 @@ struct RecordingsSection: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Sort: \(recordingSortOrder.displayName)")
-                            .font(ApproachNoteTheme.subheadline())
+                        (
+                            Text("Sort:")
+                                .font(ApproachNoteTheme.subheadline(weight: .bold))
+                            + Text(" \(recordingSortOrder.displayName)")
+                                .font(ApproachNoteTheme.subheadline())
+                        )
                         Image(systemName: "chevron.down")
                             .font(.caption)
                     }
@@ -178,16 +188,18 @@ struct RecordingsSection: View {
                     .padding(.vertical, 8)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+                    )
                 }
-
-                Spacer()
             }
 
             // Playable Only toggle
             Toggle(isOn: $playableOnly) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Playable only?")
-                        .font(ApproachNoteTheme.headline())
+                        .font(ApproachNoteTheme.callout(weight: .semibold))
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("Toggle On to hide versions of this song without a linked recording to listen to.")
                         .font(ApproachNoteTheme.caption())
@@ -200,17 +212,54 @@ struct RecordingsSection: View {
             // Performance Type segmented
             VStack(alignment: .leading, spacing: 8) {
                 Text("Performance Type")
-                    .font(ApproachNoteTheme.headline())
+                    .font(ApproachNoteTheme.callout(weight: .semibold))
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                Picker("Performance Type", selection: $selectedVocalFilter) {
-                    ForEach(VocalFilter.allCases) { filter in
-                        Text(filter.displayName.uppercased()).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
+                performanceTypePicker
             }
         }
+    }
+
+    // MARK: - Performance Type Picker (custom segmented control)
+    // Brand-outlined pill; the selected segment is filled with the brand color
+    // and white text, unselected segments are brand-colored on a clear
+    // background (issue #200).
+    @ViewBuilder
+    private var performanceTypePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(VocalFilter.allCases.enumerated()), id: \.element.id) { index, filter in
+                // Flexible spacers between segments distribute the bar width;
+                // each segment stays sized to its own text (no truncation,
+                // no oversized pills).
+                if index > 0 {
+                    Spacer(minLength: 4)
+                }
+                let isSelected = selectedVocalFilter == filter
+                Button {
+                    selectedVocalFilter = filter
+                } label: {
+                    Text(filter.displayName.uppercased())
+                        .font(ApproachNoteTheme.footnote(weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.brand)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(isSelected ? ApproachNoteTheme.brand : Color.clear)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+        .overlay(
+            Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
+        )
+        .animation(.easeInOut(duration: 0.15), value: selectedVocalFilter)
     }
 
     // MARK: - Group Accordion Row
