@@ -155,6 +155,9 @@ struct PerformerRecordingsSection: View {
                                                 }
                                                 .padding(.horizontal)
                                             }
+                                            // Cancel the section's 16pt gutter so the
+                                            // carousel bleeds to the screen edges (issue #200).
+                                            .padding(.horizontal, -16)
                                         }
                                     }
                                 } else {
