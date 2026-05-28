@@ -483,7 +483,7 @@ struct ThemedProgressView: View {
 struct ApproachNoteThemePreview: View {
     var body: some View {
         ScrollView {
-            VStack(spacing: 20) {
+            VStack(spacing: ApproachNoteTheme.spacingLG) {
                 // Section header demonstrations — typography only on body background.
                 VStack(alignment: .leading, spacing: 0) {
                     ThemedSectionHeader("Featured Recordings",
@@ -494,7 +494,7 @@ struct ApproachNoteThemePreview: View {
                 .frame(maxWidth: .infinity)
 
                 // Color swatches grouped by role.
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                     Text("Brand & Surfaces")
                         .font(.title2).bold()
                     ColorSwatch(name: "brand", color: ApproachNoteTheme.brand)
@@ -504,7 +504,7 @@ struct ApproachNoteThemePreview: View {
 
                     Text("Text")
                         .font(.title2).bold()
-                        .padding(.top, 8)
+                        .padding(.top, ApproachNoteTheme.spacingXS)
                     ColorSwatch(name: "textPrimary", color: ApproachNoteTheme.textPrimary)
                     ColorSwatch(name: "textSecondary", color: ApproachNoteTheme.textSecondary)
                     ColorSwatch(name: "textTertiary", color: ApproachNoteTheme.textTertiary)
@@ -513,14 +513,14 @@ struct ApproachNoteThemePreview: View {
 
                     Text("Accent")
                         .font(.title2).bold()
-                        .padding(.top, 8)
+                        .padding(.top, ApproachNoteTheme.spacingXS)
                     ColorSwatch(name: "accent", color: ApproachNoteTheme.accent)
                     ColorSwatch(name: "accentMuted", color: ApproachNoteTheme.accentMuted)
                     ColorSwatch(name: "accentBackground", color: ApproachNoteTheme.accentBackground)
 
                     Text("Status")
                         .font(.title2).bold()
-                        .padding(.top, 8)
+                        .padding(.top, ApproachNoteTheme.spacingXS)
                     ColorSwatch(name: "warning", color: ApproachNoteTheme.warning)
                     ColorSwatch(name: "warningBackground", color: ApproachNoteTheme.warningBackground)
                 }
