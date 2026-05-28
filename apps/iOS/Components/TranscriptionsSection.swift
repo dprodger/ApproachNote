@@ -18,12 +18,12 @@ struct TranscriptionsSection: View {
     var body: some View {
         if !transcriptions.isEmpty {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 24)
                 .padding(.top, 16)
 
             // HStack with explicit spacers ensures DisclosureGroup chevron is properly inset
             HStack(spacing: 0) {
-                Spacer().frame(width: 16)
+                Spacer().frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 0) {
                     DisclosureGroup(
@@ -63,7 +63,7 @@ struct TranscriptionsSection: View {
                 .tint(ApproachNoteTheme.accent)
             }
 
-            Spacer().frame(width: 16)
+            Spacer().frame(width: 24)
             }
             .background(ApproachNoteTheme.background)
             .sheet(item: $selectedTranscription) { transcription in

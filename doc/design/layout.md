@@ -15,8 +15,8 @@ The view uses six recurring values. Treat anything outside this set as a smell.
 | xs    | 8 pt  | Tight component internals              | Icon ↔ label, paragraph stack inside a single block       |
 | sm    | 12 pt | Grouped elements within a section      | Card body stack, song-info header stack                   |
 | md    | 16 pt | Section separation                     | Between sibling sections inside a screen                  |
-| lg    | 20 pt | Major horizontal gutter                | Screen edge padding, horizontal carousel item gap         |
-| xl    | 24 pt | Top offset for the page header         | Space above the page title from the nav bar               |
+| lg    | 20 pt | Horizontal carousel item gap           | Gap between cards in a horizontal shelf / carousel        |
+| xl    | 24 pt | Screen edge gutter, page-header top    | Left/right screen padding; space above title from nav bar |
 
 ## Component sizes
 
@@ -30,7 +30,7 @@ The view uses six recurring values. Treat anything outside this set as a smell.
 ```
 Outer container          VStack(spacing: 0)              + .padding(.bottom)
 └── Top section          VStack(spacing: 16 / md)
-    ├─ horizontal gutter .padding(.horizontal, 20 / lg)
+    ├─ horizontal gutter .padding(.horizontal, 24 / xl)
     ├─ top inset         .padding(.top, 24 / xl)
     └─ bottom inset      .padding(.bottom, 16 / md)
     │

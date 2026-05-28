@@ -192,7 +192,7 @@ struct SongDetailView: View {
                     authoritativeRecordingsSection(for: song)
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.horizontal, 24)
             .padding(.top, 24)
             .padding(.bottom, 16)
 

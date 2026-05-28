@@ -53,10 +53,10 @@ struct RecordingsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             sectionHeader
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
 
             controlsBar
-                .padding(.horizontal, 16)
+                .padding(.horizontal, 24)
 
             LazyVStack(alignment: .leading, spacing: 8) {
                 if !filteredRecordings.isEmpty {
@@ -77,7 +77,7 @@ struct RecordingsSection: View {
                     .padding(.vertical, 40)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 24)
             .padding(.top, 8)
             .overlay(alignment: .top) {
                 if isReloading {

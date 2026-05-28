@@ -20,11 +20,11 @@ struct BackingTracksSection: View {
     var body: some View {
         if !videos.isEmpty {
             Divider()
-                .padding(.horizontal)
+                .padding(.horizontal, 24)
                 .padding(.top, 16)
 
             HStack(spacing: 0) {
-                Spacer().frame(width: 16)
+                Spacer().frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 0) {
                     DisclosureGroup(
@@ -64,7 +64,7 @@ struct BackingTracksSection: View {
                 .tint(ApproachNoteTheme.accent)
             }
 
-            Spacer().frame(width: 16)
+            Spacer().frame(width: 24)
             }
             .background(ApproachNoteTheme.background)
             .sheet(item: $selectedVideo) { video in
