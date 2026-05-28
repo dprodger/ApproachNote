@@ -153,6 +153,85 @@ struct DetailHeaderBar<Trailing: View>: View {
     }
 }
 
+// MARK: - Header Spacer
+
+/// Brand-colored spacer placed at the very top of a detail screen's scroll
+/// content, sized to the expanded header so content begins below it (and rides
+/// up under the collapsing header overlay). Pair with `.collapsingDetailHeader`.
+struct DetailHeaderSpacer: View {
+    var body: some View {
+        ApproachNoteTheme.brand
+            .frame(height: DetailHeaderMetrics.expandedHeight)
+    }
+}
+
+// MARK: - Collapsing Header Modifier
+
+extension View {
+    /// Applies the standard collapsing brand detail header (issue #198) to a
+    /// detail screen's `ScrollView`: hides the system nav bar + back button,
+    /// restores swipe-back, paints the screen background, and overlays a
+    /// `DetailHeaderBar` whose height and title are driven by scroll offset.
+    ///
+    /// The label shows `expandedTitle` (a generic category like "Song") until
+    /// the user scrolls past `DetailHeaderMetrics.titleSwapOffset`, then
+    /// cross-fades to `collapsedTitle` (the specific name).
+    ///
+    /// The caller must place a `DetailHeaderSpacer()` at the top of the scroll
+    /// content so content begins below the expanded header.
+    func collapsingDetailHeader<Trailing: View>(
+        expandedTitle: String,
+        collapsedTitle: String,
+        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+    ) -> some View {
+        modifier(CollapsingDetailHeaderModifier(
+            expandedTitle: expandedTitle,
+            collapsedTitle: collapsedTitle,
+            trailing: trailing
+        ))
+    }
+}
+
+private struct CollapsingDetailHeaderModifier<Trailing: View>: ViewModifier {
+    let expandedTitle: String
+    let collapsedTitle: String
+    @ViewBuilder var trailing: () -> Trailing
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var scrollOffset: CGFloat = 0
+
+    private var headerHeight: CGFloat {
+        DetailHeaderMetrics.expandedHeight
+            - min(max(0, scrollOffset), DetailHeaderMetrics.collapseDistance)
+    }
+    private var headerOverscroll: CGFloat { max(0, -scrollOffset) }
+    private var isCollapsed: Bool {
+        max(0, scrollOffset) >= DetailHeaderMetrics.titleSwapOffset
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .background(ApproachNoteTheme.background)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, newValue in
+                scrollOffset = newValue
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .navigationBarBackButtonHidden(true)
+            .background(SwipeBackEnabler())
+            .overlay(alignment: .top) {
+                DetailHeaderBar(
+                    title: isCollapsed ? collapsedTitle : expandedTitle,
+                    height: headerHeight,
+                    overscroll: headerOverscroll,
+                    onBack: { dismiss() },
+                    trailing: trailing
+                )
+            }
+    }
+}
+
 // MARK: - Swipe-Back Enabler
 
 /// Restores the interactive swipe-to-go-back gesture on a view that has hidden

@@ -59,14 +59,24 @@ Behavior:
 - **Swipe-back** is preserved via `SwipeBackEnabler` (the system bar / back
   button are hidden).
 
-Adoption contract — each detail screen must:
-1. `.toolbar(.hidden, for: .navigationBar)` + `.navigationBarBackButtonHidden(true)`.
-2. `.background(SwipeBackEnabler())`.
-3. `.overlay(alignment: .top) { DetailHeaderBar(title:height:overscroll:onBack:) { trailing } }`.
-4. Put a brand spacer of `DetailHeaderMetrics.expandedHeight` at the top of the
-   scroll content.
-5. Track scroll via `.onScrollGeometryChange` → drive `headerHeight`,
-   `headerOverscroll`, and the title swap.
+Adoption — each detail screen does two things; the `.collapsingDetailHeader`
+modifier owns the rest (scroll-offset tracking, nav-bar hiding, swipe-back,
+screen background, and the `DetailHeaderBar` overlay):
+1. Place a `DetailHeaderSpacer()` at the top of the scroll content.
+2. Apply `.collapsingDetailHeader(expandedTitle:collapsedTitle:trailing:)` to the
+   `ScrollView`. Omit `trailing` for a back-only header (e.g. PerformerDetailView).
+
+```swift
+ScrollView {
+    VStack(spacing: 0) {
+        DetailHeaderSpacer()
+        // …screen content…
+    }
+}
+.collapsingDetailHeader(expandedTitle: "Song", collapsedTitle: song?.title ?? "Song") {
+    DetailCircleButton(systemName: "plus", accessibilityLabel: "Add", action: { … })
+}
+```
 
 ## Section anatomy in `SongDetailView`
 

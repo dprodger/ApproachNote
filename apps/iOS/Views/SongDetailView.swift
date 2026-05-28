@@ -30,26 +30,8 @@ struct SongDetailView: View {
     // Song refresh management
     @State private var showRefreshConfirmation = false
 
-    // Tracks whether the in-page song title is visible; drives nav bar title swap.
-    @State private var isHeaderTitleVisible = true
-
     // NEW: Toast notification
     @State private var toast: ToastItem?
-
-    // Pops the pushed detail view (custom header replaces the system back button).
-    @Environment(\.dismiss) private var dismiss
-
-    // Drives the collapsing header height + the "Song" -> title label swap.
-    @State private var scrollOffset: CGFloat = 0
-
-    private var headerHeight: CGFloat {
-        DetailHeaderMetrics.expandedHeight
-            - min(max(0, scrollOffset), DetailHeaderMetrics.collapseDistance)
-    }
-
-    // Pull-down distance past the top; extends the header's brand fill so no
-    // content background shows through during rubber-band scrolling.
-    private var headerOverscroll: CGFloat { max(0, -scrollOffset) }
 
     // Read-only aliases so existing reference sites in this view can keep
     // using the short names unchanged.
@@ -314,23 +296,15 @@ struct SongDetailView: View {
     
     private var contentView: some View {
         mainScrollView
-            .background(ApproachNoteTheme.background)
-            .toolbar(.hidden, for: .navigationBar)
-            .navigationBarBackButtonHidden(true)
-            .background(SwipeBackEnabler())
-            .overlay(alignment: .top) {
-                DetailHeaderBar(
-                    title: isHeaderTitleVisible ? "Song" : (song?.title ?? "Song"),
-                    height: headerHeight,
-                    overscroll: headerOverscroll,
-                    onBack: { dismiss() }
-                ) {
-                    DetailCircleButton(
-                        systemName: "plus",
-                        accessibilityLabel: "Add to repertoire",
-                        action: { showAddToRepertoireSheet = true }
-                    )
-                }
+            .collapsingDetailHeader(
+                expandedTitle: "Song",
+                collapsedTitle: song?.title ?? "Song"
+            ) {
+                DetailCircleButton(
+                    systemName: "plus",
+                    accessibilityLabel: "Add to repertoire",
+                    action: { showAddToRepertoireSheet = true }
+                )
             }
             .task {
                 await viewModel.load(songId: songId)
@@ -379,11 +353,7 @@ struct SongDetailView: View {
     private var mainScrollView: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Brand spacer sized to the expanded header so content starts
-                // below it. The header overlay (opaque brand) sits on top and
-                // shrinks on scroll; this spacer rides up underneath it.
-                ApproachNoteTheme.brand
-                    .frame(height: DetailHeaderMetrics.expandedHeight)
+                DetailHeaderSpacer()
 
                 if isLoading {
                     loadingView
@@ -393,12 +363,6 @@ struct SongDetailView: View {
                     notFoundView
                 }
             }
-        }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, newValue in
-            scrollOffset = newValue
-            isHeaderTitleVisible = max(0, newValue) < DetailHeaderMetrics.titleSwapOffset
         }
         .refreshable {
             await viewModel.forceRefresh(songId: songId)

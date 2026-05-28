@@ -32,18 +32,6 @@ struct RecordingDetailView: View {
     @State private var showingContributionEditor = false
     private let maxReleasesToShow = 5
 
-    // Custom collapsing header (issue #198): pops the pushed view, and scroll
-    // offset drives the header height + the "Recording" -> album-title swap.
-    @Environment(\.dismiss) private var dismiss
-    @State private var scrollOffset: CGFloat = 0
-    @State private var isHeaderTitleVisible = true
-
-    private var headerHeight: CGFloat {
-        DetailHeaderMetrics.expandedHeight
-            - min(max(0, scrollOffset), DetailHeaderMetrics.collapseDistance)
-    }
-    private var headerOverscroll: CGFloat { max(0, -scrollOffset) }
-
     // Read-only aliases so the dozens of existing reference sites in this
     // view can keep using the short names unchanged.
     private var recording: Recording? { viewModel.recording }
@@ -178,10 +166,7 @@ struct RecordingDetailView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Brand spacer sized to the expanded header so content starts
-                // below it and rides up under the collapsing header overlay.
-                ApproachNoteTheme.brand
-                    .frame(height: DetailHeaderMetrics.expandedHeight)
+                DetailHeaderSpacer()
 
             if isLoading {
                 VStack {
@@ -388,32 +373,18 @@ struct RecordingDetailView: View {
             }
             }
         }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, newValue in
-            scrollOffset = newValue
-            isHeaderTitleVisible = max(0, newValue) < DetailHeaderMetrics.titleSwapOffset
-        }
-        .background(ApproachNoteTheme.background)
         .refreshable {
             await viewModel.refresh()
         }
-        .toolbar(.hidden, for: .navigationBar)
-        .navigationBarBackButtonHidden(true)
-        .background(SwipeBackEnabler())
-        .overlay(alignment: .top) {
-            DetailHeaderBar(
-                title: isHeaderTitleVisible ? "Recording" : displayAlbumTitle,
-                height: headerHeight,
-                overscroll: headerOverscroll,
-                onBack: { dismiss() }
-            ) {
-                DetailCircleButton(
-                    systemName: "checkmark.seal",
-                    accessibilityLabel: "Authority recommendations",
-                    action: { showingAuthoritySheet = true }
-                )
-            }
+        .collapsingDetailHeader(
+            expandedTitle: "Recording",
+            collapsedTitle: displayAlbumTitle
+        ) {
+            DetailCircleButton(
+                systemName: "checkmark.seal",
+                accessibilityLabel: "Authority recommendations",
+                action: { showingAuthoritySheet = true }
+            )
         }
         .alert("Sign In Required", isPresented: $viewModel.showingLoginAlert) {
             Button("OK", role: .cancel) { }

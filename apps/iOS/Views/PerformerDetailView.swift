@@ -25,27 +25,10 @@ struct PerformerDetailView: View {
     // Two-phase loading: summary loads first (fast), then recordings load in background
     @State private var isRecordingsLoading: Bool = true
 
-    // Tracks whether the in-page artist name is visible; drives nav bar title swap.
-    @State private var isHeaderNameVisible = true
-
-    // Custom collapsing header (issue #198): pops the pushed view, and scroll
-    // offset drives the header height + the "Artist" -> name label swap.
-    @Environment(\.dismiss) private var dismiss
-    @State private var scrollOffset: CGFloat = 0
-
-    private var headerHeight: CGFloat {
-        DetailHeaderMetrics.expandedHeight
-            - min(max(0, scrollOffset), DetailHeaderMetrics.collapseDistance)
-    }
-    private var headerOverscroll: CGFloat { max(0, -scrollOffset) }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
-                // Brand spacer sized to the expanded header so content starts
-                // below it and rides up under the collapsing header overlay.
-                ApproachNoteTheme.brand
-                    .frame(height: DetailHeaderMetrics.expandedHeight)
+                DetailHeaderSpacer()
 
             if isLoading {
                 VStack {
@@ -212,24 +195,10 @@ struct PerformerDetailView: View {
             }
             }
         }
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, newValue in
-            scrollOffset = newValue
-            isHeaderNameVisible = max(0, newValue) < DetailHeaderMetrics.titleSwapOffset
-        }
-        .background(ApproachNoteTheme.background)
-        .toolbar(.hidden, for: .navigationBar)
-        .navigationBarBackButtonHidden(true)
-        .background(SwipeBackEnabler())
-        .overlay(alignment: .top) {
-            DetailHeaderBar(
-                title: isHeaderNameVisible ? "Artist" : (performer?.name ?? "Artist"),
-                height: headerHeight,
-                overscroll: headerOverscroll,
-                onBack: { dismiss() }
-            ) { }
-        }
+        .collapsingDetailHeader(
+            expandedTitle: "Artist",
+            collapsedTitle: performer?.name ?? "Artist"
+        )
         .task {
             #if DEBUG
             if ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1" {
