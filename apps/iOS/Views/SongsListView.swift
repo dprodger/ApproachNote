@@ -291,16 +291,18 @@ struct SongsListView: View {
     
     private func songRowView(song: Song) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // Title + year as one string so the title spans the full width and
+            // the year trails it (issue #197); each segment keeps its own
+            // styling — bold title, normal/secondary year.
+            (
                 Text(song.title)
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                if let year = song.composedYear {
-                    Text("(\(String(year)))")
-                        .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                }
-            }
+                + Text(song.composedYear.map { " (\(String($0)))" } ?? "")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            )
+            .fixedSize(horizontal: false, vertical: true)
             if let composer = song.composer {
                 Text(composer)
                     .font(ApproachNoteTheme.subheadline())
