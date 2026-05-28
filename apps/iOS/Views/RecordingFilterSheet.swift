@@ -52,7 +52,7 @@ struct RecordingFilterSheet: View {
                                 GridItem(.flexible()),
                                 GridItem(.flexible()),
                                 GridItem(.flexible())
-                            ], spacing: 10) {
+                            ], spacing: ApproachNoteTheme.spacingXS) {
                                 ForEach(availableInstruments, id: \.self) { family in
                                     instrumentButton(family)
                                 }
@@ -144,7 +144,7 @@ struct RecordingFilterSheet: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
                 .padding(.horizontal, ApproachNoteTheme.spacingXS)
                 .background(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.surface)
                 .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.textPrimary)

@@ -115,7 +115,7 @@ struct AboutView: View {
                         ProgressView()
                             .tint(.white)
                     } else {
-                        HStack(spacing: 6) {
+                        HStack(spacing: ApproachNoteTheme.spacingXS) {
                             Image(systemName: workerActive ? "arrow.triangle.2.circlepath" : "clock")
                                 .foregroundColor(.white.opacity(0.9))
                                 .font(ApproachNoteTheme.body())
@@ -216,9 +216,9 @@ struct AboutView: View {
                 Text("Written by Dave Rodger")
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(.white.opacity(0.8))
-                    .padding(.bottom, 10)
+                    .padding(.bottom, ApproachNoteTheme.spacingXS)
 
-                HStack(spacing: 10) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Link("Terms", destination: URL(string: "https://approachnote.com/terms")!)
                     Text("·")
                     Link("Privacy", destination: URL(string: "https://approachnote.com/privacy")!)

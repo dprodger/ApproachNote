@@ -57,7 +57,7 @@ struct ApproachNoteButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 10) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 if let leadingSystemImage, !isLoading {
                     Image(systemName: leadingSystemImage)
                 }

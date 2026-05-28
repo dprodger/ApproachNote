@@ -26,7 +26,7 @@ struct ResearchStatusBanner: View {
                     showHelperText.toggle()
                 }
             }) {
-                HStack(spacing: 10) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     // Animated or static icon
                     if isAnimating {
                         Image(systemName: icon)
@@ -39,7 +39,7 @@ struct ResearchStatusBanner: View {
                             .foregroundColor(iconColor)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                         Text(title)
                             .font(ApproachNoteTheme.subheadline())
                             .fontWeight(.semibold)

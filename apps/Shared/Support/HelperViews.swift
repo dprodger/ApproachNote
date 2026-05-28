@@ -134,7 +134,7 @@ struct AuthorityRecordingRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                     // Title with canonical indicator
                     HStack(spacing: ApproachNoteTheme.spacingXS) {
                         if recording.isCanonical == true {

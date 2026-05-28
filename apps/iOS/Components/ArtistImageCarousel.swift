@@ -39,7 +39,7 @@ struct ArtistImageCarousel: View {
             .overlay(alignment: .bottom) {
                 if images.count > 1 {
                     PageDots(count: images.count, current: currentIndex)
-                        .padding(.bottom, 10)
+                        .padding(.bottom, ApproachNoteTheme.spacingXS)
                 }
             }
             .scrollPosition(id: $scrolledImageID)
@@ -66,14 +66,14 @@ private struct PageDots: View {
     let current: Int
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             ForEach(0..<count, id: \.self) { index in
                 Circle()
                     .fill(Color.white.opacity(index == current ? 0.95 : 0.45))
                     .frame(width: 7, height: 7)
             }
         }
-        .padding(.horizontal, 10)
+        .padding(.horizontal, ApproachNoteTheme.spacingXS)
         .padding(.vertical, 6)
         .background(Capsule().fill(Color.black.opacity(0.35)))
     }

@@ -141,7 +141,7 @@ struct ExternalReferencesPanel: View {
                 .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             
-            VStack(spacing: 10) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 // Wikipedia
                 if let wikipediaURL = wikipediaURL {
                     ExternalLinkButton(

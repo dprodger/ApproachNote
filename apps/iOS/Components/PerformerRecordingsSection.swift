@@ -67,7 +67,7 @@ struct PerformerRecordingsSection: View {
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding(.horizontal, ApproachNoteTheme.spacingMD)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                     .background(.ultraThinMaterial)
                     .cornerRadius(8)
                     .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
@@ -85,7 +85,7 @@ struct PerformerRecordingsSection: View {
     @ViewBuilder
     private var sectionHeader: some View {
         HStack(alignment: .center, spacing: ApproachNoteTheme.spacingXS) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
                 Text("RECORDINGS")
                     .font(ApproachNoteTheme.title3())
                     .bold()
@@ -129,7 +129,7 @@ struct PerformerRecordingsSection: View {
                     .buttonStyle(.plain)
                 }
             }
-            .padding(10)
+            .padding(ApproachNoteTheme.spacingXS)
             .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
             .overlay(
@@ -168,7 +168,7 @@ struct PerformerRecordingsSection: View {
                 }
             }
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 (
                     Text("Sort:")
                         .font(ApproachNoteTheme.subheadline(weight: .bold))

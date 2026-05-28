@@ -202,7 +202,7 @@ struct MusicBrainzSearchSheet: View {
             return ApproachNoteTheme.textSecondary
         }()
 
-        return VStack(spacing: 2) {
+        return VStack(spacing: ApproachNoteTheme.spacingXXS) {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)

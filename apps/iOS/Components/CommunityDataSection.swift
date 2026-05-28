@@ -47,7 +47,7 @@ struct CommunityDataSection: View {
                                 }
                                 .font(ApproachNoteTheme.caption())
                                 .foregroundColor(ApproachNoteTheme.brand)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, ApproachNoteTheme.spacingXS)
                                 .padding(.vertical, 6)
                                 .background(ApproachNoteTheme.brand.opacity(0.1))
                                 .cornerRadius(6)
@@ -58,7 +58,7 @@ struct CommunityDataSection: View {
 
                     // Data rows
                     if let data = communityData, hasAnyData(data) {
-                        VStack(spacing: 10) {
+                        VStack(spacing: ApproachNoteTheme.spacingXS) {
                             // Performance Key
                             CommunityDataRow(
                                 icon: "music.note",
@@ -161,7 +161,7 @@ struct CommunityDataRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(value)
                     .font(ApproachNoteTheme.body())
                     .bodyLineSpacing()

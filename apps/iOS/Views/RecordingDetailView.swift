@@ -660,7 +660,7 @@ struct RecordingDetailView: View {
         Button {
             viewModel.handleFavoriteTap()
         } label: {
-            HStack(spacing: 6) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 Image(systemName: isFavorited ? "heart.fill" : "heart")
                     .foregroundColor(isFavorited ? .red : ApproachNoteTheme.textSecondary)
                 Text(displayFavoriteCount > 0

@@ -89,7 +89,7 @@ struct RecordingsSection: View {
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
                     .padding(.horizontal, ApproachNoteTheme.spacingMD)
-                    .padding(.vertical, 10)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                     .background(.ultraThinMaterial)
                     .cornerRadius(8)
                     .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
@@ -113,7 +113,7 @@ struct RecordingsSection: View {
 
     @ViewBuilder
     private var sectionHeader: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
+        HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
             Text("ALL RECORDINGS")
                 .font(ApproachNoteTheme.title3())
                 .bold()
@@ -133,9 +133,9 @@ struct RecordingsSection: View {
     private var controlsBar: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Filter + Sort row: Filter on the left, Sort right-justified.
-            HStack(spacing: 10) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 Button(action: { showFilterSheet = true }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         Text("Filter")
                             .font(ApproachNoteTheme.subheadline(weight: .bold))
                         Image(systemName: "slider.horizontal.3")
@@ -173,7 +173,7 @@ struct RecordingsSection: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         (
                             Text("Sort:")
                                 .font(ApproachNoteTheme.subheadline(weight: .bold))
@@ -197,7 +197,7 @@ struct RecordingsSection: View {
 
             // Playable Only toggle
             Toggle(isOn: $playableOnly) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text("Playable only?")
                         .font(ApproachNoteTheme.callout(weight: .semibold))
                         .foregroundColor(ApproachNoteTheme.textPrimary)

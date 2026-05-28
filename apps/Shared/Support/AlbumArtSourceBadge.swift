@@ -145,7 +145,7 @@ private struct AlbumArtSourceSheet: View {
         .frame(width: 200, height: 200)
         .clipShape(RoundedRectangle(cornerRadius: 8))
 
-        HStack(spacing: 6) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             Text("Album Title")
                 .font(.headline)
             AlbumArtSourceBadge(

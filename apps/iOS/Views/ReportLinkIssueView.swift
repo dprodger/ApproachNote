@@ -141,7 +141,7 @@ struct IssueInfoRow: View {
     var isMonospace: Bool = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             Text(label)
                 .font(ApproachNoteTheme.caption())
                 .fontWeight(.medium)
