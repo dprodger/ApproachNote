@@ -2,10 +2,11 @@
 //  ArtistImageCarousel.swift
 //  Approach Note
 //
-//  Horizontal scrolling carousel of artist images. Tapping an image
-//  opens a detail sheet that surfaces the source attribution; nothing
-//  is overlaid on the image itself, to comply with partner-branding
-//  rules (e.g. Spotify forbids its mark from appearing on artwork).
+//  Full-bleed, edge-to-edge artist image hero. Each image fills the
+//  screen width; multiple images page horizontally with a swipe. Tapping
+//  an image opens a detail sheet that surfaces the source attribution;
+//  nothing is overlaid on the image itself, to comply with partner-
+//  branding rules (e.g. Spotify forbids its mark from appearing on art).
 //
 
 import SwiftUI
@@ -13,46 +14,68 @@ import SwiftUI
 struct ArtistImageCarousel: View {
     let images: [ArtistImage]
     @State private var selectedImage: ArtistImage?
-    
-    private let carouselHeight: CGFloat = 280
-    
+
+    private let carouselHeight: CGFloat = 320
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header removed as per requirements
-            
-            if images.isEmpty {
-                Text("No images available")
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding()
-            } else {
-                // Carousel with border wrapper
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 12) {
-                        ForEach(images) { image in
-                            ImageThumbnail(image: image)
-                                .onTapGesture {
-                                    selectedImage = image
-                                }
-                        }
+        if images.isEmpty {
+            EmptyView()
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 0) {
+                    ForEach(images) { image in
+                        ImageThumbnail(image: image, height: carouselHeight)
+                            // Each image fills the full scroll-view width so a
+                            // single image spans the screen and multiple images
+                            // page one-per-swipe.
+                            .containerRelativeFrame(.horizontal)
+                            .onTapGesture { selectedImage = image }
                     }
-                    .padding(.horizontal)
-                    .padding(.vertical, 12)
                 }
-                .frame(height: carouselHeight + 24) // Account for vertical padding
-                .background(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1.5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16)
-                                .fill(Color.white.opacity(0.5))
-                        )
-                )
-                .padding(.horizontal)
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.paging)
+            .frame(height: carouselHeight)
+            .overlay(alignment: .bottom) {
+                if images.count > 1 {
+                    PageDots(count: images.count, current: currentIndex)
+                        .padding(.bottom, 10)
+                }
+            }
+            .scrollPosition(id: $scrolledImageID)
+            .sheet(item: $selectedImage) { image in
+                ImageDetailSheet(image: image)
             }
         }
-        .sheet(item: $selectedImage) { image in
-            ImageDetailSheet(image: image)
+    }
+
+    // Tracks which page is centered so the dots indicator can highlight it.
+    @State private var scrolledImageID: String?
+
+    private var currentIndex: Int {
+        guard let id = scrolledImageID,
+              let idx = images.firstIndex(where: { $0.id == id }) else { return 0 }
+        return idx
+    }
+}
+
+// MARK: - Page Dots
+
+private struct PageDots: View {
+    let count: Int
+    let current: Int
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(0..<count, id: \.self) { index in
+                Circle()
+                    .fill(Color.white.opacity(index == current ? 0.95 : 0.45))
+                    .frame(width: 7, height: 7)
+            }
         }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.black.opacity(0.35)))
     }
 }
 
@@ -60,36 +83,26 @@ struct ArtistImageCarousel: View {
 
 private struct ImageThumbnail: View {
     let image: ArtistImage
+    let height: CGFloat
     @State private var uiImage: UIImage?
     @State private var isLoading = true
-    
-    private var cardWidth: CGFloat {
-        guard let width = image.width, let height = image.height, height > 0 else {
-            return 210 // Default width
-        }
-        let aspectRatio = CGFloat(width) / CGFloat(height)
-        return 280 * aspectRatio
-    }
-    
+
     var body: some View {
         // Image only — source attribution lives in ImageDetailSheet (tap to open)
-        // so no partner-branded watermark sits on top of the artwork.
+        // so no partner-branded watermark sits on top of the artwork. Fills the
+        // full width edge-to-edge; portrait shots crop to the hero height.
         Group {
             if let uiImage = uiImage {
                 Image(uiImage: uiImage)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .frame(width: cardWidth, height: 280)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
             } else if isLoading {
-                RoundedRectangle(cornerRadius: 12)
+                Rectangle()
                     .fill(Color.gray.opacity(0.2))
-                    .frame(width: cardWidth, height: 280)
                     .overlay(ProgressView().tint(ApproachNoteTheme.accent))
             } else {
-                RoundedRectangle(cornerRadius: 12)
+                Rectangle()
                     .fill(Color.gray.opacity(0.3))
-                    .frame(width: cardWidth, height: 280)
                     .overlay(
                         Image(systemName: "photo")
                             .font(ApproachNoteTheme.largeTitle())
@@ -97,17 +110,19 @@ private struct ImageThumbnail: View {
                     )
             }
         }
-        .frame(width: cardWidth, height: 280)
+        .frame(height: height)
+        .frame(maxWidth: .infinity)
+        .clipped()
         .onAppear { loadImage() }
     }
-    
+
     private func loadImage() {
         let imageUrl = image.thumbnailUrl ?? image.url
         guard let url = URL(string: imageUrl) else {
             isLoading = false
             return
         }
-        
+
         URLSession.shared.dataTask(with: url) { data, _, _ in
             DispatchQueue.main.async {
                 isLoading = false

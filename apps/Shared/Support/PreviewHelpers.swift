@@ -481,7 +481,34 @@ extension PerformerDetail {
                 bestCoverArtMedium: nil
             )
         ],
-        images: nil,
+        images: [
+            ArtistImage(
+                id: "img-1",
+                url: "https://picsum.photos/id/453/900/600",
+                source: "wikimedia",
+                sourceIdentifier: "Miles_Davis_by_Palumbo.jpg",
+                licenseType: "cc-by-sa",
+                licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+                attribution: "Tom Palumbo, CC BY-SA 2.0",
+                width: 900,
+                height: 600,
+                thumbnailUrl: "https://picsum.photos/id/453/450/300",
+                sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Miles_Davis_by_Palumbo.jpg"
+            ),
+            ArtistImage(
+                id: "img-2",
+                url: "https://picsum.photos/id/454/600/800",
+                source: "wikimedia",
+                sourceIdentifier: "Miles_Davis_portrait.jpg",
+                licenseType: "public-domain",
+                licenseUrl: nil,
+                attribution: "Public Domain",
+                width: 600,
+                height: 800,
+                thumbnailUrl: "https://picsum.photos/id/454/300/400",
+                sourcePageUrl: "https://commons.wikimedia.org/wiki/File:Miles_Davis_portrait.jpg"
+            )
+        ],
         recordingCount: 3
     )
 

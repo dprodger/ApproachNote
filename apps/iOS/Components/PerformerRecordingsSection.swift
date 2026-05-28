@@ -2,8 +2,10 @@
 //  PerformerRecordingsSection.swift
 //  Approach Note
 //
-//  Recordings section for PerformerDetailView that mirrors the RecordingsSection UI
-//  Displays recordings with album art in horizontal scrolling rows, grouped by decade or song title
+//  Recordings section for PerformerDetailView. Mirrors the song
+//  RecordingsSection: a typography-only header with an inline count, a
+//  controls bar (search + sort + role segmented), and per-group +/-
+//  accordions whose carousels bleed to the screen edges.
 //
 
 import SwiftUI
@@ -19,14 +21,277 @@ struct PerformerRecordingsSection: View {
     var isReloading: Bool = false
     var onSortOrderChanged: ((PerformerRecordingSortOrder) -> Void)?
 
-    @State private var isSectionExpanded: Bool = true
     @State private var searchText: String = ""
+
+    // Per-group expansion state. Groups not in the set are collapsed.
+    // Default empty: every shelf starts collapsed so users scan a list of
+    // decades / song letters before drilling in (mirrors RecordingsSection).
+    @State private var expandedGroups: Set<String> = []
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            sectionHeader
+                .padding(.horizontal, 24)
+
+            controlsBar
+                .padding(.horizontal, 24)
+
+            LazyVStack(alignment: .leading, spacing: 0) {
+                if !filteredRecordings.isEmpty {
+                    ForEach(groupedRecordings, id: \.groupKey) { group in
+                        groupAccordion(group: group)
+                    }
+                } else {
+                    VStack(spacing: 12) {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 48))
+                            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
+                        Text("No recordings match the current filters")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 40)
+                }
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .overlay(alignment: .top) {
+                if isReloading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .tint(ApproachNoteTheme.brand)
+                        Text("Reloading...")
+                            .font(ApproachNoteTheme.subheadline())
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.ultraThinMaterial)
+                    .cornerRadius(8)
+                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                    .padding(.top, 40)
+                }
+            }
+            .opacity(isReloading ? 0.5 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isReloading)
+        }
+        .background(ApproachNoteTheme.background)
+    }
+
+    // MARK: - Section Header
+
+    @ViewBuilder
+    private var sectionHeader: some View {
+        HStack(alignment: .center, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text("RECORDINGS")
+                    .font(ApproachNoteTheme.title3())
+                    .bold()
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
+                    // Single-line label; scale down slightly rather than wrap
+                    // when the sort pill leaves it tight (large text / Display Zoom).
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                Text("(\(filteredRecordings.count))")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 8)
+
+            // Pill keeps its intrinsic size; the heading yields first.
+            sortMenu
+                .fixedSize()
+                .layoutPriority(1)
+        }
+    }
+
+    // MARK: - Controls Bar (Search, Sort menu, Role segmented)
+
+    @ViewBuilder
+    private var controlsBar: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // Search field
+            HStack {
+                Image(systemName: "magnifyingglass")
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                TextField("Search recordings...", text: $searchText)
+                    .textFieldStyle(.plain)
+                if !searchText.isEmpty {
+                    Button(action: { searchText = "" }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(10)
+            .background(ApproachNoteTheme.surface)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+            )
+
+            // Role segmented (All / Leader / Sideman)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Role")
+                    .font(ApproachNoteTheme.callout(weight: .semibold))
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
+
+                rolePicker
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sortMenu: some View {
+        Menu {
+            ForEach(PerformerRecordingSortOrder.allCases) { order in
+                Button(action: {
+                    if sortOrder != order {
+                        expandedGroups.removeAll()
+                        sortOrder = order
+                        onSortOrderChanged?(order)
+                    }
+                }) {
+                    HStack {
+                        Text(order.displayName)
+                        if sortOrder == order {
+                            Image(systemName: "checkmark")
+                        }
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                (
+                    Text("Sort:")
+                        .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    + Text(" \(sortOrder.displayName)")
+                        .font(ApproachNoteTheme.subheadline())
+                )
+                .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+            }
+            .foregroundColor(ApproachNoteTheme.textPrimary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(ApproachNoteTheme.surface)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Role Picker (custom segmented control)
+    // Brand-outlined pill; the selected segment is filled with the brand
+    // color and white text, unselected segments are brand-colored on a clear
+    // background — matches the SongDetailView Performance Type control.
+    @ViewBuilder
+    private var rolePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(RecordingFilter.allCases.enumerated()), id: \.element) { index, filter in
+                if index > 0 {
+                    Spacer(minLength: 4)
+                }
+                let isSelected = selectedFilter == filter
+                Button {
+                    selectedFilter = filter
+                } label: {
+                    Text(filter.rawValue.uppercased())
+                        .font(ApproachNoteTheme.footnote(weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.brand)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule().fill(isSelected ? ApproachNoteTheme.brand : Color.clear)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.vertical, 4)
+        .frame(maxWidth: .infinity)
+        .overlay(
+            Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
+        )
+        .animation(.easeInOut(duration: 0.15), value: selectedFilter)
+    }
+
+    // MARK: - Group Accordion Row
+
+    @ViewBuilder
+    private func groupAccordion(group: (groupKey: String, recordings: [PerformerRecording])) -> some View {
+        let isExpanded = expandedGroups.contains(group.groupKey)
+
+        // De-carded shelf: a divider separator, a plain header with a +/-
+        // toggle, and a full-bleed carousel. No surface card (mirrors
+        // RecordingsSection).
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isExpanded {
+                        expandedGroups.remove(group.groupKey)
+                    } else {
+                        expandedGroups.insert(group.groupKey)
+                    }
+                }
+            }) {
+                HStack {
+                    Text("\(group.groupKey) (\(group.recordings.count))")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                    Spacer()
+                    Image(systemName: isExpanded ? "minus" : "plus")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                }
+                .padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: 16) {
+                        ForEach(group.recordings, id: \.id) { recording in
+                            NavigationLink(destination: RecordingDetailView(recordingId: recording.recordingId)) {
+                                PerformerRecordingCardView(recording: recording)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    // Leading inset aligns the first card with the gutter;
+                    // cards bleed past the edges as you scroll.
+                    .padding(.horizontal, 24)
+                }
+                // Cancel the section's 24pt gutter so the carousel spans
+                // full width.
+                .padding(.horizontal, -24)
+                .padding(.bottom, 12)
+            }
+        }
+    }
 
     // MARK: - Filtered Recordings
     private var filteredRecordings: [PerformerRecording] {
         var result = recordings
 
-        // Apply role filter
+        // Role filter
         switch selectedFilter {
         case .all:
             break
@@ -36,7 +301,7 @@ struct PerformerRecordingsSection: View {
             result = result.filter { $0.role?.lowercased() == "sideman" }
         }
 
-        // Apply search filter
+        // Search filter
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter { recording in
@@ -97,7 +362,6 @@ struct PerformerRecordingsSection: View {
             letters[letterKey, default: []].append(recording)
         }
 
-        // Sort letter order alphabetically
         letterOrder.sort()
 
         return letterOrder.compactMap { key in
@@ -105,196 +369,11 @@ struct PerformerRecordingsSection: View {
             return (groupKey: key, recordings: recordings)
         }
     }
-
-    // MARK: - Body
-    var body: some View {
-        HStack(spacing: 0) {
-            Spacer().frame(width: 16)
-
-            VStack(alignment: .leading, spacing: 0) {
-                DisclosureGroup(
-                    isExpanded: $isSectionExpanded,
-                    content: {
-                        VStack(alignment: .leading, spacing: 0) {
-                            // Search and Filter Bar
-                            filterBar
-                                .padding(.vertical, 8)
-                                .padding(.horizontal)
-
-                            // Recordings List
-                            LazyVStack(alignment: .leading, spacing: 12) {
-                                if !filteredRecordings.isEmpty {
-                                    ForEach(groupedRecordings, id: \.groupKey) { group in
-                                        VStack(alignment: .leading, spacing: 8) {
-                                            Text("\(group.groupKey) (\(group.recordings.count))")
-                                                .font(ApproachNoteTheme.headline())
-                                                .foregroundColor(ApproachNoteTheme.brand)
-                                                .padding(.horizontal)
-                                                .padding(.top, 8)
-
-                                            ScrollView(.horizontal, showsIndicators: false) {
-                                                LazyHStack(alignment: .top, spacing: 0) {
-                                                    ForEach(Array(group.recordings.enumerated()), id: \.element.id) { index, recording in
-                                                        HStack(alignment: .top, spacing: 0) {
-                                                            if index > 0 {
-                                                                Rectangle()
-                                                                    .fill(ApproachNoteTheme.brand.opacity(0.4))
-                                                                    .frame(width: 2, height: 150)
-                                                                    .padding(.horizontal, 8)
-                                                            }
-
-                                                            NavigationLink(destination: RecordingDetailView(recordingId: recording.recordingId)) {
-                                                                PerformerRecordingCardView(
-                                                                    recording: recording,
-                                                                    showRole: sortOrder == .year
-                                                                )
-                                                            }
-                                                            .buttonStyle(.plain)
-                                                        }
-                                                    }
-                                                }
-                                                .padding(.horizontal)
-                                            }
-                                            // Cancel the section's 16pt gutter so the
-                                            // carousel bleeds to the screen edges (issue #200).
-                                            .padding(.horizontal, -16)
-                                        }
-                                    }
-                                } else {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
-                                        Text("No recordings match the current filters")
-                                            .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 40)
-                                }
-                            }
-                            .padding(.top, 8)
-                            .overlay(alignment: .top) {
-                                if isReloading {
-                                    HStack(spacing: 8) {
-                                        ProgressView()
-                                            .tint(ApproachNoteTheme.brand)
-                                        Text("Reloading...")
-                                            .font(ApproachNoteTheme.subheadline())
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    }
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 10)
-                                    .background(.ultraThinMaterial)
-                                    .cornerRadius(8)
-                                    .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
-                                    .padding(.top, 40)
-                                }
-                            }
-                            .opacity(isReloading ? 0.5 : 1.0)
-                            .animation(.easeInOut(duration: 0.2), value: isReloading)
-                        }
-                    },
-                    label: {
-                        HStack(alignment: .center) {
-                            Image(systemName: "music.note.list")
-                                .foregroundColor(ApproachNoteTheme.brand)
-
-                            Text("Recordings")
-                                .font(ApproachNoteTheme.title2())
-                                .bold()
-                                .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                            Text("(\(filteredRecordings.count))")
-                                .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-
-                            Spacer()
-
-                            // Sort menu
-                            Menu {
-                                ForEach(PerformerRecordingSortOrder.allCases) { order in
-                                    Button(action: {
-                                        if sortOrder != order {
-                                            sortOrder = order
-                                            onSortOrderChanged?(order)
-                                        }
-                                    }) {
-                                        HStack {
-                                            Text(order.displayName)
-                                            if sortOrder == order {
-                                                Image(systemName: "checkmark")
-                                            }
-                                        }
-                                    }
-                                }
-                            } label: {
-                                HStack(spacing: 3) {
-                                    Text(sortOrder.displayName)
-                                        .font(ApproachNoteTheme.caption())
-                                    Image(systemName: "chevron.down")
-                                        .font(.caption2)
-                                }
-                                .foregroundColor(ApproachNoteTheme.brand)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
-                                .background(ApproachNoteTheme.brand.opacity(0.1))
-                                .cornerRadius(6)
-                            }
-                        }
-                        .padding(.vertical, 12)
-                    }
-                )
-                .tint(ApproachNoteTheme.brand)
-            }
-
-            Spacer().frame(width: 16)
-        }
-        .background(ApproachNoteTheme.background)
-    }
-
-    // MARK: - Filter Bar
-    @ViewBuilder
-    private var filterBar: some View {
-        VStack(spacing: 12) {
-            // Search Field
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                TextField("Search recordings...", text: $searchText)
-                    .textFieldStyle(.plain)
-                if !searchText.isEmpty {
-                    Button(action: { searchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
-                }
-            }
-            .padding(10)
-            .background(ApproachNoteTheme.surface)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
-            )
-
-            // Role Filter Picker
-            Picker("Filter", selection: $selectedFilter) {
-                ForEach(RecordingFilter.allCases, id: \.self) { filter in
-                    Text(filter.rawValue).tag(filter)
-                }
-            }
-            .pickerStyle(.segmented)
-            .tint(ApproachNoteTheme.brand)
-        }
-    }
 }
 
 // MARK: - Performer Recording Card View (mirrors RecordingRowView)
 struct PerformerRecordingCardView: View {
     let recording: PerformerRecording
-    var showRole: Bool = false
 
     private var coverUrl: String? {
         recording.bestCoverArtMedium ?? recording.bestCoverArtSmall
@@ -331,55 +410,41 @@ struct PerformerRecordingCardView: View {
                         .background(ApproachNoteTheme.surface)
                 }
 
-                // Badges
-                VStack(alignment: .trailing, spacing: 4) {
-                    if recording.isCanonical == true {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(.yellow)
-                            .font(ApproachNoteTheme.caption())
-                            .padding(6)
-                            .background(Color.black.opacity(0.6))
-                            .clipShape(Circle())
-                    }
-
-                    if showRole, let role = recording.role {
-                        Text(role.capitalized)
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(role.lowercased() == "leader" ? ApproachNoteTheme.textSecondary : ApproachNoteTheme.textSecondary)
-                            .cornerRadius(4)
-                    }
+                // Canonical star badge
+                if recording.isCanonical == true {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(ApproachNoteTheme.caption())
+                        .padding(6)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(Circle())
+                        .padding(6)
                 }
-                .padding(6)
             }
             .cornerRadius(8)
             .frame(width: 150)
 
-            // Song title
-            Text(recording.songTitle)
-                .font(ApproachNoteTheme.subheadline())
-                .fontWeight(.semibold)
-                .foregroundColor(ApproachNoteTheme.textSecondary)
-                .lineLimit(1)
-                .frame(width: 150, alignment: .leading)
-
-            // Album title
-            Text(recording.albumTitle ?? "Unknown Album")
-                .font(ApproachNoteTheme.subheadline())
-                .fontWeight(.medium)
-                .foregroundColor(ApproachNoteTheme.textPrimary)
-                .lineLimit(2)
-                .frame(width: 150, alignment: .leading)
-
             // Year
             if let year = recording.recordingYear {
                 Text(String(format: "%d", year))
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
                     .frame(width: 150, alignment: .leading)
             }
+
+            // Song title — primary identifier on an artist page.
+            Text(recording.songTitle)
+                .font(ApproachNoteTheme.subheadline(weight: .bold))
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+                .lineLimit(1)
+                .frame(width: 150, alignment: .leading)
+
+            // Album title — wraps naturally to 1-2 lines.
+            Text(recording.albumTitle ?? "Unknown Album")
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+                .lineLimit(2)
+                .frame(width: 150, alignment: .leading)
         }
         .frame(width: 150)
     }
@@ -411,16 +476,14 @@ struct PerformerRecordingCardView: View {
 
 #Preview("Recording Card") {
     PerformerRecordingCardView(
-        recording: (PerformerDetail.preview.recordings ?? [])[0],
-        showRole: true
+        recording: (PerformerDetail.preview.recordings ?? [])[0]
     )
     .padding()
 }
 
 #Preview("Recording Card - No Art") {
     PerformerRecordingCardView(
-        recording: (PerformerDetail.preview.recordings ?? [])[2],
-        showRole: false
+        recording: (PerformerDetail.preview.recordings ?? [])[2]
     )
     .padding()
 }
