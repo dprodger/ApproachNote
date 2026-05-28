@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include 'admin/_favicon.html' %}
     <title>Admin Dashboard - ApproachNote</title>
     <style>
         * {
@@ -138,7 +139,10 @@
         <a href="https://www.approachnote.com" class="back-link">&larr; Back to www.approachnote.com</a>
 
         <header>
-            <h1>Admin Dashboard</h1>
+            <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                <img src="/static/images/app_icon_red.svg" alt="ApproachNote" width="40" height="40" style="display: block; border-radius: 9px;">
+                <h1 style="margin-bottom: 0;">Admin Dashboard</h1>
+            </div>
             <p class="subtitle">Manage data, review matches, and monitor system health</p>
         </header>
 

@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include 'admin/_favicon.html' %}
     <title>Admin Sign In - ApproachNote</title>
     {% if google_client_id %}
     <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -113,6 +114,7 @@
 </head>
 <body>
     <div class="card">
+        <img src="/static/images/app_icon_red.svg" alt="ApproachNote" width="48" height="48" style="display: block; border-radius: 11px; margin-bottom: 16px;">
         <h1>Admin Sign In</h1>
         <p class="subtitle">Sign in with your ApproachNote account. Admin access is required.</p>
 
