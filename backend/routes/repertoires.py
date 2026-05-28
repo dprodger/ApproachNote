@@ -144,10 +144,11 @@ def get_repertoire_detail(repertoire_id):
             with conn.cursor() as cur:
                 # Get songs in this repertoire
                 cur.execute("""
-                    SELECT 
+                    SELECT
                         s.id,
                         s.title,
                         s.composer,
+                        s.composed_year,
                         s.structure,
                         s.external_references,
                         rs.created_at as added_at
@@ -379,6 +380,7 @@ def get_repertoire_songs(repertoire_id):
                             s.id,
                             s.title,
                             s.composer,
+                            s.composed_year,
                             s.structure,
                             s.external_references,
                             rs.created_at as added_at
@@ -396,6 +398,7 @@ def get_repertoire_songs(repertoire_id):
                             s.id,
                             s.title,
                             s.composer,
+                            s.composed_year,
                             s.structure,
                             s.external_references,
                             rs.created_at as added_at
