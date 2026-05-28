@@ -58,7 +58,7 @@ struct RecordingsSection: View {
             controlsBar
                 .padding(.horizontal, 24)
 
-            LazyVStack(alignment: .leading, spacing: 8) {
+            LazyVStack(alignment: .leading, spacing: 0) {
                 if !filteredRecordings.isEmpty {
                     ForEach(groupedRecordings, id: \.groupKey) { group in
                         groupAccordion(group: group)
@@ -219,7 +219,11 @@ struct RecordingsSection: View {
     private func groupAccordion(group: (groupKey: String, recordings: [Recording])) -> some View {
         let isExpanded = expandedGroups.contains(group.groupKey)
 
+        // De-carded shelf (issue #200): a divider separator, a plain header
+        // with a +/- toggle, and a full-bleed carousel. No surface card.
         VStack(alignment: .leading, spacing: 0) {
+            Divider()
+
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     if isExpanded {
@@ -234,11 +238,11 @@ struct RecordingsSection: View {
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                     Spacer()
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                    Image(systemName: isExpanded ? "minus" : "plus")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
+                .padding(.vertical, 12)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -264,13 +268,16 @@ struct RecordingsSection: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.horizontal, 12)
+                    // Leading inset aligns the first card with the gutter;
+                    // cards bleed past the edges as you scroll.
+                    .padding(.horizontal, 24)
                 }
-                .padding(.bottom, 8)
+                // Cancel the section's 24pt gutter so the carousel spans
+                // full width.
+                .padding(.horizontal, -24)
+                .padding(.bottom, 12)
             }
         }
-        .background(ApproachNoteTheme.surface)
-        .cornerRadius(8)
     }
 
     // MARK: - Computed Properties
