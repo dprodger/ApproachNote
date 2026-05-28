@@ -25,6 +25,49 @@ The view uses six recurring values. Treat anything outside this set as a smell.
 | Featured-recording artwork (square)      | 204 pt |
 | Album art corner radius                  | 12 pt  |
 
+## Detail header (collapsing brand bar)
+
+Detail screens (`SongDetailView`, and to follow `PerformerDetailView` /
+`RecordingDetailView`) use a custom brand-colored header instead of the system
+nav bar, because the system bar can't give us the taller band, white-outlined
+circle buttons (including the back chevron), or a category→specific title swap.
+Lives in `iOS/Components/DetailHeader.swift`. Unlike the spacing scale above,
+these values **are** codified — in `DetailHeaderMetrics`.
+
+| Metric                  | Value      | Meaning                                                  |
+|-------------------------|------------|----------------------------------------------------------|
+| `expandedHeight`        | 92 pt      | Header height below the status bar at rest               |
+| `collapsedHeight`       | 58 pt      | Header height once fully scrolled                        |
+| `buttonDiameter`        | 36 pt      | Circle button size                                       |
+| `collapsedBottomPadding`| 12 pt      | Breathing room under the buttons when collapsed          |
+| `expandedBottomPadding` | 24 pt      | Breathing room under the buttons when expanded           |
+| `titleSwapOffset`       | 64 pt      | Scroll distance after which the label swaps to the title |
+
+Behavior:
+- **Height** interpolates from `expandedHeight` to `collapsedHeight` as the
+  user scrolls; the button row is bottom-aligned with breathing room
+  interpolated `12 → 24` so the buttons sit low in the expanded band and ride
+  up as it collapses.
+- **Buttons** are white-outlined circles with a white glyph on the brand fill.
+  A `.filled` variant (white fill, brand glyph) is reserved for a primary
+  action like play (e.g. on `RecordingDetailView`).
+- **Title** is centered and shows the generic category ("Song", "Artist",
+  "Recording") until `titleSwapOffset`, then cross-fades to the specific title
+  (song / performer / album name).
+- **Overscroll**: on pull-down the brand fill extends below the bar so the
+  content background never shows through.
+- **Swipe-back** is preserved via `SwipeBackEnabler` (the system bar / back
+  button are hidden).
+
+Adoption contract — each detail screen must:
+1. `.toolbar(.hidden, for: .navigationBar)` + `.navigationBarBackButtonHidden(true)`.
+2. `.background(SwipeBackEnabler())`.
+3. `.overlay(alignment: .top) { DetailHeaderBar(title:height:overscroll:onBack:) { trailing } }`.
+4. Put a brand spacer of `DetailHeaderMetrics.expandedHeight` at the top of the
+   scroll content.
+5. Track scroll via `.onScrollGeometryChange` → drive `headerHeight`,
+   `headerOverscroll`, and the title swap.
+
 ## Section anatomy in `SongDetailView`
 
 ```
