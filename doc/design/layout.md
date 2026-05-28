@@ -119,20 +119,20 @@ VStack(spacing: 12 / sm)
 
 ## Status
 
-`ApproachNoteTheme` defines type and color tokens but **not** spacing tokens
-yet. The values above live as literals in `SongDetailView.swift`. When they
-get promoted, the suggested names are:
+`ApproachNoteTheme` now codifies the spacing scale alongside its type and color
+tokens:
 
 ```swift
 extension ApproachNoteTheme {
-    static let spacingXXS: CGFloat = 4
-    static let spacingXS:  CGFloat = 8
-    static let spacingSM:  CGFloat = 12
-    static let spacingMD:  CGFloat = 16
-    static let spacingLG:  CGFloat = 20
-    static let spacingXL:  CGFloat = 24
+    static let spacingXXS: CGFloat = 4   // hairline offset
+    static let spacingXS:  CGFloat = 8   // tight component internals
+    static let spacingSM:  CGFloat = 12  // grouped elements within a section
+    static let spacingMD:  CGFloat = 16  // section separation
+    static let spacingLG:  CGFloat = 20  // horizontal carousel item gap
+    static let spacingXL:  CGFloat = 24  // screen edge gutter, page-header top
 }
 ```
 
-Until then, this doc is the source of truth — copy the values, don't invent
-new ones.
+Reference these tokens in views instead of literals — `SongDetailView` is the
+adopted template. Treat any spacing value outside this set as a smell. Issue
+#199 tracks rolling adoption through the remaining screens.

@@ -122,9 +122,9 @@ struct SongDetailView: View {
     @ViewBuilder
     private func songContentView(for song: Song) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Song Information Header
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 (
                     Text(song.title)
                         .font(ApproachNoteTheme.largeTitle(weight: .bold))
@@ -148,7 +148,7 @@ struct SongDetailView: View {
 
                 // Song Reference (if available)
                 if let songRef = song.songReference {
-                    HStack(alignment: .top, spacing: 8) {
+                    HStack(alignment: .top, spacing: ApproachNoteTheme.spacingXS) {
                         Image(systemName: "book.closed.fill")
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                             .font(ApproachNoteTheme.subheadline())
@@ -157,7 +157,7 @@ struct SongDetailView: View {
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.top, 4)
+                    .padding(.top, ApproachNoteTheme.spacingXXS)
                 }
 
                 // MARK: - Research Status Indicator
@@ -178,7 +178,7 @@ struct SongDetailView: View {
                         entityName: song.title,
                         showsBackground: false
                     )
-                    .padding(.top, 8)
+                    .padding(.top, ApproachNoteTheme.spacingXS)
                 }
 
                 // MARK: - Authoritative Recordings Carousel
@@ -186,9 +186,9 @@ struct SongDetailView: View {
                     authoritativeRecordingsSection(for: song)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 24)
-            .padding(.bottom, 16)
+            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+            .padding(.top, ApproachNoteTheme.spacingXL)
+            .padding(.bottom, ApproachNoteTheme.spacingMD)
 
             // MARK: - RECORDINGS SECTION
                 RecordingsSection(
@@ -221,7 +221,7 @@ struct SongDetailView: View {
     @ViewBuilder
     private func summaryInfoSection(for song: Song) -> some View {
         if let structure = song.structure, !structure.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
                     .bodyLineSpacing()
@@ -238,7 +238,7 @@ struct SongDetailView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 4)
+            .padding(.top, ApproachNoteTheme.spacingXXS)
         }
     }
     
@@ -246,7 +246,7 @@ struct SongDetailView: View {
     // Uses featuredRecordings from summary endpoint (already filtered server-side)
     @ViewBuilder
     private func authoritativeRecordingsSection(for song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Header
             Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
@@ -264,7 +264,7 @@ struct SongDetailView: View {
                 recording.displayTitle(comparedTo: song.title) != nil
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 20) {
+                HStack(alignment: .top, spacing: ApproachNoteTheme.spacingLG) {
                     ForEach(featured) { recording in
                         NavigationLink(destination: RecordingDetailView(
                             recordingId: recording.id,
@@ -283,12 +283,12 @@ struct SongDetailView: View {
                 }
                 // Leading/trailing inset aligns the first card with the gutter;
                 // cards bleed past the edges as you scroll (issue #200).
-                .padding(.horizontal, 24)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
             }
             // Cancel the section's 24pt gutter so the scroll view spans full width.
-            .padding(.horizontal, -24)
+            .padding(.horizontal, -ApproachNoteTheme.spacingXL)
         }
-        .padding(.top, 16)
+        .padding(.top, ApproachNoteTheme.spacingMD)
     }
     
     // MARK: - Body (broken into smaller chunks to avoid type-checker timeout)
@@ -386,7 +386,7 @@ struct SongDetailView: View {
     }
     
     private var notFoundView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(ApproachNoteTheme.accent)
@@ -458,7 +458,7 @@ struct AuthoritativeRecordingCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             // Album Art
             Group {
                 if let frontUrl = frontCoverUrl {
@@ -502,7 +502,7 @@ struct AuthoritativeRecordingCard: View {
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
 
             // Recording Info - fixed height for consistent card sizing
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 // Year
                 Text(recording.recordingYear.map { String($0) } ?? " ")
                     .font(ApproachNoteTheme.subheadline(weight: .bold))

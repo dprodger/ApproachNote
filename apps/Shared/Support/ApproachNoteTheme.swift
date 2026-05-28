@@ -354,6 +354,28 @@ extension View {
     }
 }
 
+// MARK: - Spacing Scale
+//
+// The six recurring spacing values from the layout spec (doc/design/layout.md).
+// Use these for padding and inter-element spacing; treat any value outside this
+// set as a smell. `SongDetailView` is the reference adoption.
+//
+//   xxs 4   hairline offset (sub-element below its header)
+//   xs  8   tight component internals (icon ↔ label, paragraph stack)
+//   sm  12  grouped elements within a section (card body stack)
+//   md  16  section separation (between sibling sections)
+//   lg  20  horizontal carousel item gap
+//   xl  24  screen edge gutter, page-header top inset
+
+extension ApproachNoteTheme {
+    static let spacingXXS: CGFloat = 4
+    static let spacingXS:  CGFloat = 8
+    static let spacingSM:  CGFloat = 12
+    static let spacingMD:  CGFloat = 16
+    static let spacingLG:  CGFloat = 20
+    static let spacingXL:  CGFloat = 24
+}
+
 // MARK: - Semantic Color Tokens
 //
 // Colors are organized by *role*, not pigment. Pick the token that matches
