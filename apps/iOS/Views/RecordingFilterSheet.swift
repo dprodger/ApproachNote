@@ -68,13 +68,19 @@ struct RecordingFilterSheet: View {
             .background(ApproachNoteTheme.background)
             .navigationTitle("Filter Recordings")
             .navigationBarTitleDisplayMode(.inline)
+            // Style the nav bar from the live palette (the global
+            // UINavigationBar appearance is set once at launch and goes stale
+            // when the palette changes), matching jazzNavigationBar.
+            .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     if hasActiveFilters {
                         Button("Clear All") {
                             clearAllFilters()
                         }
-                        .foregroundColor(ApproachNoteTheme.brand)
+                        .foregroundColor(ApproachNoteTheme.textOnDark)
                     }
                 }
 
@@ -83,7 +89,7 @@ struct RecordingFilterSheet: View {
                         dismiss()
                     }
                     .fontWeight(.semibold)
-                    .foregroundColor(ApproachNoteTheme.brand)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                 }
             }
         }
@@ -133,24 +139,20 @@ struct RecordingFilterSheet: View {
                 selectedInstrument = family
             }
         }) {
-            HStack(spacing: 6) {
-                Image(systemName: iconForInstrument(family))
-                    .font(ApproachNoteTheme.caption())
-                Text(family.rawValue)
-                    .font(ApproachNoteTheme.subheadline())
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 8)
-            .background(isSelected ? ApproachNoteTheme.textSecondary : Color.white)
-            .foregroundColor(isSelected ? .white : ApproachNoteTheme.textPrimary)
-            .cornerRadius(8)
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(isSelected ? Color.clear : ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
-            )
+            Text(family.rawValue)
+                .font(ApproachNoteTheme.subheadline())
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 8)
+                .background(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.surface)
+                .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.textPrimary)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(isSelected ? Color.clear : ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+                )
         }
         .buttonStyle(.plain)
     }
@@ -164,23 +166,6 @@ struct RecordingFilterSheet: View {
     private func clearAllFilters() {
         selectedServices.removeAll()
         selectedInstrument = nil
-    }
-
-    private func iconForInstrument(_ family: InstrumentFamily) -> String {
-        switch family {
-        case .guitar: return "guitars"
-        case .saxophone: return "music.note"
-        case .trumpet: return "music.note"
-        case .trombone: return "music.note"
-        case .piano: return "pianokeys"
-        case .organ: return "pianokeys"
-        case .bass: return "music.note"
-        case .drums: return "drum"
-        case .clarinet: return "music.note"
-        case .flute: return "music.note"
-        case .vibraphone: return "music.note"
-        case .vocals: return "mic"
-        }
     }
 }
 
