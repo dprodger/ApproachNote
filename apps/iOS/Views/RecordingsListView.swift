@@ -84,7 +84,7 @@ struct RecordingsListView: View {
     }
     
     private var searchHintBanner: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             Image(systemName: "magnifyingglass")
                 .foregroundColor(ApproachNoteTheme.textSecondary)
                 .font(ApproachNoteTheme.caption())
@@ -94,7 +94,7 @@ struct RecordingsListView: View {
             Spacer()
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
         .background(ApproachNoteTheme.textSecondary.opacity(0.1))
     }
     
@@ -109,7 +109,7 @@ struct RecordingsListView: View {
     }
     
     private func errorView(error: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(ApproachNoteTheme.accent)
@@ -134,7 +134,7 @@ struct RecordingsListView: View {
     }
     
     private var emptyStateView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: searchText.isEmpty ? "magnifyingglass" : "opticaldisc")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -192,14 +192,14 @@ struct RecordingsListView: View {
                             }
                         }
                     )
-                    .padding(.trailing, 4)
+                    .padding(.trailing, ApproachNoteTheme.spacingXXS)
                 }
             }
         }
     }
     
     private func recordingRowView(recording: Recording) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             // Album artwork thumbnail
             if let albumArtUrl = recording.bestAlbumArtSmall ?? recording.bestAlbumArtMedium {
                 AsyncImage(url: URL(string: albumArtUrl)) { phase in
@@ -225,7 +225,7 @@ struct RecordingsListView: View {
             }
             
             // Recording info
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -251,7 +251,7 @@ struct RecordingsListView: View {
             Spacer()
             
             // Year and canonical indicator
-            VStack(alignment: .trailing, spacing: 4) {
+            VStack(alignment: .trailing, spacing: ApproachNoteTheme.spacingXXS) {
                 if let year = recording.recordingYear {
                     Text(String(year))
                         .font(ApproachNoteTheme.caption())
@@ -265,7 +265,7 @@ struct RecordingsListView: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
     
     private var albumPlaceholder: some View {
@@ -289,7 +289,7 @@ struct RecordingSectionHeaderView: View {
             .fontWeight(.bold)
             .foregroundColor(ApproachNoteTheme.textSecondary)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .padding(.horizontal)
             .background(ApproachNoteTheme.background.opacity(0.8))
     }

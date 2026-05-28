@@ -34,9 +34,9 @@ struct RegisterView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: ApproachNoteTheme.spacingXL) {
                     // Header
-                    VStack(spacing: 8) {
+                    VStack(spacing: ApproachNoteTheme.spacingXS) {
                         Text("Create Account")
                             .font(.largeTitle)
                             .fontWeight(.bold)
@@ -49,7 +49,7 @@ struct RegisterView: View {
                     .padding(.top, 40)
                     
                     // Display name
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Display Name")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -61,7 +61,7 @@ struct RegisterView: View {
                     }
                     
                     // Email
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Email")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -76,7 +76,7 @@ struct RegisterView: View {
                     }
                     
                     // Password
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Password")
                             .font(.subheadline)
                             .foregroundColor(.secondary)
@@ -94,7 +94,7 @@ struct RegisterView: View {
                     }
                     
                     // Confirm password
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Confirm Password")
                             .font(.subheadline)
                             .foregroundColor(.secondary)

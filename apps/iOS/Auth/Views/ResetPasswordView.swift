@@ -23,10 +23,10 @@ struct ResetPasswordView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: ApproachNoteTheme.spacingXL) {
                     if resetSuccess {
                         // Success state
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 60))
                                 .foregroundColor(.green)
@@ -44,12 +44,12 @@ struct ResetPasswordView: View {
                             ApproachNoteButton("Go to Sign In") {
                                 dismiss()
                             }
-                            .padding(.top, 16)
+                            .padding(.top, ApproachNoteTheme.spacingMD)
                         }
                         .padding(.top, 60)
                     } else {
                         // Reset form
-                        VStack(spacing: 8) {
+                        VStack(spacing: ApproachNoteTheme.spacingXS) {
                             Text("Create New Password")
                                 .font(.largeTitle)
                                 .fontWeight(.bold)
@@ -63,7 +63,7 @@ struct ResetPasswordView: View {
                         .padding(.top, 40)
                         
                         // New password field
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             Text("New Password")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -80,7 +80,7 @@ struct ResetPasswordView: View {
                         }
                         
                         // Confirm password field
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             Text("Confirm Password")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -103,7 +103,7 @@ struct ResetPasswordView: View {
                         }
                         
                         // Password requirements
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             Text("Password must:")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
@@ -112,7 +112,7 @@ struct ResetPasswordView: View {
                                 .foregroundColor(newPassword.count >= 8 ? .green : .secondary)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.top, 4)
+                        .padding(.top, ApproachNoteTheme.spacingXXS)
                         
                         // Error message
                         if let error = authManager.errorMessage {

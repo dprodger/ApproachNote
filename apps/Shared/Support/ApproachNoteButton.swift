@@ -98,7 +98,7 @@ private struct ApproachNoteButtonStyle: ButtonStyle {
             .foregroundColor(appearance.foreground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, 14)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, ApproachNoteTheme.spacingXL)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .fill(appearance.background)
@@ -175,7 +175,7 @@ private struct ApproachNoteButtonStyle: ButtonStyle {
 // MARK: - Previews
 
 #Preview("Primary") {
-    VStack(spacing: 16) {
+    VStack(spacing: ApproachNoteTheme.spacingMD) {
         ApproachNoteButton("Sign In") {}
         ApproachNoteButton("Open in Browser", trailingSystemImage: "arrow.up.right.square") {}
         ApproachNoteButton("Add", leadingSystemImage: "plus") {}
@@ -188,7 +188,7 @@ private struct ApproachNoteButtonStyle: ButtonStyle {
 }
 
 #Preview("Secondary") {
-    VStack(spacing: 16) {
+    VStack(spacing: ApproachNoteTheme.spacingMD) {
         ApproachNoteButton("Cancel", style: .secondary) {}
         ApproachNoteButton("Learn More", style: .secondary, trailingSystemImage: "arrow.up.right.square") {}
         ApproachNoteButton("Disabled", style: .secondary) {}

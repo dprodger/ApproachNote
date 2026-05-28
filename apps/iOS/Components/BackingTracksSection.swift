@@ -20,8 +20,8 @@ struct BackingTracksSection: View {
     var body: some View {
         if !videos.isEmpty {
             Divider()
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                .padding(.top, ApproachNoteTheme.spacingMD)
 
             HStack(spacing: 0) {
                 Spacer().frame(width: 24)
@@ -30,14 +30,14 @@ struct BackingTracksSection: View {
                     DisclosureGroup(
                         isExpanded: $isSectionExpanded,
                     content: {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                             ForEach(videos) { video in
                                 VideoRowView(video: video) {
                                     selectedVideo = video
                                 }
                             }
                         }
-                        .padding(.top, 12)
+                        .padding(.top, ApproachNoteTheme.spacingSM)
                     },
                     label: {
                         HStack {
@@ -53,12 +53,12 @@ struct BackingTracksSection: View {
                             Text("\(videos.count)")
                                 .font(ApproachNoteTheme.subheadline())
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                                .padding(.vertical, ApproachNoteTheme.spacingXXS)
                                 .background(ApproachNoteTheme.accent.opacity(0.1))
                                 .cornerRadius(6)
                         }
-                        .padding(.vertical, 12)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                     }
                 )
                 .tint(ApproachNoteTheme.accent)
@@ -82,7 +82,7 @@ struct VideoRowView: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -95,7 +95,7 @@ struct VideoRowView: View {
                 }
 
                 // Video info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     // Video title
                     Text(video.title ?? "Backing Track")
                         .font(ApproachNoteTheme.headline())
@@ -104,9 +104,9 @@ struct VideoRowView: View {
                         .multilineTextAlignment(.leading)
 
                     // Metadata badges
-                    HStack(spacing: 8) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         if let duration = video.durationSeconds {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "clock")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -117,7 +117,7 @@ struct VideoRowView: View {
                         }
 
                         if let tempo = video.tempo {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "metronome")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -128,7 +128,7 @@ struct VideoRowView: View {
                         }
 
                         if let key = video.keySignature {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "music.note")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -204,7 +204,7 @@ struct VideoPlayerSheet: View {
                 }
 
                 // Video details
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                     if let description = video.description, !description.isEmpty {
                         Text(description)
                             .font(ApproachNoteTheme.body())
@@ -213,7 +213,7 @@ struct VideoPlayerSheet: View {
                     }
 
                     if let duration = video.durationSeconds {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "clock")
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Duration: \(formatDuration(duration))")
@@ -223,7 +223,7 @@ struct VideoPlayerSheet: View {
                     }
 
                     if let tempo = video.tempo {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "metronome")
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Tempo: \(tempo) BPM")
@@ -233,7 +233,7 @@ struct VideoPlayerSheet: View {
                     }
 
                     if let key = video.keySignature {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "music.note")
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Key: \(key)")

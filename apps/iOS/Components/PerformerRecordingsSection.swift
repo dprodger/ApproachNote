@@ -29,12 +29,12 @@ struct PerformerRecordingsSection: View {
     @State private var expandedGroups: Set<String> = []
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             sectionHeader
-                .padding(.horizontal, 24)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
             controlsBar
-                .padding(.horizontal, 24)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
             LazyVStack(alignment: .leading, spacing: 0) {
                 if !filteredRecordings.isEmpty {
@@ -42,7 +42,7 @@ struct PerformerRecordingsSection: View {
                         groupAccordion(group: group)
                     }
                 } else {
-                    VStack(spacing: 12) {
+                    VStack(spacing: ApproachNoteTheme.spacingSM) {
                         Image(systemName: "music.note")
                             .font(.system(size: 48))
                             .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -55,18 +55,18 @@ struct PerformerRecordingsSection: View {
                     .padding(.vertical, 40)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.top, 8)
+            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+            .padding(.top, ApproachNoteTheme.spacingXS)
             .overlay(alignment: .top) {
                 if isReloading {
-                    HStack(spacing: 8) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         ProgressView()
                             .tint(ApproachNoteTheme.brand)
                         Text("Reloading...")
                             .font(ApproachNoteTheme.subheadline())
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, ApproachNoteTheme.spacingMD)
                     .padding(.vertical, 10)
                     .background(.ultraThinMaterial)
                     .cornerRadius(8)
@@ -84,7 +84,7 @@ struct PerformerRecordingsSection: View {
 
     @ViewBuilder
     private var sectionHeader: some View {
-        HStack(alignment: .center, spacing: 8) {
+        HStack(alignment: .center, spacing: ApproachNoteTheme.spacingXS) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("RECORDINGS")
                     .font(ApproachNoteTheme.title3())
@@ -114,7 +114,7 @@ struct PerformerRecordingsSection: View {
 
     @ViewBuilder
     private var controlsBar: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Search field
             HStack {
                 Image(systemName: "magnifyingglass")
@@ -138,7 +138,7 @@ struct PerformerRecordingsSection: View {
             )
 
             // Role segmented (All / Leader / Sideman)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Role")
                     .font(ApproachNoteTheme.callout(weight: .semibold))
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -180,8 +180,8 @@ struct PerformerRecordingsSection: View {
                     .font(.caption)
             }
             .foregroundColor(ApproachNoteTheme.textPrimary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, ApproachNoteTheme.spacingSM)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
             .overlay(
@@ -211,8 +211,8 @@ struct PerformerRecordingsSection: View {
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
                         .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.brand)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
+                        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                        .padding(.vertical, ApproachNoteTheme.spacingXS)
                         .background(
                             Capsule().fill(isSelected ? ApproachNoteTheme.brand : Color.clear)
                         )
@@ -221,8 +221,8 @@ struct PerformerRecordingsSection: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.vertical, 4)
+        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
         .frame(maxWidth: .infinity)
         .overlay(
             Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
@@ -260,14 +260,14 @@ struct PerformerRecordingsSection: View {
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
-                .padding(.vertical, 12)
+                .padding(.vertical, ApproachNoteTheme.spacingSM)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             if isExpanded {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    LazyHStack(alignment: .top, spacing: 16) {
+                    LazyHStack(alignment: .top, spacing: ApproachNoteTheme.spacingMD) {
                         ForEach(group.recordings, id: \.id) { recording in
                             NavigationLink(destination: RecordingDetailView(recordingId: recording.recordingId)) {
                                 PerformerRecordingCardView(recording: recording)
@@ -277,12 +277,12 @@ struct PerformerRecordingsSection: View {
                     }
                     // Leading inset aligns the first card with the gutter;
                     // cards bleed past the edges as you scroll.
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
                 }
                 // Cancel the section's 24pt gutter so the carousel spans
                 // full width.
-                .padding(.horizontal, -24)
-                .padding(.bottom, 12)
+                .padding(.horizontal, -ApproachNoteTheme.spacingXL)
+                .padding(.bottom, ApproachNoteTheme.spacingSM)
             }
         }
     }
@@ -380,7 +380,7 @@ struct PerformerRecordingCardView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Album artwork
             ZStack(alignment: .topTrailing) {
                 if let url = coverUrl {

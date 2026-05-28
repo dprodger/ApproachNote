@@ -48,7 +48,7 @@ struct PerformerDetailView: View {
                     }
 
                     // Header + biography content (shares the 24pt screen gutter).
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                         // Artist Name
                         Text(performer.name)
                             .font(ApproachNoteTheme.largeTitle())
@@ -71,7 +71,7 @@ struct PerformerDetailView: View {
 
                         // Biography
                         if let biography = performer.biography, !biography.isEmpty {
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                                 Text("BIOGRAPHY")
                                     .font(ApproachNoteTheme.title3())
                                     .bold()
@@ -82,7 +82,7 @@ struct PerformerDetailView: View {
                                     maxCollapsedHeight: viewportHeight > 0 ? viewportHeight * 0.5625 : .greatestFiniteMagnitude
                                 )
                             }
-                            .padding(.top, 8)
+                            .padding(.top, ApproachNoteTheme.spacingXS)
                         }
 
                         // Learn More links (after the biography, before recordings)
@@ -95,11 +95,11 @@ struct PerformerDetailView: View {
                             isArtist: true,
                             showsBackground: false
                         )
-                        .padding(.top, 8)
+                        .padding(.top, ApproachNoteTheme.spacingXS)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.top, (performer.images?.isEmpty == false) ? 20 : 24)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                    .padding(.top, (performer.images?.isEmpty == false) ? ApproachNoteTheme.spacingLG : ApproachNoteTheme.spacingXL)
+                    .padding(.bottom, ApproachNoteTheme.spacingMD)
 
                     // Recordings Section (mirrors SongDetailView layout)
                     PerformerRecordingsSection(
@@ -120,7 +120,7 @@ struct PerformerDetailView: View {
                         }
                     )
                 }
-                .padding(.bottom, 16)
+                .padding(.bottom, ApproachNoteTheme.spacingMD)
             } else {
                 VStack {
                     Spacer()
@@ -248,7 +248,7 @@ private struct ExpandableBiography: View {
 
     @ViewBuilder
     private var bioText: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
                 Text(paragraph)
                     .font(ApproachNoteTheme.body())
@@ -261,7 +261,7 @@ private struct ExpandableBiography: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             bioText
                 .frame(maxHeight: isExpanded ? nil : maxCollapsedHeight, alignment: .top)
                 .clipped()

@@ -19,12 +19,12 @@ struct CommunityDataSection: View {
         VStack(alignment: .leading, spacing: 0) {
             Divider()
                 .padding(.horizontal)
-                .padding(.top, 16)
+                .padding(.top, ApproachNoteTheme.spacingMD)
 
             HStack(spacing: 0) {
                 Spacer().frame(width: 16)
 
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                     // Header
                     HStack {
                         Image(systemName: "person.3.fill")
@@ -41,7 +41,7 @@ struct CommunityDataSection: View {
                             Button {
                                 onEditTapped()
                             } label: {
-                                HStack(spacing: 4) {
+                                HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                     Image(systemName: userContribution != nil ? "pencil" : "plus")
                                     Text(userContribution != nil ? "Edit" : "Contribute")
                                 }
@@ -54,7 +54,7 @@ struct CommunityDataSection: View {
                             }
                         }
                     }
-                    .padding(.top, 12)
+                    .padding(.top, ApproachNoteTheme.spacingSM)
 
                     // Data rows
                     if let data = communityData, hasAnyData(data) {
@@ -92,7 +92,7 @@ struct CommunityDataSection: View {
                         }
                     } else {
                         // No data yet
-                        VStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .center, spacing: ApproachNoteTheme.spacingXS) {
                             Text("No community data yet")
                                 .font(ApproachNoteTheme.body())
                                 .bodyLineSpacing()
@@ -109,10 +109,10 @@ struct CommunityDataSection: View {
                             }
                         }
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
+                        .padding(.vertical, ApproachNoteTheme.spacingMD)
                     }
                 }
-                .padding(.bottom, 12)
+                .padding(.bottom, ApproachNoteTheme.spacingSM)
 
                 Spacer().frame(width: 16)
             }
@@ -149,7 +149,7 @@ struct CommunityDataRow: View {
     var subtitleText: String? = nil
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: icon)
                 .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textSecondary)
                 .frame(width: 24)
@@ -188,7 +188,7 @@ struct CommunityDataRow: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 

@@ -19,10 +19,10 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: ApproachNoteTheme.spacingXL) {
                     if authManager.isAuthenticated {
                         // User Info Section
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             // Profile Icon
                             Circle()
                                 .fill(ApproachNoteTheme.brand.gradient)
@@ -56,7 +56,7 @@ struct SettingsView: View {
                     }
 
                     // Playback Settings Section
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                         Text("Playback")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -96,7 +96,7 @@ struct SettingsView: View {
                             .padding(.horizontal)
 
                         // Favorites Section
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                             HStack {
                                 Image(systemName: "heart.fill")
                                     .foregroundColor(.red)
@@ -122,10 +122,10 @@ struct SettingsView: View {
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: 16) {
+                                    HStack(spacing: ApproachNoteTheme.spacingMD) {
                                         ForEach(favoritesManager.favoriteRecordings, id: \.id) { recording in
                                             NavigationLink(destination: RecordingDetailView(recordingId: recording.id)) {
-                                                VStack(spacing: 8) {
+                                                VStack(spacing: ApproachNoteTheme.spacingXS) {
                                                     // Album art
                                                     if let artUrl = recording.bestAlbumArtSmall,
                                                        let url = URL(string: artUrl) {
@@ -185,7 +185,7 @@ struct SettingsView: View {
                             .padding(.horizontal)
 
                         // Contributions Section
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                             HStack {
                                 Image(systemName: "person.3.fill")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -327,7 +327,7 @@ struct SettingsView: View {
                     Divider()
                         .padding(.horizontal)
 
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                         Text("Appearance (Preview)")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -406,7 +406,7 @@ private struct ContributionStatRow: View {
     let count: Int
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: icon)
                 .font(.system(size: 16))
                 .foregroundColor(iconColor)
@@ -424,8 +424,8 @@ private struct ContributionStatRow: View {
                 .fontWeight(.semibold)
                 .foregroundColor(count > 0 ? ApproachNoteTheme.textPrimary : ApproachNoteTheme.textSecondary.opacity(0.5))
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 12)
+        .padding(.vertical, ApproachNoteTheme.spacingSM)
+        .padding(.horizontal, ApproachNoteTheme.spacingSM)
     }
 }
 

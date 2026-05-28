@@ -80,9 +80,9 @@ private struct AlbumArtSourceSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingLG) {
                 // Source name
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text("Source")
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -92,7 +92,7 @@ private struct AlbumArtSourceSheet: View {
                 }
 
                 // License info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text("Usage")
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -111,7 +111,7 @@ private struct AlbumArtSourceSheet: View {
                         .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
-                    .padding(.top, 8)
+                    .padding(.top, ApproachNoteTheme.spacingXS)
                 }
 
                 Spacer()
@@ -136,7 +136,7 @@ private struct AlbumArtSourceSheet: View {
 // MARK: - Preview
 
 #Preview("Source button beside artwork") {
-    VStack(alignment: .leading, spacing: 16) {
+    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
         AsyncImage(url: URL(string: "https://picsum.photos/300")) { image in
             image.resizable().aspectRatio(contentMode: .fill)
         } placeholder: {

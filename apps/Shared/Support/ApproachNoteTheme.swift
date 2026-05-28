@@ -442,7 +442,7 @@ struct ThemedSectionHeader: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             Text(title.uppercased())
                 .font(ApproachNoteTheme.headline())
                 .fontWeight(.bold)
@@ -455,8 +455,8 @@ struct ThemedSectionHeader: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal)
-        .padding(.top, 24)
-        .padding(.bottom, 8)
+        .padding(.top, ApproachNoteTheme.spacingXL)
+        .padding(.bottom, ApproachNoteTheme.spacingXS)
     }
 }
 

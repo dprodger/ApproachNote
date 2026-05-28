@@ -136,7 +136,7 @@ struct DetailHeaderBar<Trailing: View>: View {
             }
         }
         .frame(height: DetailHeaderMetrics.buttonDiameter)
-        .padding(.horizontal, 20)
+        .padding(.horizontal, ApproachNoteTheme.spacingLG)
         .padding(.bottom, bottomPadding)
         .frame(maxWidth: .infinity, minHeight: height, maxHeight: height, alignment: .bottom)
         .background(alignment: .bottom) {

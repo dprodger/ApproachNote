@@ -145,7 +145,7 @@ struct ArtistsListView: View {
     }
     
     private func errorView(error: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(ApproachNoteTheme.accent)
@@ -199,7 +199,7 @@ struct ArtistsListView: View {
                         }
                     }
                 )
-                .padding(.trailing, 4)
+                .padding(.trailing, ApproachNoteTheme.spacingXXS)
             }
         }
     }
@@ -233,7 +233,7 @@ struct ArtistsListView: View {
     }
 
     private func artistRowView(performer: Performer) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             formattedName(for: performer)
 
             if let instrument = performer.instrument {
@@ -242,7 +242,7 @@ struct ArtistsListView: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 
@@ -256,7 +256,7 @@ struct ArtistSectionHeaderView: View {
             .fontWeight(.bold)
             .foregroundColor(ApproachNoteTheme.accent)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .padding(.horizontal)
             .background(ApproachNoteTheme.background.opacity(0.8))
     }

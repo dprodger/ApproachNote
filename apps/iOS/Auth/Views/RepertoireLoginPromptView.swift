@@ -15,9 +15,9 @@ struct RepertoireLoginPromptView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
+            VStack(spacing: ApproachNoteTheme.spacingXL) {
                 // Header
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Text("Sign up or Sign In")
                         .font(.title)
                         .fontWeight(.bold)

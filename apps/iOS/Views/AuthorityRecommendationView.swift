@@ -37,7 +37,7 @@ struct AuthorityRecommendationsView: View {
                 if isLoading {
                     ThemedProgressView(message: "Loading...", tintColor: ApproachNoteTheme.textSecondary)
                 } else if let error = errorMessage {
-                    VStack(spacing: 16) {
+                    VStack(spacing: ApproachNoteTheme.spacingMD) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(ApproachNoteTheme.largeTitle())
                             .foregroundColor(.red)
@@ -50,7 +50,7 @@ struct AuthorityRecommendationsView: View {
                     }
                     .padding()
                 } else if authorities.isEmpty && unmatchedAuthorities.isEmpty {
-                    VStack(spacing: 16) {
+                    VStack(spacing: ApproachNoteTheme.spacingMD) {
                         Image(systemName: "doc.badge.plus")
                             .font(.system(size: 48))
                             .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -357,15 +357,15 @@ struct AuthorityRowView: View {
     let authority: AuthorityRecommendation
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             HStack {
                 // Source badge
                 Text(authority.sourceDisplayName)
                     .font(ApproachNoteTheme.caption())
                     .fontWeight(.semibold)
                     .foregroundColor(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
                     .background(authority.sourceColor)
                     .cornerRadius(4)
                 
@@ -404,10 +404,10 @@ struct AuthorityRowView: View {
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .lineLimit(3)
-                    .padding(.top, 4)
+                    .padding(.top, ApproachNoteTheme.spacingXXS)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 
@@ -418,15 +418,15 @@ struct UnmatchedAuthorityRowView: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 HStack {
                     // Source badge
                     Text(authority.sourceDisplayName)
                         .font(ApproachNoteTheme.caption())
                         .fontWeight(.semibold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                        .padding(.vertical, ApproachNoteTheme.spacingXXS)
                         .background(authority.sourceColor)
                         .cornerRadius(4)
                     
@@ -474,7 +474,7 @@ struct UnmatchedAuthorityRowView: View {
                 .font(ApproachNoteTheme.title3())
                 .foregroundColor(ApproachNoteTheme.accent.opacity(0.5))
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 

@@ -42,16 +42,16 @@ struct OnboardingView: View {
                 .animation(.easeInOut, value: currentPage)
 
                 // Navigation controls
-                VStack(spacing: 16) {
+                VStack(spacing: ApproachNoteTheme.spacingMD) {
                     // Page indicators
-                    HStack(spacing: 8) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         ForEach(0..<totalPages, id: \.self) { index in
                             Circle()
                                 .fill(index == currentPage ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.4))
                                 .frame(width: 8, height: 8)
                         }
                     }
-                    .padding(.bottom, 8)
+                    .padding(.bottom, ApproachNoteTheme.spacingXS)
 
                     // Navigation buttons
                     HStack {

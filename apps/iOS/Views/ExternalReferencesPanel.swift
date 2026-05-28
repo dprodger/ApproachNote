@@ -135,7 +135,7 @@ struct ExternalReferencesPanel: View {
     }
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Learn More:")
                 .font(ApproachNoteTheme.body(weight: .semibold))
                 .bodyLineSpacing()
@@ -176,7 +176,7 @@ struct ExternalReferencesPanel: View {
                 }
             }
         }
-        .padding(showsBackground ? EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+        .padding(showsBackground ? EdgeInsets(top: ApproachNoteTheme.spacingMD, leading: ApproachNoteTheme.spacingMD, bottom: ApproachNoteTheme.spacingMD, trailing: ApproachNoteTheme.spacingMD)
                                  : EdgeInsets())
         .background(showsBackground ? ApproachNoteTheme.surface : Color.clear)
         .cornerRadius(showsBackground ? 10 : 0)

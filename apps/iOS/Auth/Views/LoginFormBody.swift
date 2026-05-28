@@ -24,7 +24,7 @@ struct LoginFormBody: View {
     var onAuthenticated: (() -> Void)? = nil
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: ApproachNoteTheme.spacingXL) {
 
             // Google + Apple sign-in buttons. Pinned to the Google asset's
             // 185:44 aspect ratio (rendered at 210x50) so the pair stacks
@@ -58,10 +58,10 @@ struct LoginFormBody: View {
 
             // Divider
             orDivider
-                .padding(.vertical, 16)
+                .padding(.vertical, ApproachNoteTheme.spacingMD)
             
             // Email field
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Email")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -76,7 +76,7 @@ struct LoginFormBody: View {
             }
 
             // Password field
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Password")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
@@ -122,7 +122,7 @@ struct LoginFormBody: View {
 
             // Divider
             orDivider
-                .padding(.vertical, 8)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
 
             // Create account button
             ApproachNoteButton("Create Account", style: .secondary) {
@@ -145,7 +145,7 @@ struct LoginFormBody: View {
                 .foregroundColor(.gray.opacity(0.3))
             Text("or")
                 .foregroundColor(.secondary)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, ApproachNoteTheme.spacingXS)
             Rectangle()
                 .frame(height: 1)
                 .foregroundColor(.gray.opacity(0.3))

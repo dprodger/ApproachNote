@@ -173,14 +173,14 @@ struct RecordingContributionEditView: View {
         ZStack {
             Color.black.opacity(0.3)
                 .ignoresSafeArea()
-            VStack(spacing: 12) {
+            VStack(spacing: ApproachNoteTheme.spacingSM) {
                 ProgressView()
                     .scaleEffect(1.2)
                 Text("Saving...")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.white)
             }
-            .padding(24)
+            .padding(ApproachNoteTheme.spacingXL)
             .background(Color.black.opacity(0.7))
             .cornerRadius(12)
         }

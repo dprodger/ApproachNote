@@ -19,10 +19,10 @@ struct ForgotPasswordView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: ApproachNoteTheme.spacingXL) {
                     if resetEmailSent {
                         // Success state
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             Image(systemName: "envelope.circle.fill")
                                 .font(.system(size: 60))
                                 .foregroundColor(ApproachNoteTheme.brand)
@@ -46,17 +46,17 @@ struct ForgotPasswordView: View {
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
-                                .padding(.top, 8)
+                                .padding(.top, ApproachNoteTheme.spacingXS)
                             
                             ApproachNoteButton("Done") {
                                 dismiss()
                             }
-                            .padding(.top, 16)
+                            .padding(.top, ApproachNoteTheme.spacingMD)
                         }
                         .padding(.top, 60)
                     } else {
                         // Request form
-                        VStack(spacing: 8) {
+                        VStack(spacing: ApproachNoteTheme.spacingXS) {
                             Text("Reset Password")
                                 .font(.largeTitle)
                                 .fontWeight(.bold)
@@ -70,7 +70,7 @@ struct ForgotPasswordView: View {
                         .padding(.top, 40)
                         
                         // Email field
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             Text("Email")
                                 .font(.subheadline)
                                 .foregroundColor(.secondary)
@@ -118,7 +118,7 @@ struct ForgotPasswordView: View {
                                 .font(.subheadline)
                                 .foregroundColor(ApproachNoteTheme.brand)
                         }
-                        .padding(.top, 8)
+                        .padding(.top, ApproachNoteTheme.spacingXS)
                     }
                     
                     Spacer()

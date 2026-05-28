@@ -47,7 +47,7 @@ struct AboutView: View {
             .ignoresSafeArea()
             
             // Content
-            VStack(spacing: 20) {
+            VStack(spacing: ApproachNoteTheme.spacingLG) {
                 Spacer()
 
                 Text("ApproachNote")
@@ -67,7 +67,7 @@ struct AboutView: View {
                 
                 Spacer()
                 
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Text("Explore thousands of jazz standards")
                         .font(ApproachNoteTheme.body())
                         .bodyLineSpacing()
@@ -98,8 +98,8 @@ struct AboutView: View {
                     }
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.brand)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                    .padding(.vertical, ApproachNoteTheme.spacingSM)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
                             .fill(Color.white.opacity(0.95))
@@ -110,7 +110,7 @@ struct AboutView: View {
                 Spacer()
                 
                 // Research Queue Status
-                VStack(spacing: 8) {
+                VStack(spacing: ApproachNoteTheme.spacingXS) {
                     if isLoadingQueue && !isRefreshing {
                         ProgressView()
                             .tint(.white)
@@ -150,9 +150,9 @@ struct AboutView: View {
 
                             // Progress indicator
                             if let progress = progress {
-                                VStack(spacing: 4) {
+                                VStack(spacing: ApproachNoteTheme.spacingXXS) {
                                     // Phase label with progress count
-                                    HStack(spacing: 4) {
+                                    HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                         Text(progress.phaseLabel)
                                             .font(ApproachNoteTheme.caption())
                                             .foregroundColor(.white.opacity(0.7))
@@ -178,7 +178,7 @@ struct AboutView: View {
                                     }
                                     .frame(width: 200, height: 4)
                                 }
-                                .padding(.top, 4)
+                                .padding(.top, ApproachNoteTheme.spacingXXS)
                             }
                         }
 
@@ -189,8 +189,8 @@ struct AboutView: View {
                             .padding(.top, 2)
                     }
                 }
-                .padding(.vertical, 16)
-                .padding(.horizontal, 24)
+                .padding(.vertical, ApproachNoteTheme.spacingMD)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
                 .frame(maxWidth: 300)
                 .background(
                     RoundedRectangle(cornerRadius: 12)

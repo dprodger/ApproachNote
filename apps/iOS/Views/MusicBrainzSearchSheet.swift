@@ -106,7 +106,7 @@ struct MusicBrainzSearchSheet: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -129,7 +129,7 @@ struct MusicBrainzSearchSheet: View {
             }
             .buttonStyle(.bordered)
             .tint(ApproachNoteTheme.brand)
-            .padding(.top, 8)
+            .padding(.top, ApproachNoteTheme.spacingXS)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -162,11 +162,11 @@ struct MusicBrainzSearchSheet: View {
     }
 
     private func workRowView(work: MusicBrainzWork) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: ApproachNoteTheme.spacingSM) {
             // Score indicator
             scoreIndicator(score: work.score)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(work.title)
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -191,7 +191,7 @@ struct MusicBrainzSearchSheet: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 
     private func scoreIndicator(score: Int?) -> some View {

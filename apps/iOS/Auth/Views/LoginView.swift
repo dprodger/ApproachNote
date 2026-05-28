@@ -18,9 +18,9 @@ struct LoginView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 24) {
+                VStack(spacing: ApproachNoteTheme.spacingXL) {
                     // Header
-                    VStack(spacing: 8) {
+                    VStack(spacing: ApproachNoteTheme.spacingXS) {
                         Text("Welcome Back")
                             .font(.largeTitle)
                             .fontWeight(.bold)

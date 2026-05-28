@@ -154,7 +154,7 @@ private struct ImageDetailSheet: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(spacing: 20) {
+                VStack(spacing: ApproachNoteTheme.spacingLG) {
                     // Full image
                     if let uiImage = uiImage {
                         Image(uiImage: uiImage)
@@ -168,7 +168,7 @@ private struct ImageDetailSheet: View {
                     }
                     
                     // Image info
-                    VStack(alignment: .leading, spacing: 16) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                         InfoRow(title: "Source", value: sourceName)
                         
                         if let license = image.licenseType {
@@ -176,7 +176,7 @@ private struct ImageDetailSheet: View {
                         }
                         
                         if let attribution = image.attribution {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 Text("Attribution")
                                     .font(ApproachNoteTheme.caption())
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -260,7 +260,7 @@ private struct InfoRow: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             Text(title)
                 .font(ApproachNoteTheme.caption())
                 .foregroundColor(ApproachNoteTheme.textSecondary)

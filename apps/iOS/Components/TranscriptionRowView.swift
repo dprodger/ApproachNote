@@ -11,7 +11,7 @@ struct TranscriptionRowView: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -24,7 +24,7 @@ struct TranscriptionRowView: View {
                 }
 
                 // Transcription info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     // Album/Recording title
                     Text(transcription.albumTitle ?? "Solo Transcription")
                         .font(ApproachNoteTheme.headline())
@@ -33,9 +33,9 @@ struct TranscriptionRowView: View {
                         .multilineTextAlignment(.leading)
 
                     // Recording details
-                    HStack(spacing: 12) {
+                    HStack(spacing: ApproachNoteTheme.spacingSM) {
                         if let year = transcription.recordingYear {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "calendar")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -46,7 +46,7 @@ struct TranscriptionRowView: View {
                         }
 
                         if let label = transcription.label {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "opticaldisc")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())

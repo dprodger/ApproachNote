@@ -24,9 +24,9 @@ struct ReportLinkIssueView: View {
     var body: some View {
         NavigationView {
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingLG) {
                     // Header section with description
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Report a Problem")
                             .font(ApproachNoteTheme.title3())
                             .fontWeight(.semibold)
@@ -42,12 +42,12 @@ struct ReportLinkIssueView: View {
                     .cornerRadius(10)
                     
                     // Entity Information Card
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                         Text("About This \(entityType)")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                         
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             IssueInfoRow(label: "Name", value: entityName)
                             IssueInfoRow(label: "Type", value: entityType)
                             IssueInfoRow(label: "ID", value: entityId, isMonospace: true)
@@ -59,15 +59,15 @@ struct ReportLinkIssueView: View {
                     .cornerRadius(10)
                     
                     // External Reference Card
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                         Text("External Link")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                         
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             IssueInfoRow(label: "Source", value: externalSource)
                             
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 Text("URL")
                                     .font(ApproachNoteTheme.caption())
                                     .fontWeight(.medium)
@@ -86,14 +86,14 @@ struct ReportLinkIssueView: View {
                     .cornerRadius(10)
                     
                     // Explanation Input
-                    VStack(alignment: .leading, spacing: 12) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                         Text("What's Wrong?")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                         
                         TextEditor(text: $explanation)
                             .frame(minHeight: 120)
-                            .padding(8)
+                            .padding(ApproachNoteTheme.spacingXS)
                             .background(Color(UIColor.systemBackground))
                             .cornerRadius(8)
                             .overlay(

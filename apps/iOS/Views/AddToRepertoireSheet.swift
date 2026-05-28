@@ -54,7 +54,7 @@ struct AddToRepertoireSheet: View {
                         Color.black.opacity(0.3)
                             .ignoresSafeArea()
                         
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             ProgressView()
                                 .tint(.white)
                                 .scaleEffect(1.5)
@@ -94,7 +94,7 @@ struct AddToRepertoireSheet: View {
     // MARK: - Auth Required View
     
     private var authRequiredView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: ApproachNoteTheme.spacingXL) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.brand.opacity(0.6))
@@ -123,7 +123,7 @@ struct AddToRepertoireSheet: View {
     // MARK: - Loading View
     
     private var loadingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             ProgressView()
                 .tint(ApproachNoteTheme.brand)
             Text("Loading repertoires...")
@@ -136,7 +136,7 @@ struct AddToRepertoireSheet: View {
     // MARK: - Empty Repertoires View
     
     private var emptyRepertoiresView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -173,7 +173,7 @@ struct AddToRepertoireSheet: View {
                         addToRepertoire(lastUsed)
                     }) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 Text("Add to \(lastUsed.name)")
                                     .font(ApproachNoteTheme.headline())
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -201,7 +201,7 @@ struct AddToRepertoireSheet: View {
                         addToRepertoire(repertoire)
                     }) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 Text(repertoire.name)
                                     .font(ApproachNoteTheme.headline())
                                     .foregroundColor(ApproachNoteTheme.textPrimary)

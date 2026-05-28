@@ -21,7 +21,7 @@ private enum OnboardingLayout {
 
 struct OnboardingWelcomePage: View {
     var body: some View {
-        let content = VStack(spacing: 24) {
+        let content = VStack(spacing: ApproachNoteTheme.spacingXL) {
             Spacer()
                 .frame(height: 60)
 
@@ -34,7 +34,7 @@ struct OnboardingWelcomePage: View {
                 .font(ApproachNoteTheme.largeTitle())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            VStack(spacing: 16) {
+            VStack(spacing: ApproachNoteTheme.spacingMD) {
                 Text("Thanks for checking out ApproachNote.")
                     .font(ApproachNoteTheme.title3())
                     .multilineTextAlignment(.center)
@@ -66,7 +66,7 @@ struct OnboardingWelcomePage: View {
                 .frame(height: 40)
 
             // Decorative element
-            VStack(spacing: 12) {
+            VStack(spacing: ApproachNoteTheme.spacingSM) {
                 Image(systemName: "info.circle")
                     .font(ApproachNoteTheme.title2())
                     .foregroundColor(ApproachNoteTheme.accent)
@@ -96,12 +96,12 @@ struct OnboardingWelcomePage: View {
 
 struct OnboardingSongPage: View {
     var body: some View {
-        let content = VStack(spacing: 24) {
+        let content = VStack(spacing: ApproachNoteTheme.spacingXL) {
             Spacer()
                 .frame(height: 60)
 
             // Icon with label
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Image(systemName: "music.note")
                     .font(.system(size: 50))
                     .foregroundColor(ApproachNoteTheme.brand)
@@ -111,7 +111,7 @@ struct OnboardingSongPage: View {
                     .foregroundColor(ApproachNoteTheme.textPrimary)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                 Text("When Gerald Marks and Seymour Simons sat down in 1932 to write \(Text("All of Me").font(ApproachNoteTheme.body(italic: true))), they were creating a \(Text("Song").fontWeight(.semibold)).")
 
                 Text("This can sometimes be called a Work, or a Composition.")
@@ -130,8 +130,8 @@ struct OnboardingSongPage: View {
                 .frame(height: 40)
 
             // Visual representation
-            VStack(spacing: 8) {
-                HStack(spacing: 12) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
+                HStack(spacing: ApproachNoteTheme.spacingSM) {
                     Image(systemName: "pianokeys")
                     Image(systemName: "plus")
                         .font(ApproachNoteTheme.caption())
@@ -171,12 +171,12 @@ struct OnboardingSongPage: View {
 
 struct OnboardingRecordingPage: View {
     var body: some View {
-        let content = VStack(spacing: 24) {
+        let content = VStack(spacing: ApproachNoteTheme.spacingXL) {
             Spacer()
                 .frame(height: 60)
 
             // Icon with label
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Image(systemName: "opticaldisc")
                     .font(.system(size: 50))
                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -186,7 +186,7 @@ struct OnboardingRecordingPage: View {
                     .foregroundColor(ApproachNoteTheme.textPrimary)
             }
 
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                 Text("When Count Basie and his orchestra got together in November 1941 to play this song and commit it to media, that generated this \(Text("Recording").fontWeight(.semibold)).")
 
                 Text("The lineup for this recording is what it was on that date & time.")
@@ -202,7 +202,7 @@ struct OnboardingRecordingPage: View {
                 .frame(height: 40)
 
             // Visual representation
-            VStack(spacing: 12) {
+            VStack(spacing: ApproachNoteTheme.spacingSM) {
                 HStack {
                     Image(systemName: "person.3.fill")
                         .foregroundColor(ApproachNoteTheme.accent)
@@ -245,12 +245,12 @@ struct OnboardingRecordingPage: View {
 
 struct OnboardingReleasesPage: View {
     var body: some View {
-        let content = VStack(spacing: 20) {
+        let content = VStack(spacing: ApproachNoteTheme.spacingLG) {
             Spacer()
                 .frame(height: 40)
 
             // Icon with label
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Image(systemName: "shippingbox")
                     .font(.system(size: 50))
                     .foregroundColor(ApproachNoteTheme.accent)
@@ -260,7 +260,7 @@ struct OnboardingReleasesPage: View {
                     .foregroundColor(ApproachNoteTheme.textPrimary)
             }
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 Text("The music industry being what it is, here's where it gets complicated.")
 
                 Text("That recording was issued to the public on a \(Text("Release").fontWeight(.semibold)). The release is a piece of commercial product (vinyl, CD, cassette, streaming) that was put into the world by a label.")
@@ -274,17 +274,17 @@ struct OnboardingReleasesPage: View {
             .padding(.horizontal, OnboardingLayout.horizontalPadding)
 
             // Formats visualization
-            HStack(spacing: 16) {
+            HStack(spacing: ApproachNoteTheme.spacingMD) {
                 ForEach(["opticaldisc", "record.circle", "play.rectangle.fill"], id: \.self) { icon in
                     Image(systemName: icon)
                         .font(ApproachNoteTheme.title())
                         .foregroundColor(ApproachNoteTheme.accent)
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
 
             #if os(iOS)
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 Text("If you care about hearing the specific version (or Recording) of that song, it doesn't matter too much what Release it's on — they should sound the same.")
 
                 Text("(Remastering, etc., may be counted as a separate release or may not.)")
@@ -299,7 +299,7 @@ struct OnboardingReleasesPage: View {
             #endif
 
             // Key insight box
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Image(systemName: "lightbulb.fill")
                     .foregroundColor(ApproachNoteTheme.accent)
 

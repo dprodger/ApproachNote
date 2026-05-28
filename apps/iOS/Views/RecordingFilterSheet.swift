@@ -20,7 +20,7 @@ struct RecordingFilterSheet: View {
                 VStack(alignment: .leading, spacing: 28) {
 
                     // MARK: - Playback availability (multi-select)
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Playback availability")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -29,17 +29,17 @@ struct RecordingFilterSheet: View {
                             .font(ApproachNoteTheme.subheadline())
                             .foregroundColor(ApproachNoteTheme.textSecondary)
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             ForEach(StreamingService.allCases) { service in
                                 serviceCheckboxRow(service)
                             }
                         }
-                        .padding(.top, 4)
+                        .padding(.top, ApproachNoteTheme.spacingXXS)
                     }
 
                     // MARK: - Instrument Section
                     if !availableInstruments.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                             Text("By Instrument")
                                 .font(ApproachNoteTheme.headline())
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -57,7 +57,7 @@ struct RecordingFilterSheet: View {
                                     instrumentButton(family)
                                 }
                             }
-                            .padding(.top, 4)
+                            .padding(.top, ApproachNoteTheme.spacingXXS)
                         }
                     }
 
@@ -110,7 +110,7 @@ struct RecordingFilterSheet: View {
                 selectedServices.insert(service)
             }
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                     .font(ApproachNoteTheme.title3())
                     .foregroundColor(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -122,7 +122,7 @@ struct RecordingFilterSheet: View {
 
                 Spacer()
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -145,7 +145,7 @@ struct RecordingFilterSheet: View {
                 .minimumScaleFactor(0.8)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
-                .padding(.horizontal, 8)
+                .padding(.horizontal, ApproachNoteTheme.spacingXS)
                 .background(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.surface)
                 .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.textPrimary)
                 .cornerRadius(8)

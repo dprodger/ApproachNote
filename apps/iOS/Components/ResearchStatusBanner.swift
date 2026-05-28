@@ -19,7 +19,7 @@ struct ResearchStatusBanner: View {
     @State private var showHelperText = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Main banner - tappable
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -56,7 +56,7 @@ struct ResearchStatusBanner: View {
                         .font(.system(size: 12))
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
-                .padding(12)
+                .padding(ApproachNoteTheme.spacingSM)
                 .background(iconColor.opacity(0.1))
                 .cornerRadius(8)
             }
@@ -67,12 +67,12 @@ struct ResearchStatusBanner: View {
                 Text(helperText)
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingSM)
+                    .padding(.bottom, ApproachNoteTheme.spacingXXS)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.top, 8)
+        .padding(.top, ApproachNoteTheme.spacingXS)
     }
 }
 

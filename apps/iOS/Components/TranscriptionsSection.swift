@@ -18,8 +18,8 @@ struct TranscriptionsSection: View {
     var body: some View {
         if !transcriptions.isEmpty {
             Divider()
-                .padding(.horizontal, 24)
-                .padding(.top, 16)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                .padding(.top, ApproachNoteTheme.spacingMD)
 
             // HStack with explicit spacers ensures DisclosureGroup chevron is properly inset
             HStack(spacing: 0) {
@@ -29,14 +29,14 @@ struct TranscriptionsSection: View {
                     DisclosureGroup(
                         isExpanded: $isSectionExpanded,
                     content: {
-                        VStack(alignment: .leading, spacing: 12) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                             ForEach(transcriptions) { transcription in
                                 TranscriptionRowView(transcription: transcription) {
                                     selectedTranscription = transcription
                                 }
                             }
                         }
-                        .padding(.top, 12)
+                        .padding(.top, ApproachNoteTheme.spacingSM)
                     },
                     label: {
                         HStack {
@@ -52,12 +52,12 @@ struct TranscriptionsSection: View {
                             Text("\(transcriptions.count)")
                                 .font(ApproachNoteTheme.subheadline())
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                                .padding(.vertical, ApproachNoteTheme.spacingXXS)
                                 .background(ApproachNoteTheme.accent.opacity(0.1))
                                 .cornerRadius(6)
                         }
-                        .padding(.vertical, 12)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                     }
                 )
                 .tint(ApproachNoteTheme.accent)
@@ -114,11 +114,11 @@ struct TranscriptionPlayerSheet: View {
                 }
 
                 // Transcription details
-                VStack(alignment: .leading, spacing: 12) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                     // Recording details
-                    HStack(spacing: 16) {
+                    HStack(spacing: ApproachNoteTheme.spacingMD) {
                         if let year = transcription.recordingYear {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "calendar")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(String(format: "%d", year))
@@ -128,7 +128,7 @@ struct TranscriptionPlayerSheet: View {
                         }
 
                         if let label = transcription.label {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "opticaldisc")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                 Text(label)
@@ -139,7 +139,7 @@ struct TranscriptionPlayerSheet: View {
                     }
 
                     if let composer = transcription.composer {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "music.note.list")
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Text("Composed by \(composer)")

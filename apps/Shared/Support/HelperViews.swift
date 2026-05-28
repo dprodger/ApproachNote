@@ -40,7 +40,7 @@ struct StreamingButton: View {
     let label: String
     
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: ApproachNoteTheme.spacingXS) {
             Image(systemName: icon)
                 .font(ApproachNoteTheme.title2())
                 .foregroundColor(ApproachNoteTheme.textOnDark)
@@ -60,7 +60,7 @@ struct PerformerRowView: View {
     
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(performer.name)
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -78,8 +78,8 @@ struct PerformerRowView: View {
                 Text(role.capitalized)
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textOnDark)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
                     .background(role == "leader" ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.7))
                     .cornerRadius(8)
             }
@@ -99,7 +99,7 @@ struct ExternalReferenceRow: View {
     
     var body: some View {
         Link(destination: URL(string: reference.url)!) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 // Icon
                 Image(systemName: reference.iconName)
                     .font(ApproachNoteTheme.title3())
@@ -119,7 +119,7 @@ struct ExternalReferenceRow: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
             .padding(.horizontal)
-            .padding(.vertical, 12)
+            .padding(.vertical, ApproachNoteTheme.spacingSM)
             .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
             .padding(.horizontal)
@@ -132,11 +132,11 @@ struct AuthorityRecordingRow: View {
     let recording: Recording
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
                     // Title with canonical indicator
-                    HStack(spacing: 8) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         if recording.isCanonical == true {
                             Image(systemName: "star.fill")
                                 .foregroundColor(.yellow)
@@ -177,7 +177,7 @@ struct AuthorityBadge: View {
     let source: String?
     
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: ApproachNoteTheme.spacingXXS) {
             Image(systemName: "checkmark.seal.fill")
                 .font(ApproachNoteTheme.caption2())
             Text(text)
@@ -185,8 +185,8 @@ struct AuthorityBadge: View {
                 .fontWeight(.semibold)
         }
         .foregroundColor(.white)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 4)
+        .padding(.horizontal, ApproachNoteTheme.spacingXS)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
         .background(badgeColor)
         .cornerRadius(6)
     }

@@ -68,13 +68,13 @@ struct CreateRepertoireView: View {
                         Color.black.opacity(0.3)
                             .ignoresSafeArea()
                         
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             ProgressView()
                                 .tint(ApproachNoteTheme.brand)
                             Text("Creating repertoire...")
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
                         }
-                        .padding(24)
+                        .padding(ApproachNoteTheme.spacingXL)
                         .background(ApproachNoteTheme.surface)
                         .cornerRadius(12)
                     }

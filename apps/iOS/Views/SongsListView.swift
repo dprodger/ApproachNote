@@ -173,7 +173,7 @@ struct SongsListView: View {
             }
         }
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
         .background(ApproachNoteTheme.accent.opacity(0.15))
     }
     
@@ -188,7 +188,7 @@ struct SongsListView: View {
     }
     
     private func errorView(error: String) -> some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 50))
                 .foregroundColor(ApproachNoteTheme.accent)
@@ -213,7 +213,7 @@ struct SongsListView: View {
     }
 
     private var emptySearchResultsView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -227,7 +227,7 @@ struct SongsListView: View {
                 .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
-            VStack(spacing: 12) {
+            VStack(spacing: ApproachNoteTheme.spacingSM) {
                 Text("Can't find what you're looking for?")
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -243,7 +243,7 @@ struct SongsListView: View {
                 .buttonStyle(.borderedProminent)
                 .tint(ApproachNoteTheme.brand)
             }
-            .padding(.top, 8)
+            .padding(.top, ApproachNoteTheme.spacingXS)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -284,13 +284,13 @@ struct SongsListView: View {
                         }
                     }
                 )
-                .padding(.trailing, 4)
+                .padding(.trailing, ApproachNoteTheme.spacingXXS)
             }
         }
     }
     
     private func songRowView(song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             // Title + year as one string so the title spans the full width and
             // the year trails it (issue #197); each segment keeps its own
             // styling — bold title, normal/secondary year.
@@ -309,7 +309,7 @@ struct SongsListView: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 
@@ -332,7 +332,7 @@ struct RepertoirePickerSheet: View {
                         isPresented = false
                     }) {
                         HStack {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 Text(repertoire.name)
                                     .font(ApproachNoteTheme.headline())
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -360,8 +360,8 @@ struct RepertoirePickerSheet: View {
                             }
                         }
                         .contentShape(Rectangle())
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                         .frame(maxWidth: .infinity)
                         .background(
                             repertoire.id == repertoireManager.selectedRepertoire.id ?
@@ -402,8 +402,8 @@ struct RepertoirePickerSheet: View {
                             Spacer()
                         }
                         .contentShape(Rectangle())
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
+                        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                         .frame(maxWidth: .infinity)
                         .background(ApproachNoteTheme.surface)
                     }
@@ -473,7 +473,7 @@ struct SectionHeaderView: View {
             .fontWeight(.bold)
             .foregroundColor(ApproachNoteTheme.brand)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .padding(.horizontal)
             .background(ApproachNoteTheme.background.opacity(0.8))
     }
@@ -509,8 +509,8 @@ struct AlphabetIndexView: View {
                     .contentShape(Rectangle()) // Expand touch target to full frame
             }
         }
-        .padding(.vertical, 8)
-        .padding(.horizontal, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
+        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
         .background(
             RoundedRectangle(cornerRadius: 8)
                 .fill(ApproachNoteTheme.background.opacity(0.95))

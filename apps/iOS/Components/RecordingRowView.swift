@@ -60,7 +60,7 @@ struct RecordingRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Album artwork
             ZStack(alignment: .topTrailing) {
                 if let frontUrl = frontCoverUrl {

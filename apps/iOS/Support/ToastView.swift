@@ -51,7 +51,7 @@ struct ToastView: View {
     let onDismiss: () -> Void
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: toast.type.icon)
                 .font(.system(size: 20, weight: .semibold))
                 .foregroundColor(toast.type.color)
@@ -70,15 +70,15 @@ struct ToastView: View {
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, ApproachNoteTheme.spacingMD)
         .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white)
                 .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
         )
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
+        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+        .padding(.top, ApproachNoteTheme.spacingXS)
     }
 }
 
