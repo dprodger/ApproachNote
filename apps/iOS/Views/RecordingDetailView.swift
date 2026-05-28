@@ -32,6 +32,18 @@ struct RecordingDetailView: View {
     @State private var showingContributionEditor = false
     private let maxReleasesToShow = 5
 
+    // Custom collapsing header (issue #198): pops the pushed view, and scroll
+    // offset drives the header height + the "Recording" -> album-title swap.
+    @Environment(\.dismiss) private var dismiss
+    @State private var scrollOffset: CGFloat = 0
+    @State private var isHeaderTitleVisible = true
+
+    private var headerHeight: CGFloat {
+        DetailHeaderMetrics.expandedHeight
+            - min(max(0, scrollOffset), DetailHeaderMetrics.collapseDistance)
+    }
+    private var headerOverscroll: CGFloat { max(0, -scrollOffset) }
+
     // Read-only aliases so the dozens of existing reference sites in this
     // view can keep using the short names unchanged.
     private var recording: Recording? { viewModel.recording }
@@ -165,6 +177,12 @@ struct RecordingDetailView: View {
     
     var body: some View {
         ScrollView {
+            VStack(spacing: 0) {
+                // Brand spacer sized to the expanded header so content starts
+                // below it and rides up under the collapsing header overlay.
+                ApproachNoteTheme.brand
+                    .frame(height: DetailHeaderMetrics.expandedHeight)
+
             if isLoading {
                 VStack {
                     Spacer()
@@ -254,6 +272,10 @@ struct RecordingDetailView: View {
                             if hasStreamingSource {
                                 streamingServicesIndicator
                             }
+
+                            // Favorite control (relocated from the nav bar
+                            // header, which now carries only back + authority).
+                            favoriteControl
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
@@ -364,37 +386,33 @@ struct RecordingDetailView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(ApproachNoteTheme.background)
             }
+            }
+        }
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, newValue in
+            scrollOffset = newValue
+            isHeaderTitleVisible = max(0, newValue) < DetailHeaderMetrics.titleSwapOffset
         }
         .background(ApproachNoteTheme.background)
         .refreshable {
             await viewModel.refresh()
         }
-        .jazzNavigationBar(title: displayAlbumTitle)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 16) {
-                    // Favorite button
-                    Button {
-                        viewModel.handleFavoriteTap()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: isFavorited ? "heart.fill" : "heart")
-                                .foregroundColor(isFavorited ? .red : ApproachNoteTheme.textSecondary)
-                            if displayFavoriteCount > 0 {
-                                Text("\(displayFavoriteCount)")
-                                    .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
-                        }
-                    }
-
-                    // Authority recommendations button
-                    Button {
-                        showingAuthoritySheet = true
-                    } label: {
-                        Image(systemName: "checkmark.seal")
-                    }
-                }
+        .toolbar(.hidden, for: .navigationBar)
+        .navigationBarBackButtonHidden(true)
+        .background(SwipeBackEnabler())
+        .overlay(alignment: .top) {
+            DetailHeaderBar(
+                title: isHeaderTitleVisible ? "Recording" : displayAlbumTitle,
+                height: headerHeight,
+                overscroll: headerOverscroll,
+                onBack: { dismiss() }
+            ) {
+                DetailCircleButton(
+                    systemName: "checkmark.seal",
+                    accessibilityLabel: "Authority recommendations",
+                    action: { showingAuthoritySheet = true }
+                )
             }
         }
         .alert("Sign In Required", isPresented: $viewModel.showingLoginAlert) {
@@ -663,6 +681,27 @@ struct RecordingDetailView: View {
     }
     
     // MARK: - Streaming Services Indicator
+
+    // MARK: - Favorite Control
+    // Relocated from the nav bar into the body (issue #198); the custom header
+    // carries only back + authority.
+    private var favoriteControl: some View {
+        Button {
+            viewModel.handleFavoriteTap()
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: isFavorited ? "heart.fill" : "heart")
+                    .foregroundColor(isFavorited ? .red : ApproachNoteTheme.textSecondary)
+                Text(displayFavoriteCount > 0
+                     ? "\(displayFavoriteCount) \(displayFavoriteCount == 1 ? "favorite" : "favorites")"
+                     : "Favorite")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+    }
 
     private var streamingServicesIndicator: some View {
         HStack(spacing: 12) {
