@@ -281,7 +281,12 @@ struct SongDetailView: View {
                         .buttonStyle(.plain)
                     }
                 }
+                // Leading/trailing inset aligns the first card with the gutter;
+                // cards bleed past the edges as you scroll (issue #200).
+                .padding(.horizontal, 24)
             }
+            // Cancel the section's 24pt gutter so the scroll view spans full width.
+            .padding(.horizontal, -24)
         }
         .padding(.top, 16)
     }
