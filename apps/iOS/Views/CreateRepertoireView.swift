@@ -45,19 +45,26 @@ struct CreateRepertoireView: View {
             .background(ApproachNoteTheme.background)
             .navigationTitle("Create Repertoire")
             .navigationBarTitleDisplayMode(.inline)
+            // Style the nav bar from the live palette (the global
+            // UINavigationBar appearance is set once at launch and goes stale
+            // when the palette changes), matching jazzNavigationBar.
+            .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.brand)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                 }
-                
+
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Create") {
                         createRepertoire()
                     }
-                    .foregroundColor(ApproachNoteTheme.brand)
+                    .fontWeight(.semibold)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                     .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || isCreating)
                 }
             }
@@ -68,12 +75,8 @@ struct CreateRepertoireView: View {
                         Color.black.opacity(0.3)
                             .ignoresSafeArea()
                         
-                        VStack(spacing: ApproachNoteTheme.spacingMD) {
-                            ProgressView()
-                                .tint(ApproachNoteTheme.brand)
-                            Text("Creating repertoire...")
-                                .foregroundColor(ApproachNoteTheme.textPrimary)
-                        }
+                        ThemedProgressView(message: "Creating repertoire...",
+                                           tintColor: ApproachNoteTheme.brand)
                         .padding(ApproachNoteTheme.spacingXL)
                         .background(ApproachNoteTheme.surface)
                         .cornerRadius(12)
@@ -86,6 +89,8 @@ struct CreateRepertoireView: View {
                 Text(errorMessage)
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
     
     private func createRepertoire() {
