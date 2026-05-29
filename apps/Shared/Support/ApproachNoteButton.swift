@@ -97,7 +97,7 @@ private struct ApproachNoteButtonStyle: ButtonStyle {
             .font(ApproachNoteTheme.headline())
             .foregroundColor(appearance.foreground)
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, ApproachNoteTheme.controlVerticalPadding)
             .padding(.horizontal, ApproachNoteTheme.spacingXL)
             .background(
                 RoundedRectangle(cornerRadius: 10, style: .continuous)

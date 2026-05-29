@@ -71,7 +71,7 @@ struct ToastView: View {
             .buttonStyle(.plain)
         }
         .padding(.horizontal, ApproachNoteTheme.spacingMD)
-        .padding(.vertical, 14)
+        .padding(.vertical, ApproachNoteTheme.spacingMD)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.white)
