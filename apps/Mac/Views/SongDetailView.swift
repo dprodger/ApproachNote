@@ -23,6 +23,9 @@ struct SongDetailView: View {
     @State private var selectedVocalFilter: VocalFilter = .all
     @State private var selectedInstrument: InstrumentFamily? = nil
     @State private var showFilterPopover: Bool = false
+    // Per-group expansion state. Groups not in the set are collapsed, so all
+    // decade/artist shelves start collapsed (mirrors iOS).
+    @State private var expandedGroups: Set<String> = []
     @State private var showAddToRepertoire = false
     @State private var successMessage: String?
     @State private var errorMessage: String?
@@ -170,6 +173,8 @@ struct SongDetailView: View {
             await viewModel.load(songId: songId)
         }
         .onChange(of: sortOrder) { _, _ in
+            // Collapse all shelves so the regrouped list reads cleanly.
+            expandedGroups.removeAll()
             Task { await viewModel.reloadRecordings(songId: songId) }
         }
         .onReceive(NotificationCenter.default.publisher(for: .transcriptionCreated)) { notification in
@@ -368,7 +373,8 @@ struct SongDetailView: View {
         ApproachNoteButton(
             label,
             style: .secondary,
-            trailingSystemImage: "arrow.up.right.square"
+            trailingSystemImage: "arrow.up.right.square",
+            font: ApproachNoteTheme.callout(weight: .semibold)
         ) {
             openURL(url)
         }
@@ -462,8 +468,8 @@ struct SongDetailView: View {
         VStack(alignment: .leading, spacing: 16) {
             // Heading
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text("MORE RECORDINGS")
-                    .font(ApproachNoteTheme.title2())
+                Text("ALL RECORDINGS")
+                    .font(ApproachNoteTheme.title3())
                     .bold()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
@@ -474,12 +480,12 @@ struct SongDetailView: View {
                 Spacer()
             }
 
-            // Filter + Sort row
+            // Filter + Sort row: Filter on the left, Sort right-justified.
             HStack(spacing: 10) {
                 Button(action: { showFilterPopover = true }) {
                     HStack(spacing: 6) {
                         Text("Filter")
-                            .font(ApproachNoteTheme.subheadline())
+                            .font(ApproachNoteTheme.subheadline(weight: .bold))
                         Image(systemName: "slider.horizontal.3")
                             .font(.caption)
                     }
@@ -488,6 +494,10 @@ struct SongDetailView: View {
                     .padding(.vertical, 8)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+                    )
                 }
                 .buttonStyle(.plain)
                 .popover(isPresented: $showFilterPopover, arrowEdge: .bottom) {
@@ -507,19 +517,31 @@ struct SongDetailView: View {
                     }
                 } label: {
                     HStack(spacing: 6) {
-                        Text("Sort: \(sortOrder.displayName)")
-                            .font(ApproachNoteTheme.subheadline())
+                        (
+                            Text("Sort:")
+                                .font(ApproachNoteTheme.subheadline(weight: .bold))
+                            + Text(" \(sortOrder.displayName)")
+                                .font(ApproachNoteTheme.subheadline())
+                        )
                         Image(systemName: "chevron.down")
                             .font(.caption)
                     }
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(ApproachNoteTheme.surface)
-                    .cornerRadius(8)
                 }
                 .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
                 .fixedSize()
+                // Decorate the outer Menu, not the label: .borderlessButton
+                // strips a custom background/overlay applied inside `label:`,
+                // so the box has to live here to match the Filter button.
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(ApproachNoteTheme.surface)
+                .cornerRadius(8)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+                )
 
                 Spacer()
             }
@@ -528,7 +550,7 @@ struct SongDetailView: View {
             Toggle(isOn: $playableOnly) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Playable only?")
-                        .font(ApproachNoteTheme.headline())
+                        .font(ApproachNoteTheme.callout(weight: .semibold))
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                     Text("Toggle On to hide versions of this song without a linked recording to listen to.")
                         .font(ApproachNoteTheme.caption())
@@ -541,15 +563,10 @@ struct SongDetailView: View {
             // Performance Type segmented (always visible)
             VStack(alignment: .leading, spacing: 8) {
                 Text("Performance Type")
-                    .font(ApproachNoteTheme.headline())
+                    .font(ApproachNoteTheme.callout(weight: .semibold))
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                Picker("Performance Type", selection: $selectedVocalFilter) {
-                    ForEach(VocalFilter.allCases) { filter in
-                        Text(filter.displayName.uppercased()).tag(filter)
-                    }
-                }
-                .pickerStyle(.segmented)
+                performanceTypePicker
             }
 
             // Recordings list
@@ -582,39 +599,14 @@ struct SongDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else {
-                // Grouped recordings
+                // Grouped recordings — each shelf is an expandable accordion
+                // (collapsed by default) mirroring the iOS layout. Zero spacing
+                // here so each header sits centered between its dividers rather
+                // than inheriting the section's 16pt gap below each row.
                 let parentSongTitle = song?.title
-                ForEach(grouped, id: \.groupKey) { group in
-                    let shelfHasAnyDistinctTitle = group.recordings.contains { recording in
-                        recording.displayTitle(comparedTo: parentSongTitle) != nil
-                    }
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Group header
-                        Text("\(group.groupKey) (\(group.recordings.count))")
-                            .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.brand)
-                            .padding(.top, 8)
-
-                        // Horizontal scroll of recordings in this group
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 16) {
-                                ForEach(group.recordings) { recording in
-                                    RecordingCard(
-                                        recording: recording,
-                                        parentSongTitle: parentSongTitle,
-                                        shelfHasAnyDistinctTitle: shelfHasAnyDistinctTitle,
-                                        onVisible: { [weak viewModel] id in
-                                            viewModel?.requestHydration(for: id)
-                                        }
-                                    )
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            selectedRecordingId = recording.id
-                                        }
-                                }
-                            }
-                            .padding(.horizontal, 4)
-                        }
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(grouped, id: \.groupKey) { group in
+                        groupAccordion(group: group, parentSongTitle: parentSongTitle)
                     }
                 }
             }
@@ -626,6 +618,111 @@ struct SongDetailView: View {
             if let recordingId = selectedRecordingId {
                 RecordingDetailView(recordingId: recordingId)
                     .frame(minWidth: 600, minHeight: 500)
+            }
+        }
+    }
+
+    // MARK: - Performance Type Picker (custom segmented control)
+    // Brand-outlined pill; the selected segment is filled with the brand color
+    // and white text, unselected segments are brand-colored on a clear
+    // background. Mirrors the iOS control so the selection uses the brand
+    // color rather than the system accent (issue #202).
+    @ViewBuilder
+    private var performanceTypePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(VocalFilter.allCases.enumerated()), id: \.element.id) { index, filter in
+                // Flexible spacers between segments distribute the bar width;
+                // each segment stays sized to its own text.
+                if index > 0 {
+                    Spacer(minLength: 4)
+                }
+                let isSelected = selectedVocalFilter == filter
+                Button {
+                    selectedVocalFilter = filter
+                } label: {
+                    Text(filter.displayName.uppercased())
+                        .font(ApproachNoteTheme.footnote(weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.brand)
+                        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                        .padding(.vertical, ApproachNoteTheme.spacingXS)
+                        .background(
+                            Capsule().fill(isSelected ? ApproachNoteTheme.brand : Color.clear)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
+        // Cap the width on Mac so the pill doesn't stretch across the whole
+        // window the way it fills the narrow iOS screen.
+        .frame(maxWidth: 480, alignment: .leading)
+        .overlay(
+            Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
+        )
+        .animation(.easeInOut(duration: 0.15), value: selectedVocalFilter)
+    }
+
+    // MARK: - Group Accordion Shelf
+
+    @ViewBuilder
+    private func groupAccordion(group: (groupKey: String, recordings: [Recording]), parentSongTitle: String?) -> some View {
+        let isExpanded = expandedGroups.contains(group.groupKey)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isExpanded {
+                        expandedGroups.remove(group.groupKey)
+                    } else {
+                        expandedGroups.insert(group.groupKey)
+                    }
+                }
+            }) {
+                HStack {
+                    Text("\(group.groupKey) (\(group.recordings.count))")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                    Spacer()
+                    Image(systemName: isExpanded ? "minus" : "plus")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                }
+                .padding(.vertical, 8)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                let shelfHasAnyDistinctTitle = group.recordings.contains { recording in
+                    recording.displayTitle(comparedTo: parentSongTitle) != nil
+                }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: 16) {
+                        ForEach(group.recordings) { recording in
+                            RecordingCard(
+                                recording: recording,
+                                parentSongTitle: parentSongTitle,
+                                shelfHasAnyDistinctTitle: shelfHasAnyDistinctTitle,
+                                onVisible: { [weak viewModel] id in
+                                    viewModel?.requestHydration(for: id)
+                                }
+                            )
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedRecordingId = recording.id
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 4)
+                }
+                .padding(.bottom, 8)
             }
         }
     }

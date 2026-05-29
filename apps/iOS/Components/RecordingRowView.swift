@@ -89,17 +89,6 @@ struct RecordingRowView: View {
                         .frame(width: 150, height: 150)
                         .background(ApproachNoteTheme.surface)
                 }
-
-                // Canonical star badge
-                if recording.isCanonical == true {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                        .font(ApproachNoteTheme.caption())
-                        .padding(6)
-                        .background(Color.black.opacity(0.6))
-                        .clipShape(Circle())
-                        .padding(6)
-                }
             }
             .cornerRadius(8)
             .frame(width: 150)
