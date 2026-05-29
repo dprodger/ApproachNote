@@ -142,8 +142,6 @@ struct SongsListView: View {
     
     private var currentRepertoireBanner: some View {
         HStack {
-            Image(systemName: "music.note.list")
-                .foregroundColor(ApproachNoteTheme.brand)
             Text(repertoireManager.currentRepertoireDisplayName)
                 .font(ApproachNoteTheme.subheadline())
                 .fontWeight(.medium)
