@@ -27,13 +27,12 @@ Conventions for future MB handlers in this module:
      worker thread per (musicbrainz, *) job_type the queue is
      naturally serialised under the limit, so no source_quotas row.
 
-  3. `get_release_details` (and siblings) return None for *both* 404
-     and "transient failure after the client's internal retries".
-     Raise RetryableError on None and let max_attempts (default 5)
-     bound the cost — a genuinely-deleted MBID will burn five retries
-     before going to 'dead'. Acceptable trade-off vs. teaching the
-     client to surface the HTTP status; if 404s become a measurable
-     cost we add a `last_response_status` attribute and split here.
+  3. `get_release_details` returns None for *both* 404 and "transient
+     failure after the client's internal retries". The client records
+     the HTTP status on `last_release_status`, so split on it: a 404
+     (deleted/merged MBID) is a PermanentError — straight to 'dead', no
+     wasted retries — while None with any other status (timeout/5xx,
+     where last_release_status stays None) is a RetryableError.
 
   4. Idempotency guard at the top of the handler: re-read the target
      row and short-circuit if the field we'd write is already set.
@@ -42,9 +41,10 @@ Conventions for future MB handlers in this module:
   5. Outcomes:
        target row missing             -> PermanentError
        target.musicbrainz_id is NULL  -> PermanentError
-       MB returned None               -> RetryableError
+       MB returned None (404)         -> PermanentError
+       MB returned None (transient)   -> RetryableError
        MB data, field absent          -> done with {updated: False}
-       MB data, field present         -> UPDATE + done with stats
+       MB data, field present         -> UPDATE (values clamped) + done
 """
 
 from __future__ import annotations
@@ -58,6 +58,13 @@ from integrations.musicbrainz.parsing import parse_release_data
 from research_worker.errors import PermanentError, RetryableError
 from research_worker.registry import handler
 
+
+# Column widths in the releases table (sql/jazz-db-schema.sql). MB can return
+# overlong values — typically a concatenated catalog_number — which Postgres
+# rejects with StringDataRightTruncation. Clamp before the UPDATE so a long
+# value writes a usable prefix instead of crashing the job.
+_LABEL_MAX = 255
+_CATALOG_NUMBER_MAX = 100
 
 _LOAD_RELEASE_SQL = """
     SELECT id, musicbrainz_release_id, label
@@ -112,6 +119,13 @@ def backfill_release_label(payload: dict[str, Any], ctx) -> dict[str, Any]:
     mb_release = mb_client.get_release_details(mbid)
 
     if mb_release is None:
+        # A 404 means the MBID is gone (deleted/merged) — retrying can't fix
+        # it. Anything else (timeout, 5xx) is transient and worth a retry.
+        if mb_client.last_release_status == 404:
+            raise PermanentError(
+                f"MB has no release {release_id} (mbid={mbid}): 404 "
+                f"deleted/merged"
+            )
         raise RetryableError(
             f"MB returned no data for release {release_id} (mbid={mbid})"
         )
@@ -126,6 +140,10 @@ def backfill_release_label(payload: dict[str, Any], ctx) -> dict[str, Any]:
             'reason': 'no_label_info',
             'mbid': mbid,
         }
+
+    label = label[:_LABEL_MAX]
+    if catalog_number:
+        catalog_number = catalog_number[:_CATALOG_NUMBER_MAX]
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:

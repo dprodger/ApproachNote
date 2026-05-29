@@ -211,6 +211,32 @@ class TestHandlerSuccess:
         assert label == 'Impulse!'
         assert catalog == 'HAND-SET-001'
 
+    def test_overlong_values_are_clamped_to_column_widths(
+        self, backfill_fixture, db, patched_mb_client, patched_parse,
+    ):
+        # MB occasionally returns an overlong value (typically a concatenated
+        # catalog_number); without clamping the UPDATE hits the column's
+        # VARCHAR limit and raises StringDataRightTruncation. Clamp instead.
+        long_label = 'L' * 400
+        long_catalog = 'C' * 200
+        patched_mb_client.instance.get_release_details.return_value = {'id': MBID_A}
+        patched_parse.return_value = {
+            'label': long_label, 'catalog_number': long_catalog,
+        }
+
+        result = handler.backfill_release_label({}, FakeCtx(RELEASE_NEEDS_BACKFILL_A))
+
+        assert result['updated'] is True
+        assert len(result['label']) == 255
+        assert len(result['catalog_number']) == 100
+
+        with get_db_connection() as conn:
+            label, catalog = _release_label_and_catalog(
+                conn, RELEASE_NEEDS_BACKFILL_A,
+            )
+        assert label == 'L' * 255
+        assert catalog == 'C' * 100
+
     def test_already_populated_short_circuits_without_mb_call(
         self, backfill_fixture, patched_mb_client, patched_parse,
     ):
@@ -259,15 +285,26 @@ class TestHandlerErrorPaths:
             handler.backfill_release_label({}, FakeCtx(RELEASE_NO_MBID))
         patched_mb_client.instance.get_release_details.assert_not_called()
 
-    def test_mb_returns_none_raises_retryable(
+    def test_mb_returns_none_transient_raises_retryable(
         self, backfill_fixture, patched_mb_client,
     ):
-        # `get_release_details` returns None for both 404 and transient
-        # failures. Treated as retryable; max_attempts (5) bounds the
-        # cost for genuine 404s.
+        # None with last_release_status None means timeout/5xx — transient,
+        # so worth a retry.
         patched_mb_client.instance.get_release_details.return_value = None
+        patched_mb_client.instance.last_release_status = None
 
         with pytest.raises(RetryableError):
+            handler.backfill_release_label({}, FakeCtx(RELEASE_NEEDS_BACKFILL_A))
+
+    def test_mb_returns_none_404_raises_permanent(
+        self, backfill_fixture, patched_mb_client,
+    ):
+        # None with status 404 means the MBID is deleted/merged — retrying
+        # can't fix it, so it must go straight to 'dead'.
+        patched_mb_client.instance.get_release_details.return_value = None
+        patched_mb_client.instance.last_release_status = 404
+
+        with pytest.raises(PermanentError):
             handler.backfill_release_label({}, FakeCtx(RELEASE_NEEDS_BACKFILL_A))
 
 

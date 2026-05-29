@@ -64,6 +64,11 @@ class MusicBrainzSearcher:
         
         # Track whether last operation made an API call
         self.last_made_api_call = False
+
+        # HTTP status of the most recent get_release_details fetch.
+        # Lets callers distinguish a 404 (deleted/merged release, permanent)
+        # from a transient failure (timeout/5xx, both also return None).
+        self.last_release_status = None
         
         # Get cache directories using the shared utility
         # This ensures we use the persistent disk mount on Render
@@ -935,6 +940,9 @@ class MusicBrainzSearcher:
         Returns:
             Dict with release details, or None if not found
         """
+        # Reset per call; stays None on timeout/connection errors (transient).
+        self.last_release_status = None
+
         # Check cache first (unless force_refresh is enabled)
         cache_path = self._get_release_detail_cache_path(release_id)
         if not self.force_refresh:
@@ -970,7 +978,8 @@ class MusicBrainzSearcher:
                 # Use tuple timeout: (connect_timeout, read_timeout)
                 # This is more robust than a single timeout for network issues
                 response = self.session.get(url, params=params, timeout=(10, 30))
-                
+                self.last_release_status = response.status_code
+
                 if response.status_code == 200:
                     data = response.json()
                     # Cache the successful result
