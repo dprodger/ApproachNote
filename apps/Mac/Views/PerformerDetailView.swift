@@ -43,7 +43,8 @@ struct PerformerDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)
             } else if let performer = performer {
-                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXL) {
+                // Section rhythm matches SongDetailView (spacingMD between sections).
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                     // Header with image carousel
                     performerHeader(performer)
 
@@ -329,6 +330,7 @@ struct PerformerDetailView: View {
             )
         }
         .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
     }
 
     // MARK: Role picker (brand-outlined segmented, matches iOS)
@@ -662,11 +664,11 @@ private struct PerformerImageCarousel: View {
             Image(systemName: systemImage)
                 .font(.system(size: 14, weight: .semibold))
                 .foregroundColor(.white)
-                .padding(8)
+                .padding(ApproachNoteTheme.spacingXS)
                 .background(Circle().fill(Color.black.opacity(0.45)))
         }
         .buttonStyle(.plain)
-        .padding(8)
+        .padding(ApproachNoteTheme.spacingXS)
     }
 
     private var placeholder: some View {

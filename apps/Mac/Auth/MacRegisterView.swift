@@ -30,9 +30,9 @@ struct MacRegisterView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             // Header
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Text("Create Account")
                     .font(ApproachNoteTheme.title())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -41,10 +41,10 @@ struct MacRegisterView: View {
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 20)
+            .padding(.top, ApproachNoteTheme.spacingLG)
 
             // Display name
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Display Name")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -54,7 +54,7 @@ struct MacRegisterView: View {
             }
 
             // Email
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Email")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -66,7 +66,7 @@ struct MacRegisterView: View {
             }
 
             // Password
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Password")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -82,7 +82,7 @@ struct MacRegisterView: View {
             }
 
             // Confirm password
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Confirm Password")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -129,7 +129,7 @@ struct MacRegisterView: View {
 
             Spacer()
         }
-        .padding(24)
+        .padding(ApproachNoteTheme.spacingXL)
         .frame(minWidth: 350, maxWidth: 450, minHeight: 500)
     }
 

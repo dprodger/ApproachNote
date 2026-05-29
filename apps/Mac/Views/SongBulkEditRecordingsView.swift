@@ -150,18 +150,18 @@ struct SongBulkEditRecordingsView: View {
 
     private var header: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text("Bulk Edit Recordings")
                     .font(ApproachNoteTheme.title2(weight: .semibold))
                     .foregroundColor(.primary)
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Text(songTitle)
                         .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(.secondary)
                     Text("\(recordings.count) recordings")
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(.secondary)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, ApproachNoteTheme.spacingXS)
                         .padding(.vertical, 2)
                         .background(Color.accentColor.opacity(0.1))
                         .cornerRadius(4)
@@ -181,7 +181,7 @@ struct SongBulkEditRecordingsView: View {
     // MARK: - Column Headers
 
     private var columnHeaders: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             sortableHeader("Artist", column: .artist)
                 .frame(maxWidth: .infinity, alignment: .leading)
             sortableHeader("Release", column: .release)
@@ -199,7 +199,7 @@ struct SongBulkEditRecordingsView: View {
         }
         .font(ApproachNoteTheme.caption(weight: .semibold))
         .padding(.horizontal)
-        .padding(.vertical, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
         .background(Color(NSColor.controlBackgroundColor))
     }
 
@@ -213,7 +213,7 @@ struct SongBulkEditRecordingsView: View {
                 sortOrder = .ascending
             }
         } label: {
-            HStack(spacing: 2) {
+            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                 Text(title)
                 if sortColumn == column {
                     Image(systemName: sortOrder == .ascending ? "chevron.up" : "chevron.down")
@@ -231,7 +231,7 @@ struct SongBulkEditRecordingsView: View {
     private func recordingRow(_ recording: Recording) -> some View {
         let state = rowStates[recording.id] ?? BulkEditRowState()
 
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             // Artist
             Text(recording.artistCredit ?? "Unknown Artist")
                 .font(ApproachNoteTheme.caption())
@@ -298,7 +298,7 @@ struct SongBulkEditRecordingsView: View {
             Button {
                 openURL(url)
             } label: {
-                HStack(spacing: 4) {
+                HStack(spacing: ApproachNoteTheme.spacingXXS) {
                     Image(systemName: "play.circle.fill")
                         .font(.system(size: 12))
                     Text(title)

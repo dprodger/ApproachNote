@@ -16,7 +16,7 @@ struct MacCommunityDataSection: View {
     let onEditTapped: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             // Header
             HStack {
                 Image(systemName: "person.3.fill")
@@ -32,7 +32,7 @@ struct MacCommunityDataSection: View {
                     Button {
                         onEditTapped()
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: userContribution != nil ? "pencil" : "plus")
                             Text(userContribution != nil ? "Edit" : "Contribute")
                         }
@@ -45,7 +45,7 @@ struct MacCommunityDataSection: View {
 
             // Data rows
             if let data = communityData, hasAnyData(data) {
-                VStack(spacing: 8) {
+                VStack(spacing: ApproachNoteTheme.spacingXS) {
                     // Performance Key
                     MacCommunityDataRow(
                         icon: "music.note",
@@ -82,7 +82,7 @@ struct MacCommunityDataSection: View {
                 .cornerRadius(8)
             } else {
                 // No data yet
-                VStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .center, spacing: ApproachNoteTheme.spacingXS) {
                     Text("No community data yet")
                         .font(ApproachNoteTheme.body())
                         .bodyLineSpacing()
@@ -135,7 +135,7 @@ struct MacCommunityDataRow: View {
     var helpText: String? = nil
 
     var body: some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .center, spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: icon)
                 .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textSecondary)
                 .frame(width: 20)
@@ -147,7 +147,7 @@ struct MacCommunityDataRow: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 2) {
+            VStack(alignment: .trailing, spacing: ApproachNoteTheme.spacingXXS) {
                 if let help = helpText {
                     Text(value)
                         .font(ApproachNoteTheme.body())
@@ -177,7 +177,7 @@ struct MacCommunityDataRow: View {
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 

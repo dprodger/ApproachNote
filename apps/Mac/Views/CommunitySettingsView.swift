@@ -34,12 +34,12 @@ struct CommunitySettingsView: View {
             Form {
                 Section {
                     // Header with user info
-                    HStack(spacing: 12) {
+                    HStack(spacing: ApproachNoteTheme.spacingSM) {
                         Image(systemName: "person.3.fill")
                             .font(.system(size: 32))
                             .foregroundColor(ApproachNoteTheme.textSecondary)
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             Text("Your Contributions")
                                 .font(ApproachNoteTheme.headline())
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -50,7 +50,7 @@ struct CommunitySettingsView: View {
 
                         Spacer()
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                 }
 
                 Section("Contribution Statistics") {
@@ -63,7 +63,7 @@ struct CommunitySettingsView: View {
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                             Spacer()
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, ApproachNoteTheme.spacingXS)
                     } else if let stats = contributionStats {
                         contributionStatsView(stats: stats)
                     } else if let error = errorMessage {
@@ -73,7 +73,7 @@ struct CommunitySettingsView: View {
                             Text(error)
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
-                        .padding(.vertical, 8)
+                        .padding(.vertical, ApproachNoteTheme.spacingXS)
                     }
                 }
             }
@@ -149,7 +149,7 @@ struct CommunitySettingsView: View {
                     .foregroundColor(ApproachNoteTheme.textSecondary)
                     .fontWeight(.medium)
             }
-            .padding(.top, 8)
+            .padding(.top, ApproachNoteTheme.spacingXS)
         }
     }
 
@@ -157,14 +157,14 @@ struct CommunitySettingsView: View {
 
     @ViewBuilder
     private var notAuthenticatedView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: ApproachNoteTheme.spacingXL) {
             Spacer()
 
             Image(systemName: "person.3.fill")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
 
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Text("Sign In to View Contributions")
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -218,13 +218,13 @@ struct ContributionStatRow: View {
     let description: String
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: icon)
                 .font(.system(size: 18))
                 .foregroundColor(iconColor)
                 .frame(width: 28)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(label)
                     .font(ApproachNoteTheme.body())
                     .bodyLineSpacing()
@@ -242,7 +242,7 @@ struct ContributionStatRow: View {
                 .fontWeight(.semibold)
                 .foregroundColor(count > 0 ? ApproachNoteTheme.textPrimary : ApproachNoteTheme.textSecondary.opacity(0.5))
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
     }
 }
 

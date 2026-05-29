@@ -178,13 +178,13 @@ struct RecordingsListView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                     .background(ApproachNoteTheme.surface)
                 }
 
                 // No results message
                 if !searchText.isEmpty && filteredRecordings.isEmpty && !recordingService.isLoading {
-                    VStack(spacing: 12) {
+                    VStack(spacing: ApproachNoteTheme.spacingSM) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 32))
                             .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -205,7 +205,7 @@ struct RecordingsListView: View {
                         LazyVStack(spacing: 0) {
                             ForEach(filteredRecordings) { recording in
                                 RecordingRowView(recording: recording)
-                                    .padding(.horizontal, 12)
+                                    .padding(.horizontal, ApproachNoteTheme.spacingSM)
                                     .padding(.vertical, 6)
                                     .background(selectedRecordingId == recording.id ? ApproachNoteTheme.brand.opacity(0.15) : Color.clear)
                                     .contentShape(Rectangle())
@@ -256,7 +256,7 @@ struct RecordingsListView: View {
 
     @ViewBuilder
     private var filterToolbar: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: ApproachNoteTheme.spacingXS) {
             MacSearchBar(
                 text: $searchText,
                 placeholder: "Search recordings...",
@@ -264,7 +264,7 @@ struct RecordingsListView: View {
             )
 
             // Availability row
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 Text("Availability:")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.white)
@@ -285,7 +285,7 @@ struct RecordingsListView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: ApproachNoteTheme.spacingXXS) {
                         Image(systemName: availabilityFilter.icon)
                             .foregroundColor(availabilityFilter == .all ? ApproachNoteTheme.textPrimary : availabilityFilter.iconColor)
                         Text(availabilityFilter.rawValue)
@@ -295,7 +295,7 @@ struct RecordingsListView: View {
                             .font(ApproachNoteTheme.caption2())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
                     .padding(.vertical, 6)
                     .background(Color.white)
                     .cornerRadius(8)
@@ -339,7 +339,7 @@ struct RecordingsListView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: ApproachNoteTheme.spacingXXS) {
                         Image(systemName: vocalFilter.icon)
                             .foregroundColor(vocalFilter == .all ? ApproachNoteTheme.textPrimary : vocalFilter.iconColor)
                         Text(vocalFilter.rawValue)
@@ -349,7 +349,7 @@ struct RecordingsListView: View {
                             .font(ApproachNoteTheme.caption2())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                     }
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
                     .padding(.vertical, 6)
                     .background(Color.white)
                     .cornerRadius(8)
@@ -374,7 +374,7 @@ struct RecordingsListView: View {
             .padding(.horizontal)
 
             // Search scope picker
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 Text("Search in:")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.white)
@@ -390,7 +390,7 @@ struct RecordingsListView: View {
                 Spacer()
             }
             .padding(.horizontal)
-            .padding(.bottom, 8)
+            .padding(.bottom, ApproachNoteTheme.spacingXS)
         }
         .background(ApproachNoteTheme.textSecondary)
         .environment(\.colorScheme, .light)
@@ -411,7 +411,7 @@ struct RecordingRowView: View {
     let recording: Recording
 
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             // Album art
             Group {
                 if let albumArtUrl = recording.bestAlbumArtSmall ?? recording.bestAlbumArtMedium {
@@ -436,7 +436,7 @@ struct RecordingRowView: View {
             .frame(width: 50, height: 50)
             .cornerRadius(4)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -469,7 +469,7 @@ struct RecordingRowView: View {
             Spacer()
 
             // Streaming indicators
-            HStack(spacing: 4) {
+            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                 if recording.hasSpotifyAvailable {
                     Image(systemName: "play.circle.fill")
                         .foregroundColor(.green)
@@ -492,7 +492,7 @@ struct RecordingRowView: View {
                 AuthorityBadge(text: badgeText, source: recording.primaryAuthoritySource)
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 }
 

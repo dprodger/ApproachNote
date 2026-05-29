@@ -44,7 +44,7 @@ struct MacOnboardingView: View {
                         currentPage -= 1
                     }
                 }) {
-                    HStack(spacing: 4) {
+                    HStack(spacing: ApproachNoteTheme.spacingXXS) {
                         Image(systemName: "chevron.left")
                         Text("Back")
                     }
@@ -57,7 +57,7 @@ struct MacOnboardingView: View {
                 Spacer()
 
                 // Page indicators
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     ForEach(0..<totalPages, id: \.self) { index in
                         Circle()
                             .fill(index == currentPage ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.4))
@@ -74,7 +74,7 @@ struct MacOnboardingView: View {
                             currentPage += 1
                         }
                     }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Text("Next")
                             Image(systemName: "chevron.right")
                         }
@@ -88,8 +88,8 @@ struct MacOnboardingView: View {
                         .opacity(0)
                 }
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
+            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+            .padding(.vertical, ApproachNoteTheme.spacingMD)
             .background(ApproachNoteTheme.surface)
         }
         .frame(width: 650, height: 580)
