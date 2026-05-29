@@ -81,7 +81,7 @@ struct SongDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)
             } else if let song = song {
-                VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                     // Header
                     songHeader(song)
 
@@ -124,7 +124,7 @@ struct SongDetailView: View {
                 }
                 .padding()
             } else {
-                VStack(spacing: 16) {
+                VStack(spacing: ApproachNoteTheme.spacingMD) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.system(size: 50))
                         .foregroundColor(ApproachNoteTheme.accent)
@@ -200,7 +200,7 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private func songHeader(_ song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             // Title row with Add to Repertoire button
             HStack(alignment: .firstTextBaseline) {
                 // Title with composed year
@@ -224,7 +224,7 @@ struct SongDetailView: View {
                     }
                 } label: {
                     Label("Refresh", systemImage: isRefreshing ? "arrow.triangle.2.circlepath" : "arrow.clockwise")
-                        .padding(.vertical, 4)
+                        .padding(.vertical, ApproachNoteTheme.spacingXXS)
                 }
                 .menuStyle(.borderlessButton)
                 .help(canQueueForRefresh ? "Quick: uses cached data (faster). Full: re-fetches everything." : researchStatusHelperText)
@@ -243,7 +243,7 @@ struct SongDetailView: View {
                         )
                     }) {
                         Label("Bulk Edit", systemImage: "tablecells")
-                            .padding(.vertical, 4)
+                            .padding(.vertical, ApproachNoteTheme.spacingXXS)
                     }
                     .buttonStyle(.bordered)
                     .disabled(song.recordings == nil || song.recordings?.isEmpty == true || isRecordingsLoading)
@@ -253,7 +253,7 @@ struct SongDetailView: View {
                 // Add to Repertoire button
                 Button(action: { showAddToRepertoire = true }) {
                     Label("Add to Repertoire", systemImage: "plus.circle")
-                        .padding(.vertical, 4)
+                        .padding(.vertical, ApproachNoteTheme.spacingXXS)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(ApproachNoteTheme.brand)
@@ -270,7 +270,7 @@ struct SongDetailView: View {
 
             // Song Reference (if available)
             if let songRef = song.songReference {
-                HStack(alignment: .top, spacing: 8) {
+                HStack(alignment: .top, spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "book.closed.fill")
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                         .font(ApproachNoteTheme.subheadline())
@@ -279,7 +279,7 @@ struct SongDetailView: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.top, 4)
+                .padding(.top, ApproachNoteTheme.spacingXXS)
             }
 
             // Success/Error messages
@@ -291,7 +291,7 @@ struct SongDetailView: View {
                         .foregroundColor(.green)
                 }
                 .font(ApproachNoteTheme.subheadline())
-                .padding(.vertical, 4)
+                .padding(.vertical, ApproachNoteTheme.spacingXXS)
             }
 
             if let message = errorMessage {
@@ -302,7 +302,7 @@ struct SongDetailView: View {
                         .foregroundColor(.red)
                 }
                 .font(ApproachNoteTheme.subheadline())
-                .padding(.vertical, 4)
+                .padding(.vertical, ApproachNoteTheme.spacingXXS)
             }
 
             // Research status indicator
@@ -384,7 +384,7 @@ struct SongDetailView: View {
     @ViewBuilder
     private func structureSection(_ song: Song) -> some View {
         if let structure = song.structure, !structure.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text(structure)
                     .font(ApproachNoteTheme.body())
                     .bodyLineSpacing()
@@ -405,7 +405,7 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private func composedKeyRow(_ composedKey: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             Image(systemName: "tuningfork")
                 .foregroundColor(ApproachNoteTheme.textSecondary)
             Text("Original Key:")
@@ -420,13 +420,13 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private func learnMoreSection(_ song: Song) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             Text("Learn More:")
                 .font(ApproachNoteTheme.body(weight: .semibold))
                 .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 if let wikipediaUrl = song.wikipediaUrl, let url = URL(string: wikipediaUrl) {
                     compactExternalLink(label: "Wikipedia", url: url)
                 }
@@ -465,9 +465,9 @@ struct SongDetailView: View {
         let grouped = RecordingGrouping.grouped(filtered, sortOrder: sortOrder)
         let availableInstruments = RecordingGrouping.availableInstruments(in: recordings)
 
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Heading
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
                 Text("ALL RECORDINGS")
                     .font(ApproachNoteTheme.title3())
                     .bold()
@@ -481,17 +481,17 @@ struct SongDetailView: View {
             }
 
             // Filter + Sort row: Filter on the left, Sort right-justified.
-            HStack(spacing: 10) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 Button(action: { showFilterPopover = true }) {
-                    HStack(spacing: 6) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         Text("Filter")
                             .font(ApproachNoteTheme.subheadline(weight: .bold))
                         Image(systemName: "slider.horizontal.3")
                             .font(.caption)
                     }
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, ApproachNoteTheme.spacingSM)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                     .overlay(
@@ -516,7 +516,7 @@ struct SongDetailView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 6) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         (
                             Text("Sort:")
                                 .font(ApproachNoteTheme.subheadline(weight: .bold))
@@ -534,8 +534,8 @@ struct SongDetailView: View {
                 // Decorate the outer Menu, not the label: .borderlessButton
                 // strips a custom background/overlay applied inside `label:`,
                 // so the box has to live here to match the Filter button.
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
+                .padding(.horizontal, ApproachNoteTheme.spacingSM)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
                 .background(ApproachNoteTheme.surface)
                 .cornerRadius(8)
                 .overlay(
@@ -548,7 +548,7 @@ struct SongDetailView: View {
 
             // Playable Only toggle (always visible)
             Toggle(isOn: $playableOnly) {
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text("Playable only?")
                         .font(ApproachNoteTheme.callout(weight: .semibold))
                         .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -561,7 +561,7 @@ struct SongDetailView: View {
             .tint(ApproachNoteTheme.brand)
 
             // Performance Type segmented (always visible)
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Performance Type")
                     .font(ApproachNoteTheme.callout(weight: .semibold))
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -571,7 +571,7 @@ struct SongDetailView: View {
 
             // Recordings list
             if isRecordingsLoading {
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     ProgressView()
                         .scaleEffect(1.2)
                     Text("Loading recordings...")
@@ -581,7 +581,7 @@ struct SongDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else if filtered.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Image(systemName: "music.note")
                         .font(.system(size: 40))
                         .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -693,7 +693,7 @@ struct SongDetailView: View {
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
-                .padding(.vertical, 8)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -703,7 +703,7 @@ struct SongDetailView: View {
                     recording.displayTitle(comparedTo: parentSongTitle) != nil
                 }
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: 16) {
+                    HStack(alignment: .top, spacing: ApproachNoteTheme.spacingMD) {
                         ForEach(group.recordings) { recording in
                             RecordingCard(
                                 recording: recording,
@@ -719,10 +719,10 @@ struct SongDetailView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXXS)
+                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
                 }
-                .padding(.bottom, 8)
+                .padding(.bottom, ApproachNoteTheme.spacingXS)
             }
         }
     }
@@ -740,9 +740,9 @@ struct SongDetailView: View {
     @ViewBuilder
     private func filterPopoverContent(availableInstruments: [InstrumentFamily]) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 24) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXL) {
                 // Playback availability (multi-select)
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                     Text("Playback availability")
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -751,7 +751,7 @@ struct SongDetailView: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                         .fixedSize(horizontal: false, vertical: true)
 
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                         ForEach(StreamingService.allCases) { service in
                             Toggle(isOn: Binding(
                                 get: { selectedServices.contains(service) },
@@ -771,12 +771,12 @@ struct SongDetailView: View {
                             .tint(ApproachNoteTheme.brand)
                         }
                     }
-                    .padding(.top, 4)
+                    .padding(.top, ApproachNoteTheme.spacingXXS)
                 }
 
                 // By Instrument
                 if !availableInstruments.isEmpty {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("By Instrument")
                             .font(ApproachNoteTheme.headline())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -789,12 +789,12 @@ struct SongDetailView: View {
                             GridItem(.flexible()),
                             GridItem(.flexible()),
                             GridItem(.flexible())
-                        ], spacing: 8) {
+                        ], spacing: ApproachNoteTheme.spacingXS) {
                             ForEach(availableInstruments, id: \.self) { family in
                                 Button(action: {
                                     selectedInstrument = (selectedInstrument == family) ? nil : family
                                 }) {
-                                    HStack(spacing: 6) {
+                                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                                         Image(systemName: family.icon)
                                             .font(ApproachNoteTheme.caption())
                                         Text(family.rawValue)
@@ -803,8 +803,8 @@ struct SongDetailView: View {
                                             .minimumScaleFactor(0.8)
                                     }
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, ApproachNoteTheme.spacingXS)
+                                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
                                     .background(selectedInstrument == family ? ApproachNoteTheme.textSecondary : Color.white)
                                     .foregroundColor(selectedInstrument == family ? .white : ApproachNoteTheme.textPrimary)
                                     .cornerRadius(8)
@@ -816,7 +816,7 @@ struct SongDetailView: View {
                                 .buttonStyle(.plain)
                             }
                         }
-                        .padding(.top, 4)
+                        .padding(.top, ApproachNoteTheme.spacingXXS)
                     }
                 }
 
@@ -833,9 +833,9 @@ struct SongDetailView: View {
                     Button("Done") { showFilterPopover = false }
                         .keyboardShortcut(.defaultAction)
                 }
-                .padding(.top, 8)
+                .padding(.top, ApproachNoteTheme.spacingXS)
             }
-            .padding(16)
+            .padding(ApproachNoteTheme.spacingMD)
         }
         .frame(width: 360, height: 420)
     }
@@ -844,7 +844,7 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private func featuredRecordingsSection(_ recordings: [Recording]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("FEATURED RECORDINGS")
                 .font(ApproachNoteTheme.title2())
                 .bold()
@@ -859,7 +859,7 @@ struct SongDetailView: View {
                 recording.displayTitle(comparedTo: parentSongTitle) != nil
             }
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 20) {
+                HStack(alignment: .top, spacing: ApproachNoteTheme.spacingLG) {
                     ForEach(recordings) { recording in
                         FeaturedRecordingCard(
                             recording: recording,
@@ -872,7 +872,7 @@ struct SongDetailView: View {
                         }
                     }
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, ApproachNoteTheme.spacingXXS)
             }
         }
     }
@@ -881,7 +881,7 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private var transcriptionsSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             HStack {
                 Image(systemName: "music.quarternote.3")
                     .foregroundColor(ApproachNoteTheme.accent)
@@ -894,8 +894,8 @@ struct SongDetailView: View {
                 Text("\(transcriptions.count)")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
                     .background(ApproachNoteTheme.accent.opacity(0.1))
                     .cornerRadius(6)
             }
@@ -904,7 +904,7 @@ struct SongDetailView: View {
                 TranscriptionRow(transcription: transcription)
             }
         }
-        .padding(16)
+        .padding(ApproachNoteTheme.spacingMD)
         .background(ApproachNoteTheme.surface)
         .cornerRadius(12)
     }
@@ -913,7 +913,7 @@ struct SongDetailView: View {
 
     @ViewBuilder
     private var backingTracksSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             HStack {
                 Image(systemName: "play.circle.fill")
                     .foregroundColor(ApproachNoteTheme.accent)
@@ -926,8 +926,8 @@ struct SongDetailView: View {
                 Text("\(backingTracks.count)")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
+                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
                     .background(ApproachNoteTheme.accent.opacity(0.1))
                     .cornerRadius(6)
             }
@@ -936,7 +936,7 @@ struct SongDetailView: View {
                 BackingTrackRow(video: video)
             }
         }
-        .padding(16)
+        .padding(ApproachNoteTheme.spacingMD)
         .background(ApproachNoteTheme.surface)
         .cornerRadius(12)
     }

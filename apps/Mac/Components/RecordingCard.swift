@@ -55,7 +55,7 @@ struct RecordingCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             // Album art
             Group {
                 if let frontUrl = frontCoverUrl {
@@ -96,7 +96,7 @@ struct RecordingCard: View {
             .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
 
             // Recording info below artwork — Year → Artist → Album → (Song Title)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 // Year
                 if let year = recording.recordingYear {
                     Text(String(year))
@@ -128,7 +128,7 @@ struct RecordingCard: View {
             }
             .frame(width: artworkSize, alignment: .leading)
         }
-        .padding(12)
+        .padding(ApproachNoteTheme.spacingSM)
         .background(isHovering ? ApproachNoteTheme.background : ApproachNoteTheme.surface)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .overlay(

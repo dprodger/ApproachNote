@@ -107,7 +107,7 @@ struct RecordingDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)
             } else if let recording = recording {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXL) {
                     // Header with album art
                     recordingHeader(recording)
 
@@ -156,7 +156,7 @@ struct RecordingDetailView: View {
                 Button {
                     viewModel.handleFavoriteTap()
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: ApproachNoteTheme.spacingXXS) {
                         Image(systemName: isFavorited ? "heart.fill" : "heart")
                         if displayFavoriteCount > 0 {
                             Text("\(displayFavoriteCount)")
@@ -219,7 +219,7 @@ struct RecordingDetailView: View {
 
     @ViewBuilder
     private func recordingHeader(_ recording: Recording) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Full-width album art
             Group {
                 if let frontUrl = displayAlbumArtLarge {
@@ -247,9 +247,9 @@ struct RecordingDetailView: View {
             .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
 
             // Song title, album title, and artist below the image
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 // Recording Name (Year) — matches SongDetailView title pattern
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
                     if let songTitle = recording.songTitle {
                         (
                             Text(songTitle)
@@ -311,7 +311,7 @@ struct RecordingDetailView: View {
                           recording.musicbrainzId != nil
 
         if hasMetadata {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 if let year = displayReleaseYear {
                     metadataLine(label: "RELEASE YEAR", value: String(year))
                 }
@@ -327,7 +327,7 @@ struct RecordingDetailView: View {
                         .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .fixedSize(horizontal: false, vertical: true)
-                        .padding(.top, 4)
+                        .padding(.top, ApproachNoteTheme.spacingXXS)
                 }
                 if let mbId = recording.musicbrainzId,
                    let mbUrl = URL(string: "https://musicbrainz.org/recording/\(mbId)") {
@@ -335,10 +335,10 @@ struct RecordingDetailView: View {
                         .font(ApproachNoteTheme.body())
                         .bodyLineSpacing()
                         .foregroundColor(ApproachNoteTheme.brand)
-                        .padding(.top, 4)
+                        .padding(.top, ApproachNoteTheme.spacingXXS)
                 }
             }
-            .padding(.top, 4)
+            .padding(.top, ApproachNoteTheme.spacingXXS)
         }
     }
 
@@ -386,12 +386,12 @@ struct RecordingDetailView: View {
 
     @ViewBuilder
     private func streamingSection(_ recording: Recording) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Listen")
                 .font(ApproachNoteTheme.headline())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 if let spotifyUrlString = spotifyUrl(for: recording),
                    let url = URL(string: spotifyUrlString) {
                     Link(destination: url) {
@@ -424,15 +424,15 @@ struct RecordingDetailView: View {
 
     @ViewBuilder
     private func performersSection(_ performers: [Performer]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Personnel (\(performers.count.formatted()))")
                 .font(ApproachNoteTheme.headline())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: ApproachNoteTheme.spacingSM) {
                 ForEach(performers) { performer in
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             Text(performer.name)
                                 .font(ApproachNoteTheme.subheadline(weight: .medium))
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -456,7 +456,7 @@ struct RecordingDetailView: View {
                                 .cornerRadius(4)
                         }
                     }
-                    .padding(10)
+                    .padding(ApproachNoteTheme.spacingXS)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(8)
                 }
@@ -479,7 +479,7 @@ struct RecordingDetailView: View {
 
     @ViewBuilder
     private func releasesSection(_ releases: [Release]) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             HStack {
                 Text("Releases (\(releases.count.formatted()))")
                     .font(ApproachNoteTheme.headline())
@@ -505,7 +505,7 @@ struct RecordingDetailView: View {
                         }
                     }
                 } label: {
-                    HStack(spacing: 12) {
+                    HStack(spacing: ApproachNoteTheme.spacingSM) {
                         // Selection indicator
                         Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
                             .font(ApproachNoteTheme.title3())
@@ -531,13 +531,13 @@ struct RecordingDetailView: View {
                                 .stroke(isSelected ? ApproachNoteTheme.brand : Color.clear, lineWidth: 2)
                         )
 
-                        VStack(alignment: .leading, spacing: 2) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             Text(release.title)
                                 .font(ApproachNoteTheme.subheadline(weight: isSelected ? .bold : .medium))
                                 .foregroundColor(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.textPrimary)
                                 .lineLimit(1)
 
-                            HStack(spacing: 8) {
+                            HStack(spacing: ApproachNoteTheme.spacingXS) {
                                 Text(release.yearDisplay)
                                     .font(ApproachNoteTheme.caption())
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -564,7 +564,7 @@ struct RecordingDetailView: View {
                         Spacer()
 
                         // Streaming indicators
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             if release.hasSpotify {
                                 Image(systemName: "music.note")
                                     .foregroundColor(.green)
@@ -586,7 +586,7 @@ struct RecordingDetailView: View {
                             }
                         }
                     }
-                    .padding(10)
+                    .padding(ApproachNoteTheme.spacingXS)
                     .background(isSelected ? ApproachNoteTheme.brand.opacity(0.1) : ApproachNoteTheme.surface)
                     .cornerRadius(8)
                     .contentShape(Rectangle())

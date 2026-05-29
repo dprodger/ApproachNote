@@ -16,7 +16,7 @@ struct BackingTrackRow: View {
 
     var body: some View {
         Button(action: openYouTube) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -29,15 +29,15 @@ struct BackingTrackRow: View {
                 }
 
                 // Video info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text(video.title ?? "Backing Track")
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .lineLimit(2)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
                         if let duration = video.durationSeconds {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "clock")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -48,7 +48,7 @@ struct BackingTrackRow: View {
                         }
 
                         if let tempo = video.tempo {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "metronome")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -59,7 +59,7 @@ struct BackingTrackRow: View {
                         }
 
                         if let key = video.keySignature {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "music.note")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())

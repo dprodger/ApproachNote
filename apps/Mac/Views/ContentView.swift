@@ -72,7 +72,7 @@ struct ContentView: View {
                             Label("Create New Repertoire", systemImage: "plus.circle")
                         }
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "text.badge.checkmark")
                             Text(repertoireManager.currentRepertoireDisplayName)
                                 .lineLimit(1)
@@ -80,7 +80,7 @@ struct ContentView: View {
                     }
                 } else {
                     Button(action: { showRepertoirePopover = true }) {
-                        HStack(spacing: 4) {
+                        HStack(spacing: ApproachNoteTheme.spacingXXS) {
                             Image(systemName: "text.badge.checkmark")
                             Text("All Songs")
                             Image(systemName: "chevron.down")
@@ -88,7 +88,7 @@ struct ContentView: View {
                         }
                     }
                     .popover(isPresented: $showRepertoirePopover, arrowEdge: .bottom) {
-                        VStack(spacing: 16) {
+                        VStack(spacing: ApproachNoteTheme.spacingMD) {
                             Text("Create and select repertoires to focus on a subset of songs.")
                                 .font(ApproachNoteTheme.body())
                                 .bodyLineSpacing()
@@ -104,8 +104,8 @@ struct ContentView: View {
                                     .bodyLineSpacing()
                                     .foregroundColor(.white)
                                     .frame(minWidth: 100)
-                                    .padding(.horizontal, 16)
-                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                                     .background(ApproachNoteTheme.brand)
                                     .cornerRadius(6)
                             }
@@ -249,7 +249,7 @@ struct AccountSettingsView: View {
         VStack(spacing: 0) {
             Form {
                 Section {
-                    HStack(spacing: 12) {
+                    HStack(spacing: ApproachNoteTheme.spacingSM) {
                         // Profile image or placeholder
                         if let imageUrl = authManager.currentUser?.profileImageUrl,
                            let url = URL(string: imageUrl) {
@@ -270,7 +270,7 @@ struct AccountSettingsView: View {
                                 .foregroundColor(ApproachNoteTheme.textSecondary)
                         }
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                             Text(authManager.currentUser?.displayName ?? "User")
                                 .font(ApproachNoteTheme.headline())
                                 .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -286,13 +286,13 @@ struct AccountSettingsView: View {
                         }
                         .foregroundColor(.red)
                     }
-                    .padding(.vertical, 8)
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
                 }
             }
             .formStyle(.grouped)
 
             // Favorites Section
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 HStack {
                     Image(systemName: "heart.fill")
                         .foregroundColor(.red)
@@ -325,7 +325,7 @@ struct AccountSettingsView: View {
                         .padding(.horizontal)
                 } else {
                     ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: ApproachNoteTheme.spacingSM) {
                             ForEach(favoritesManager.favoriteRecordings, id: \.id) { recording in
                                 FavoriteRecordingCard(recording: recording)
                                     .onTapGesture {
@@ -364,7 +364,7 @@ struct FavoriteRecordingCard: View {
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Album art
             AsyncImage(url: URL(string: recording.bestAlbumArtSmall ?? "")) { image in
                 image
@@ -388,7 +388,7 @@ struct FavoriteRecordingCard: View {
                 .lineLimit(2)
                 .frame(width: 80, alignment: .leading)
         }
-        .padding(8)
+        .padding(ApproachNoteTheme.spacingXS)
         .background(isHovering ? ApproachNoteTheme.surface : Color.clear)
         .cornerRadius(8)
         .onHover { hovering in
@@ -476,7 +476,7 @@ struct GeneralSettingsView: View {
                         }
 
                         if let progress = progress {
-                            VStack(alignment: .leading, spacing: 4) {
+                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                 HStack {
                                     Text(progress.phaseLabel)
                                         .font(ApproachNoteTheme.caption())

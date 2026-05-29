@@ -15,7 +15,7 @@ struct MacForgotPasswordView: View {
     @State private var resetEmailSent = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             if resetEmailSent {
                 // Success state
                 successView
@@ -26,13 +26,13 @@ struct MacForgotPasswordView: View {
 
             Spacer()
         }
-        .padding(24)
+        .padding(ApproachNoteTheme.spacingXL)
         .frame(minWidth: 350, maxWidth: 400, minHeight: 300)
     }
 
     @ViewBuilder
     private var successView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "envelope.circle.fill")
                 .font(.system(size: 60))
                 .foregroundColor(ApproachNoteTheme.brand)
@@ -54,21 +54,21 @@ struct MacForgotPasswordView: View {
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
-                .padding(.top, 8)
+                .padding(.top, ApproachNoteTheme.spacingXS)
 
             ApproachNoteButton("Done") {
                 dismiss()
             }
-            .padding(.top, 16)
+            .padding(.top, ApproachNoteTheme.spacingMD)
         }
         .padding(.top, 40)
     }
 
     @ViewBuilder
     private var requestFormView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             // Header
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Text("Reset Password")
                     .font(ApproachNoteTheme.title())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -78,10 +78,10 @@ struct MacForgotPasswordView: View {
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
             }
-            .padding(.top, 20)
+            .padding(.top, ApproachNoteTheme.spacingLG)
 
             // Email field
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Email")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)

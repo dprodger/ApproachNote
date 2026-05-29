@@ -19,8 +19,8 @@ struct MacResearchStatusBanner: View {
     @State private var isHovering = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 10) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
                 // Animated or static icon
                 if isAnimating {
                     Image(systemName: icon)
@@ -33,7 +33,7 @@ struct MacResearchStatusBanner: View {
                         .foregroundColor(iconColor)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text(title)
                         .font(ApproachNoteTheme.subheadline())
                         .fontWeight(.semibold)
@@ -50,7 +50,7 @@ struct MacResearchStatusBanner: View {
                     .font(.system(size: 12))
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
-            .padding(10)
+            .padding(ApproachNoteTheme.spacingXS)
             .background(iconColor.opacity(0.1))
             .cornerRadius(6)
             .onHover { hovering in
@@ -63,11 +63,11 @@ struct MacResearchStatusBanner: View {
                 Text(helperText)
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
                     .transition(.opacity)
             }
         }
-        .padding(.top, 8)
+        .padding(.top, ApproachNoteTheme.spacingXS)
         .animation(.easeInOut(duration: 0.15), value: isHovering)
     }
 }

@@ -16,7 +16,7 @@ struct TranscriptionRow: View {
 
     var body: some View {
         Button(action: openYouTube) {
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 // Play button thumbnail
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
@@ -29,15 +29,15 @@ struct TranscriptionRow: View {
                 }
 
                 // Transcription info
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                     Text(transcription.albumTitle ?? "Solo Transcription")
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .lineLimit(2)
 
-                    HStack(spacing: 12) {
+                    HStack(spacing: ApproachNoteTheme.spacingSM) {
                         if let year = transcription.recordingYear {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "calendar")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())
@@ -48,7 +48,7 @@ struct TranscriptionRow: View {
                         }
 
                         if let label = transcription.label {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "opticaldisc")
                                     .foregroundColor(ApproachNoteTheme.textSecondary)
                                     .font(ApproachNoteTheme.caption())

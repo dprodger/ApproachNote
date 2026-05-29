@@ -143,7 +143,7 @@ struct MacYouTubeImportView: View {
     // MARK: - Auth Required View
 
     private var authRequiredView: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: ApproachNoteTheme.spacingXL) {
             Spacer()
 
             Image(systemName: "lock.fill")
@@ -173,21 +173,21 @@ struct MacYouTubeImportView: View {
     // MARK: - Video Info Header
 
     private var videoInfoHeader: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: "play.rectangle.fill")
                 .font(.title)
                 .foregroundColor(.red)
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(youtubeData.title)
                     .font(ApproachNoteTheme.headline())
                     .lineLimit(2)
 
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Text(youtubeData.videoType.displayName)
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(.white)
-                        .padding(.horizontal, 8)
+                        .padding(.horizontal, ApproachNoteTheme.spacingXS)
                         .padding(.vertical, 2)
                         .background(youtubeData.videoType == .transcription ? Color.blue : Color.green)
                         .cornerRadius(4)
@@ -209,7 +209,7 @@ struct MacYouTubeImportView: View {
     // MARK: - Song Search Section
 
     private var songSearchSection: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Search for a song to link this video to:")
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(.secondary)
@@ -263,7 +263,7 @@ struct MacYouTubeImportView: View {
                             }
                         }) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                     Text(song.title)
                                         .font(ApproachNoteTheme.headline())
 
@@ -285,7 +285,7 @@ struct MacYouTubeImportView: View {
                     }
                 }
             } else if !searchText.isEmpty && !isSearching {
-                VStack(spacing: 8) {
+                VStack(spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "music.note")
                         .font(.largeTitle)
                         .foregroundColor(.secondary)
@@ -451,7 +451,7 @@ struct MacRecordingPickerView: View {
                 Spacer()
             } else if let error = loadError {
                 Spacer()
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Image(systemName: "exclamationmark.triangle")
                         .font(.largeTitle)
                         .foregroundColor(.orange)
@@ -461,7 +461,7 @@ struct MacRecordingPickerView: View {
                 Spacer()
             } else if recordings.isEmpty {
                 Spacer()
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Image(systemName: "opticaldisc")
                         .font(.largeTitle)
                         .foregroundColor(.secondary)
@@ -502,12 +502,12 @@ struct MacRecordingPickerView: View {
                         .foregroundColor(.secondary)
                 }
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
 
                 // Recordings list
                 if filteredRecordings.isEmpty {
                     Spacer()
-                    VStack(spacing: 8) {
+                    VStack(spacing: ApproachNoteTheme.spacingXS) {
                         Image(systemName: "magnifyingglass")
                             .font(.largeTitle)
                             .foregroundColor(.secondary)
@@ -535,7 +535,7 @@ struct MacRecordingPickerView: View {
     }
 
     private func recordingRow(_ recording: Recording) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
             // Album art placeholder
             if let artUrl = recording.bestAlbumArtSmall, let url = URL(string: artUrl) {
                 AsyncImage(url: url) { image in
@@ -555,11 +555,11 @@ struct MacRecordingPickerView: View {
                     }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(recording.albumTitle ?? "Unknown Album")
                     .font(ApproachNoteTheme.headline())
 
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     if let artist = recording.artistCredit {
                         Text(artist)
                             .font(ApproachNoteTheme.caption())
@@ -579,7 +579,7 @@ struct MacRecordingPickerView: View {
             Image(systemName: "chevron.right")
                 .foregroundColor(.secondary)
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 
     private func loadRecordings() async {

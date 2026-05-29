@@ -22,9 +22,9 @@ struct MacLoginView: View {
     var isInline: Bool = false
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             // Header
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Text("Welcome Back")
                     .font(ApproachNoteTheme.title())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -87,15 +87,15 @@ struct MacLoginView: View {
                 Text("or")
                     .foregroundColor(.secondary)
                     .font(ApproachNoteTheme.caption())
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
                 Rectangle()
                     .frame(height: 1)
                     .foregroundColor(.gray.opacity(0.3))
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
 
             // Email field
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Email")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -107,7 +107,7 @@ struct MacLoginView: View {
             }
 
             // Password field
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Password")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -156,7 +156,7 @@ struct MacLoginView: View {
                     .frame(height: 1)
                     .foregroundColor(.gray.opacity(0.3))
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
 
             // Create account button
             ApproachNoteButton("Create Account", style: .secondary) {

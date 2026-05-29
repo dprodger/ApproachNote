@@ -128,7 +128,7 @@ struct ArtistsListView: View {
                 .foregroundColor(.white)
             Spacer()
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, ApproachNoteTheme.spacingSM)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .background(
@@ -223,7 +223,7 @@ struct ArtistRowView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             formattedName(for: performer)
             if let instrument = performer.instrument {
                 Text(instrument)
@@ -231,8 +231,8 @@ struct ArtistRowView: View {
                     .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.textSecondary)
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
+        .padding(.horizontal, ApproachNoteTheme.spacingXS)
     }
 }
 

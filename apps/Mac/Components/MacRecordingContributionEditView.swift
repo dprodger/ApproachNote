@@ -41,14 +41,14 @@ struct MacRecordingContributionEditView: View {
 
             // Form content
             ScrollView {
-                VStack(alignment: .leading, spacing: 24) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXL) {
                     // Recording info
                     Text(recordingTitle)
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
 
                     // Performance Key Section
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Performance Key")
                             .font(ApproachNoteTheme.subheadline(weight: .medium))
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -68,7 +68,7 @@ struct MacRecordingContributionEditView: View {
                     }
 
                     // Tempo Section
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Tempo")
                             .font(ApproachNoteTheme.subheadline(weight: .medium))
                             .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -88,7 +88,7 @@ struct MacRecordingContributionEditView: View {
                     }
 
                     // Instrumental/Vocal Section
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Instrumental or Vocal")
                             .font(ApproachNoteTheme.subheadline(weight: .medium))
                             .foregroundColor(ApproachNoteTheme.textPrimary)
