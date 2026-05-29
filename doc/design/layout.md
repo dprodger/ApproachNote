@@ -136,3 +136,18 @@ extension ApproachNoteTheme {
 Reference these tokens in views instead of literals — `SongDetailView` is the
 adopted template. Treat any spacing value outside this set as a smell. Issue
 #199 tracks rolling adoption through the remaining screens.
+
+### Component metrics (intentionally off-scale)
+
+A few values size the *interior of a specific control* rather than the rhythm
+between elements, so they live outside the spacing scale by design. They get
+named tokens so the off-scale number reads as intentional, not a stray literal:
+
+```swift
+static let controlVerticalPadding: CGFloat = 14  // ApproachNoteButton pill, tap-target height
+```
+
+`ApproachNoteButton` uses `controlVerticalPadding` (14) — kept off-scale to hold
+its tap-target height; snapping to `sm`/`md` would shift the pill's proportions.
+`ToastView`, by contrast, was snapped to `spacingMD` (16): its padding is card
+breathing room, not a tap target, so it belongs on the scale. (Per #202.)

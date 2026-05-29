@@ -376,6 +376,17 @@ extension ApproachNoteTheme {
     static let spacingXL:  CGFloat = 24
 }
 
+// Component metrics that intentionally sit *outside* the spacing scale above.
+// These are not inter-element spacing — they size the interior of a specific
+// control to hit a comfortable tap target, and are deliberately named so the
+// off-scale value reads as intentional rather than a stray literal.
+extension ApproachNoteTheme {
+    /// Vertical padding inside the filled/outlined pill control
+    /// (`ApproachNoteButton`). Tuned for tap-target height, not section rhythm,
+    /// so it sits between `spacingSM` (12) and `spacingMD` (16).
+    static let controlVerticalPadding: CGFloat = 14
+}
+
 // MARK: - Semantic Color Tokens
 //
 // Colors are organized by *role*, not pigment. Pick the token that matches
