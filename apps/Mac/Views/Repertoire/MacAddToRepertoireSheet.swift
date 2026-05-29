@@ -64,7 +64,7 @@ struct MacAddToRepertoireSheet: View {
 
     private var headerView: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text("Add to Repertoire")
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -90,7 +90,7 @@ struct MacAddToRepertoireSheet: View {
     // MARK: - Auth Required View
 
     private var authRequiredView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             Image(systemName: "lock.fill")
                 .font(.system(size: 48))
                 .foregroundColor(ApproachNoteTheme.brand.opacity(0.6))
@@ -118,7 +118,7 @@ struct MacAddToRepertoireSheet: View {
     // MARK: - Loading View
 
     private var loadingView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             ProgressView()
                 .controlSize(.large)
             Text("Loading repertoires...")
@@ -131,7 +131,7 @@ struct MacAddToRepertoireSheet: View {
     // MARK: - Empty Repertoires View
 
     private var emptyRepertoiresView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             Image(systemName: "music.note.list")
                 .font(.system(size: 48))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -162,16 +162,16 @@ struct MacAddToRepertoireSheet: View {
             VStack(spacing: 0) {
                 // Quick add section
                 if let lastUsed = repertoireManager.lastUsedRepertoire {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                         Text("Quick Add")
                             .font(ApproachNoteTheme.caption())
                             .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.6))
                             .padding(.horizontal)
-                            .padding(.top, 12)
+                            .padding(.top, ApproachNoteTheme.spacingSM)
 
                         Button(action: { addToRepertoire(lastUsed) }) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                     Text("Add to \(lastUsed.name)")
                                         .font(ApproachNoteTheme.headline())
                                         .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -195,17 +195,17 @@ struct MacAddToRepertoireSheet: View {
                 }
 
                 // All repertoires section
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                     Text("All Repertoires")
                         .font(ApproachNoteTheme.caption())
                         .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.6))
                         .padding(.horizontal)
-                        .padding(.top, 16)
+                        .padding(.top, ApproachNoteTheme.spacingMD)
 
                     ForEach(repertoireManager.addableRepertoires) { repertoire in
                         Button(action: { addToRepertoire(repertoire) }) {
                             HStack {
-                                VStack(alignment: .leading, spacing: 4) {
+                                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                                     Text(repertoire.name)
                                         .font(ApproachNoteTheme.headline())
                                         .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -246,7 +246,7 @@ struct MacAddToRepertoireSheet: View {
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal)
-                .padding(.vertical, 8)
+                .padding(.vertical, ApproachNoteTheme.spacingXS)
             }
             .padding(.bottom)
         }
@@ -259,7 +259,7 @@ struct MacAddToRepertoireSheet: View {
         ZStack {
             Color.black.opacity(0.3)
 
-            VStack(spacing: 16) {
+            VStack(spacing: ApproachNoteTheme.spacingMD) {
                 ProgressView()
                     .controlSize(.large)
                 Text("Adding to repertoire...")

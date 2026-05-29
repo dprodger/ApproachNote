@@ -28,7 +28,7 @@ struct MacResetPasswordView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             if resetComplete {
                 // Success state
                 successView
@@ -39,13 +39,13 @@ struct MacResetPasswordView: View {
 
             Spacer()
         }
-        .padding(24)
+        .padding(ApproachNoteTheme.spacingXL)
         .frame(minWidth: 350, maxWidth: 400, minHeight: 350)
     }
 
     @ViewBuilder
     private var successView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "checkmark.circle.fill")
                 .font(.system(size: 60))
                 .foregroundColor(.green)
@@ -62,16 +62,16 @@ struct MacResetPasswordView: View {
             ApproachNoteButton("Done") {
                 dismiss()
             }
-            .padding(.top, 16)
+            .padding(.top, ApproachNoteTheme.spacingMD)
         }
         .padding(.top, 40)
     }
 
     @ViewBuilder
     private var resetFormView: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             // Header
-            VStack(spacing: 8) {
+            VStack(spacing: ApproachNoteTheme.spacingXS) {
                 Text("Set New Password")
                     .font(ApproachNoteTheme.title())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -80,10 +80,10 @@ struct MacResetPasswordView: View {
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
             }
-            .padding(.top, 20)
+            .padding(.top, ApproachNoteTheme.spacingLG)
 
             // New password
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("New Password")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)
@@ -99,7 +99,7 @@ struct MacResetPasswordView: View {
             }
 
             // Confirm password
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text("Confirm Password")
                     .font(ApproachNoteTheme.subheadline())
                     .foregroundColor(.secondary)

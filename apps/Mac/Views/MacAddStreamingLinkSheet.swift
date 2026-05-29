@@ -32,7 +32,7 @@ struct MacAddStreamingLinkSheet: View {
 
             // Content
             ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingLG) {
                     // Instructions
                     instructionsView
 
@@ -48,7 +48,7 @@ struct MacAddStreamingLinkSheet: View {
                         successView(success)
                     }
                 }
-                .padding(20)
+                .padding(ApproachNoteTheme.spacingLG)
             }
 
             Divider()
@@ -64,7 +64,7 @@ struct MacAddStreamingLinkSheet: View {
 
     private var headerView: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text("Add Streaming Link")
                     .font(ApproachNoteTheme.title2())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -92,13 +92,13 @@ struct MacAddStreamingLinkSheet: View {
     // MARK: - Instructions
 
     private var instructionsView: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Paste a streaming service URL")
                 .font(ApproachNoteTheme.headline())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                         .font(.caption)
@@ -107,7 +107,7 @@ struct MacAddStreamingLinkSheet: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                         .font(.caption)
@@ -116,7 +116,7 @@ struct MacAddStreamingLinkSheet: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "checkmark.circle.fill")
                         .foregroundColor(.green)
                         .font(.caption)
@@ -125,7 +125,7 @@ struct MacAddStreamingLinkSheet: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
-                HStack(spacing: 8) {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
                     Image(systemName: "info.circle")
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                         .font(.caption)
@@ -134,7 +134,7 @@ struct MacAddStreamingLinkSheet: View {
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
-            .padding(12)
+            .padding(ApproachNoteTheme.spacingSM)
             .background(ApproachNoteTheme.surface)
             .cornerRadius(8)
         }
@@ -143,7 +143,7 @@ struct MacAddStreamingLinkSheet: View {
     // MARK: - URL Input
 
     private var urlInputView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             Text("Track URL or ID")
                 .font(ApproachNoteTheme.subheadline(weight: .medium))
                 .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -179,7 +179,7 @@ struct MacAddStreamingLinkSheet: View {
     @ViewBuilder
     private var serviceIndicator: some View {
         let detection = detectService(from: urlInput)
-        HStack(spacing: 6) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             switch detection {
             case .valid(let service):
                 Image(systemName: "checkmark.circle.fill")
@@ -267,28 +267,28 @@ struct MacAddStreamingLinkSheet: View {
     // MARK: - Messages
 
     private func errorView(_ message: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             Image(systemName: "exclamationmark.triangle.fill")
                 .foregroundColor(.red)
             Text(message)
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(.red)
         }
-        .padding(12)
+        .padding(ApproachNoteTheme.spacingSM)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.red.opacity(0.1))
         .cornerRadius(8)
     }
 
     private func successView(_ message: String) -> some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             Image(systemName: "checkmark.circle.fill")
                 .foregroundColor(.green)
             Text(message)
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(.green)
         }
-        .padding(12)
+        .padding(ApproachNoteTheme.spacingSM)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color.green.opacity(0.1))
         .cornerRadius(8)

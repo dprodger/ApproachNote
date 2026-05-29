@@ -103,7 +103,7 @@ struct MusicBrainzSearchSheet: View {
     }
 
     private var emptyView: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 50))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -125,7 +125,7 @@ struct MusicBrainzSearchSheet: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .padding(.top, 8)
+                .padding(.top, ApproachNoteTheme.spacingXS)
             }
         }
         .padding()
@@ -142,7 +142,7 @@ struct MusicBrainzSearchSheet: View {
                 Spacer()
             }
             .padding(.horizontal)
-            .padding(.vertical, 8)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
             .background(ApproachNoteTheme.textOnDark.opacity(0.5))
 
             // Results list
@@ -168,7 +168,7 @@ struct MusicBrainzSearchSheet: View {
                 if let work = selectedWork {
                     if let url = URL(string: work.musicbrainzUrl) {
                         Link(destination: url) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
                                 Image(systemName: "arrow.up.right.square")
                                 Text("View on MusicBrainz")
                             }
@@ -192,11 +192,11 @@ struct MusicBrainzSearchSheet: View {
     }
 
     private func workRowView(work: MusicBrainzWork) -> some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: ApproachNoteTheme.spacingSM) {
             // Score indicator
             scoreIndicator(score: work.score)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 Text(work.title)
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
@@ -214,7 +214,7 @@ struct MusicBrainzSearchSheet: View {
 
             Spacer()
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
     }
 
     private func scoreIndicator(score: Int?) -> some View {
@@ -225,7 +225,7 @@ struct MusicBrainzSearchSheet: View {
             return ApproachNoteTheme.textSecondary
         }()
 
-        return VStack(spacing: 2) {
+        return VStack(spacing: ApproachNoteTheme.spacingXXS) {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)

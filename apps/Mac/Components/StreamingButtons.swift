@@ -29,7 +29,7 @@ struct StreamingButtons: View {
     }
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
             if let urlString = spotifyUrl, let url = URL(string: urlString) {
                 Link(destination: url) {
                     StreamingIcon(service: .spotify, size: 22)

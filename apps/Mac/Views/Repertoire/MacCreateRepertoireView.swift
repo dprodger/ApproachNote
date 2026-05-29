@@ -22,17 +22,17 @@ struct MacCreateRepertoireView: View {
     }
 
     var body: some View {
-        VStack(spacing: 20) {
+        VStack(spacing: ApproachNoteTheme.spacingLG) {
             // Header
             Text("Create Repertoire")
                 .font(ApproachNoteTheme.title())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
-                .padding(.top, 20)
+                .padding(.top, ApproachNoteTheme.spacingLG)
 
             // Form
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                 // Name field
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                     Text("Name")
                         .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
@@ -46,7 +46,7 @@ struct MacCreateRepertoireView: View {
                 }
 
                 // Description field
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                     Text("Description (optional)")
                         .font(ApproachNoteTheme.subheadline())
                         .foregroundColor(ApproachNoteTheme.textPrimary.opacity(0.7))
@@ -78,7 +78,7 @@ struct MacCreateRepertoireView: View {
             }
 
             // Buttons
-            HStack(spacing: 12) {
+            HStack(spacing: ApproachNoteTheme.spacingSM) {
                 Button("Cancel") {
                     dismiss()
                 }
@@ -93,7 +93,7 @@ struct MacCreateRepertoireView: View {
                 .controlSize(.large)
                 .disabled(!isFormValid || isCreating)
             }
-            .padding(.bottom, 20)
+            .padding(.bottom, ApproachNoteTheme.spacingLG)
         }
         .frame(width: 350, height: 350)
         .overlay {
@@ -101,13 +101,13 @@ struct MacCreateRepertoireView: View {
                 ZStack {
                     Color.black.opacity(0.3)
 
-                    VStack(spacing: 16) {
+                    VStack(spacing: ApproachNoteTheme.spacingMD) {
                         ProgressView()
                             .controlSize(.large)
                         Text("Creating repertoire...")
                             .font(ApproachNoteTheme.subheadline())
                     }
-                    .padding(24)
+                    .padding(ApproachNoteTheme.spacingXL)
                     .background(ApproachNoteTheme.surface)
                     .cornerRadius(12)
                 }

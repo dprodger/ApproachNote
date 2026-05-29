@@ -40,7 +40,7 @@ struct FeaturedRecordingCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             // Album Art
             Group {
                 if let frontUrl = frontCoverUrl {
@@ -81,7 +81,7 @@ struct FeaturedRecordingCard: View {
             .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
 
             // Recording Info — Year → Artist → Album → (Song Title)
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
                 // Year
                 Text(recording.recordingYear.map { String($0) } ?? " ")
                     .font(ApproachNoteTheme.subheadline(weight: .bold))

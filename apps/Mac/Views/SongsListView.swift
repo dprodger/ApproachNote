@@ -100,7 +100,7 @@ struct SongsListView: View {
                 .foregroundColor(.white)
             Spacer()
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, ApproachNoteTheme.spacingSM)
         .padding(.vertical, 6)
         .frame(maxWidth: .infinity)
         .background(
@@ -164,7 +164,7 @@ struct SongsListView: View {
     }
 
     private var emptySearchResultsView: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: ApproachNoteTheme.spacingSM) {
             Image(systemName: "magnifyingglass")
                 .font(.system(size: 40))
                 .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -181,7 +181,7 @@ struct SongsListView: View {
             Button(action: {
                 showMusicBrainzSearch = true
             }) {
-                HStack(spacing: 4) {
+                HStack(spacing: ApproachNoteTheme.spacingXXS) {
                     Image(systemName: "waveform")
                     Text("Search MusicBrainz")
                 }
@@ -189,7 +189,7 @@ struct SongsListView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(ApproachNoteTheme.brand)
-            .padding(.top, 4)
+            .padding(.top, ApproachNoteTheme.spacingXXS)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -204,7 +204,7 @@ struct SongRowView: View {
     var isSelected: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             Text(song.title)
                 .font(ApproachNoteTheme.headline())
                 .foregroundStyle(isSelected ? Color.white : ApproachNoteTheme.textPrimary)
@@ -214,8 +214,8 @@ struct SongRowView: View {
                     .foregroundStyle(isSelected ? Color.white.opacity(0.85) : ApproachNoteTheme.textSecondary)
             }
         }
-        .padding(.vertical, 4)
-        .padding(.horizontal, 8)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
+        .padding(.horizontal, ApproachNoteTheme.spacingXS)
     }
 }
 

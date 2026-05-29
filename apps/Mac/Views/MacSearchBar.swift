@@ -33,7 +33,7 @@ struct MacSearchBar: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(8)
+        .padding(ApproachNoteTheme.spacingXS)
         .background(Color.white)
         .cornerRadius(8)
         .overlay(
@@ -41,7 +41,7 @@ struct MacSearchBar: View {
                 .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
         )
         .padding(.horizontal)
-        .padding(.vertical, 12)
+        .padding(.vertical, ApproachNoteTheme.spacingSM)
         .background(backgroundColor)
     }
 }
