@@ -21,8 +21,10 @@ struct PerformerDetailView: View {
     @State private var recordingSortOrder: PerformerRecordingSortOrder = .year
     @State private var isRecordingsReloading = false
 
-    // Viewport height drives the collapsed biography cap (~75% of screen).
+    // Viewport size drives the collapsed biography cap (~75% of screen height)
+    // and the artist image hero's height cap (keeps tall portraits on-screen).
     @State private var viewportHeight: CGFloat = 0
+    @State private var viewportWidth: CGFloat = 0
 
     // Two-phase loading: summary loads first (fast), then recordings load in background
     @State private var isRecordingsLoading: Bool = true
@@ -44,7 +46,11 @@ struct PerformerDetailView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     // Image hero — full-bleed, above the name, swipeable.
                     if let images = performer.images, !images.isEmpty {
-                        ArtistImageCarousel(images: images)
+                        ArtistImageCarousel(
+                            images: images,
+                            availableWidth: viewportWidth,
+                            maxHeight: viewportHeight
+                        )
                     }
 
                     // Header + biography content (shares the 24pt screen gutter).
@@ -138,8 +144,12 @@ struct PerformerDetailView: View {
             // height used to cap the collapsed biography at ~75%.
             GeometryReader { proxy in
                 Color.clear
-                    .onAppear { viewportHeight = proxy.size.height }
+                    .onAppear {
+                        viewportHeight = proxy.size.height
+                        viewportWidth = proxy.size.width
+                    }
                     .onChange(of: proxy.size.height) { _, newValue in viewportHeight = newValue }
+                    .onChange(of: proxy.size.width) { _, newValue in viewportWidth = newValue }
             }
         )
         .collapsingDetailHeader(

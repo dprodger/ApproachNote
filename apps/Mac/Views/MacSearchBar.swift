@@ -11,6 +11,9 @@ struct MacSearchBar: View {
     @Binding var text: String
     let placeholder: String
     let backgroundColor: Color
+    /// Optional external focus binding so a parent can drive (or observe)
+    /// focus on the search field.
+    var focus: FocusState<Bool>.Binding? = nil
 
     var body: some View {
         HStack {
@@ -21,6 +24,7 @@ struct MacSearchBar: View {
                 .font(ApproachNoteTheme.body())
                 .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
+                .modifier(OptionalFocusModifier(focus: focus))
             if !text.isEmpty {
                 Button(action: { text = "" }) {
                     Image(systemName: "xmark.circle.fill")
@@ -39,6 +43,20 @@ struct MacSearchBar: View {
         .padding(.horizontal)
         .padding(.vertical, 12)
         .background(backgroundColor)
+    }
+}
+
+/// Applies `.focused` only when a binding is supplied, so callers that don't
+/// need programmatic focus can omit it.
+private struct OptionalFocusModifier: ViewModifier {
+    let focus: FocusState<Bool>.Binding?
+
+    func body(content: Content) -> some View {
+        if let focus {
+            content.focused(focus)
+        } else {
+            content
+        }
     }
 }
 

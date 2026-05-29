@@ -14,6 +14,7 @@ struct ArtistsListView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var selectedPerformerId: String?
     @State private var hasPerformedInitialLoad = false
+    @FocusState private var searchFocused: Bool
 
     // MARK: - Sort Name Helpers
 
@@ -75,6 +76,14 @@ struct ArtistsListView: View {
                 hasPerformedInitialLoad = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .focusArtistSearch)) { _ in
+            // Defer a beat so the tab content is on screen / in the responder
+            // chain before we move focus to the search field.
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 100_000_000)
+                searchFocused = true
+            }
+        }
     }
 
     // MARK: - View Components
@@ -84,7 +93,8 @@ struct ArtistsListView: View {
             MacSearchBar(
                 text: $searchText,
                 placeholder: "Search artists...",
-                backgroundColor: ApproachNoteTheme.accent
+                backgroundColor: ApproachNoteTheme.accent,
+                focus: $searchFocused
             )
 
             List(selection: $selectedPerformerId) {

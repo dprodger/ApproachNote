@@ -2,32 +2,63 @@
 //  ArtistImageCarousel.swift
 //  Approach Note
 //
-//  Full-bleed, edge-to-edge artist image hero. Each image fills the
-//  screen width; multiple images page horizontally with a swipe. Tapping
-//  an image opens a detail sheet that surfaces the source attribution;
-//  nothing is overlaid on the image itself, to comply with partner-
-//  branding rules (e.g. Spotify forbids its mark from appearing on art).
+//  Edge-to-edge artist image hero. Images keep their aspect ratio (no
+//  top/bottom cropping) and may bleed past the screen's left/right gutters,
+//  but the hero height is capped to the window so tall portraits stay
+//  on-screen. Multiple images page horizontally with a swipe. Tapping an
+//  image opens a detail sheet that surfaces the source attribution; nothing
+//  is overlaid on the image itself, to comply with partner-branding rules
+//  (e.g. Spotify forbids its mark from appearing on art).
 //
 
 import SwiftUI
 
 struct ArtistImageCarousel: View {
     let images: [ArtistImage]
+    /// Full width available to the hero (the screen/window width).
+    var availableWidth: CGFloat = 0
+    /// Upper bound for the hero height — keeps tall portraits within the window.
+    var maxHeight: CGFloat = 0
+
     @State private var selectedImage: ArtistImage?
 
-    private let carouselHeight: CGFloat = 320
+    // Fallbacks for before the host view has measured its viewport.
+    private static let fallbackWidth: CGFloat = 393
+    private static let fallbackMaxHeight: CGFloat = 600
+    private static let defaultAspect: CGFloat = 3.0 / 4.0  // portrait
+
+    /// One shared height for every page (stable paging). Sized so the tallest
+    /// image renders full-width at its natural aspect ratio, then clamped to
+    /// the window height. Images shorter/wider than this letterbox within it;
+    /// none are cropped.
+    private var carouselHeight: CGFloat {
+        let width = availableWidth > 0 ? availableWidth : Self.fallbackWidth
+        let cap = maxHeight > 0 ? maxHeight : Self.fallbackMaxHeight
+        let tallest = images.map { width / aspect(of: $0) }.max() ?? width
+        return min(tallest, cap)
+    }
+
+    /// Width-over-height aspect ratio from image metadata, defaulting to portrait.
+    private func aspect(of image: ArtistImage) -> CGFloat {
+        guard let w = image.width, let h = image.height, w > 0, h > 0 else {
+            return Self.defaultAspect
+        }
+        return CGFloat(w) / CGFloat(h)
+    }
 
     var body: some View {
         if images.isEmpty {
             EmptyView()
         } else {
+            let carouselHeight = carouselHeight
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 0) {
                     ForEach(images) { image in
                         ImageThumbnail(image: image, height: carouselHeight)
-                            // Each image fills the full scroll-view width so a
-                            // single image spans the screen and multiple images
-                            // page one-per-swipe.
+                            // Each page spans the full scroll-view width so a
+                            // single image fills the screen and multiple images
+                            // page one-per-swipe. The image itself fits (keeps
+                            // aspect ratio) within that page, centered.
                             .containerRelativeFrame(.horizontal)
                             .onTapGesture { selectedImage = image }
                     }
@@ -89,13 +120,14 @@ private struct ImageThumbnail: View {
 
     var body: some View {
         // Image only — source attribution lives in ImageDetailSheet (tap to open)
-        // so no partner-branded watermark sits on top of the artwork. Fills the
-        // full width edge-to-edge; portrait shots crop to the hero height.
+        // so no partner-branded watermark sits on top of the artwork. Keeps the
+        // image's aspect ratio (no top/bottom cropping) and centers it within
+        // the hero; landscape shots can still bleed edge-to-edge.
         Group {
             if let uiImage = uiImage {
                 Image(uiImage: uiImage)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: .fit)
             } else if isLoading {
                 Rectangle()
                     .fill(Color.gray.opacity(0.2))
