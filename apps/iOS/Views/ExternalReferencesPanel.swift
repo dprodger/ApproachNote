@@ -251,7 +251,8 @@ struct ExternalLinkButton: View {
         ApproachNoteButton(
             label,
             style: .secondary,
-            trailingSystemImage: "arrow.up.right.square"
+            trailingSystemImage: "arrow.up.right.square",
+            font: ApproachNoteTheme.callout(weight: .semibold)
         ) {
             if let url = URL(string: url) {
                 openURL(url)

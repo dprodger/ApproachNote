@@ -56,58 +56,44 @@ struct RecordingCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Album art with canonical star overlay
-            ZStack(alignment: .topTrailing) {
-                Group {
-                    if let frontUrl = frontCoverUrl {
-                        AsyncImage(url: URL(string: frontUrl)) { phase in
-                            switch phase {
-                            case .empty:
-                                Rectangle()
-                                    .fill(ApproachNoteTheme.surface)
-                                    .overlay { ProgressView() }
-                            case .success(let image):
-                                image
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fill)
-                            case .failure:
-                                Rectangle()
-                                    .fill(ApproachNoteTheme.surface)
-                                    .overlay {
-                                        Image(systemName: "music.note")
-                                            .font(.system(size: 40))
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    }
-                            @unknown default:
-                                EmptyView()
-                            }
+            // Album art
+            Group {
+                if let frontUrl = frontCoverUrl {
+                    AsyncImage(url: URL(string: frontUrl)) { phase in
+                        switch phase {
+                        case .empty:
+                            Rectangle()
+                                .fill(ApproachNoteTheme.surface)
+                                .overlay { ProgressView() }
+                        case .success(let image):
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                        case .failure:
+                            Rectangle()
+                                .fill(ApproachNoteTheme.surface)
+                                .overlay {
+                                    Image(systemName: "music.note")
+                                        .font(.system(size: 40))
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                                }
+                        @unknown default:
+                            EmptyView()
                         }
-                    } else {
-                        Rectangle()
-                            .fill(ApproachNoteTheme.surface)
-                            .overlay {
-                                Image(systemName: "music.note")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
                     }
-                }
-                .frame(width: artworkSize, height: artworkSize)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
-
-                // Canonical star badge
-                if recording.isCanonical == true {
-                    Image(systemName: "star.fill")
-                        .foregroundColor(.yellow)
-                        .font(ApproachNoteTheme.caption())
-                        .padding(6)
-                        .background(Color.black.opacity(0.6))
-                        .clipShape(Circle())
-                        .padding(6)
+                } else {
+                    Rectangle()
+                        .fill(ApproachNoteTheme.surface)
+                        .overlay {
+                            Image(systemName: "music.note")
+                                .font(.system(size: 40))
+                                .foregroundColor(ApproachNoteTheme.textSecondary)
+                        }
                 }
             }
             .frame(width: artworkSize, height: artworkSize)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
 
             // Recording info below artwork — Year → Artist → Album → (Song Title)
             VStack(alignment: .leading, spacing: 4) {

@@ -35,6 +35,9 @@ struct ApproachNoteButton: View {
     private let leadingSystemImage: String?
     private let trailingSystemImage: String?
     private let isLoading: Bool
+    /// Optional override for the label font. Defaults to `headline()` when nil.
+    /// Lets less-prominent buttons (e.g. the Learn More links) step down a size.
+    private let font: Font?
     private let action: () -> Void
 
     @State private var isHovered = false
@@ -45,6 +48,7 @@ struct ApproachNoteButton: View {
         leadingSystemImage: String? = nil,
         trailingSystemImage: String? = nil,
         isLoading: Bool = false,
+        font: Font? = nil,
         action: @escaping () -> Void
     ) {
         self.title = title
@@ -52,6 +56,7 @@ struct ApproachNoteButton: View {
         self.leadingSystemImage = leadingSystemImage
         self.trailingSystemImage = trailingSystemImage
         self.isLoading = isLoading
+        self.font = font
         self.action = action
     }
 
@@ -73,7 +78,7 @@ struct ApproachNoteButton: View {
                 }
             }
         }
-        .buttonStyle(ApproachNoteButtonStyle(style: style, isHovered: isHovered))
+        .buttonStyle(ApproachNoteButtonStyle(style: style, isHovered: isHovered, font: font))
         .disabled(isLoading)
         #if os(macOS)
         .onHover { hovering in isHovered = hovering }
@@ -86,6 +91,7 @@ struct ApproachNoteButton: View {
 private struct ApproachNoteButtonStyle: ButtonStyle {
     let style: ApproachNoteButton.Style
     let isHovered: Bool
+    var font: Font? = nil
 
     @Environment(\.isEnabled) private var isEnabled
 
@@ -94,7 +100,7 @@ private struct ApproachNoteButtonStyle: ButtonStyle {
         let appearance = appearance(active: active)
 
         configuration.label
-            .font(ApproachNoteTheme.headline())
+            .font(font ?? ApproachNoteTheme.headline())
             .foregroundColor(appearance.foreground)
             .frame(maxWidth: .infinity)
             .padding(.vertical, ApproachNoteTheme.controlVerticalPadding)

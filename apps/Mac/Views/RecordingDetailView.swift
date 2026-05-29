@@ -250,10 +250,6 @@ struct RecordingDetailView: View {
             VStack(alignment: .leading, spacing: 8) {
                 // Recording Name (Year) — matches SongDetailView title pattern
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    if recording.isCanonical == true {
-                        Image(systemName: "star.fill")
-                            .foregroundColor(ApproachNoteTheme.accent)
-                    }
                     if let songTitle = recording.songTitle {
                         (
                             Text(songTitle)
