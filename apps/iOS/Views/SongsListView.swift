@@ -417,12 +417,19 @@ struct RepertoirePickerSheet: View {
             .background(ApproachNoteTheme.background)
             .navigationTitle("Select Repertoire")
             .navigationBarTitleDisplayMode(.inline)
+            // Style the nav bar from the live palette (the global
+            // UINavigationBar appearance is set once at launch and goes stale
+            // when the palette changes), matching jazzNavigationBar.
+            .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         isPresented = false
                     }
-                    .foregroundColor(ApproachNoteTheme.brand)
+                    .fontWeight(.semibold)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                 }
             }
             .sheet(isPresented: $showCreateRepertoire) {
@@ -456,6 +463,8 @@ struct RepertoirePickerSheet: View {
                 Text(deleteErrorMessage ?? "")
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
