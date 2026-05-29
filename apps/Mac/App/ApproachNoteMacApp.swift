@@ -333,4 +333,7 @@ extension Notification.Name {
     static let navigateToSongs = Notification.Name("navigateToSongs")
     static let navigateToArtists = Notification.Name("navigateToArtists")
     static let navigateToRecordings = Notification.Name("navigateToRecordings")
+    /// Posted when the Artists tab becomes selected so its search field can
+    /// take focus.
+    static let focusArtistSearch = Notification.Name("focusArtistSearch")
 }

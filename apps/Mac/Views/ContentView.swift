@@ -133,6 +133,13 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .navigateToRecordings)) { _ in
             selectedTab = .recordings
         }
+        .onChange(of: selectedTab) { _, newTab in
+            // When the Artists tab is selected (via the tab control or the
+            // menu command), default the insertion cursor to its search field.
+            if newTab == .artists {
+                NotificationCenter.default.post(name: .focusArtistSearch, object: nil)
+            }
+        }
         .preferredColorScheme(.light)
     }
 }

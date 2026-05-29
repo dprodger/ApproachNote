@@ -2,8 +2,10 @@
 //  PerformerDetailView.swift
 //  Approach Note
 //
-//  macOS-specific performer/artist detail view
-//  Updated to match iOS layout with collapsible Biographical Information section
+//  macOS-specific performer/artist detail view. Mirrors the iOS layout:
+//  an image carousel header, a typography-only BIOGRAPHY block with a
+//  height-capped Read More, iOS-styled Learn More links, and a RECORDINGS
+//  section with per-group +/- accordions and brand-styled controls.
 //
 
 import SwiftUI
@@ -20,13 +22,19 @@ struct PerformerDetailView: View {
     @State private var performer: PerformerDetail?
     @State private var isLoading = true
     @State private var isRecordingsLoading = true
-    @State private var isBiographicalInfoExpanded = false
     @State private var sortOrder: PerformerRecordingSortOrder = .year
     @State private var selectedFilter: RecordingFilter = .all
     @State private var searchText: String = ""
     @State private var selectedRecordingId: String?
 
+    // Per-group expansion state — every shelf starts collapsed (mirrors iOS).
+    @State private var expandedGroups: Set<String> = []
+
+    // On-screen height of the scroll viewport; caps the collapsed biography.
+    @State private var viewportHeight: CGFloat = 0
+
     @StateObject private var performerService = PerformerService()
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScrollView {
@@ -35,16 +43,19 @@ struct PerformerDetailView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .padding(.top, 100)
             } else if let performer = performer {
-                VStack(alignment: .leading, spacing: 24) {
-                    // Header with image
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXL) {
+                    // Header with image carousel
                     performerHeader(performer)
 
-                    // Biographical Information (collapsible)
-                    biographicalInfoSection(performer)
+                    // Biography (typography only, height-capped Read More)
+                    biographySection(performer)
+
+                    // Learn More links (iOS styling)
+                    learnMorePanel(performer)
 
                     Divider()
 
-                    // Recordings with filtering and grouping
+                    // Recordings with filtering, sort, and +/- accordions
                     recordingsSection(performer.recordings ?? [])
                 }
                 .padding()
@@ -55,6 +66,15 @@ struct PerformerDetailView: View {
             }
         }
         .background(ApproachNoteTheme.background)
+        .background(
+            // ScrollView frame == viewport; reports the on-screen height used
+            // to cap the collapsed biography at ~30%.
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { viewportHeight = proxy.size.height }
+                    .onChange(of: proxy.size.height) { _, newValue in viewportHeight = newValue }
+            }
+        )
         .task(id: performerId) {
             await loadPerformer()
         }
@@ -74,65 +94,31 @@ struct PerformerDetailView: View {
         }
     }
 
-    // MARK: - View Components
+    // MARK: - Header
 
     @ViewBuilder
     private func performerHeader(_ performer: PerformerDetail) -> some View {
-        HStack(alignment: .top, spacing: 24) {
-            // Artist image
-            if let image = performer.images?.first {
-                AsyncImage(url: URL(string: image.thumbnailUrl ?? image.url)) { img in
-                    img
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                } placeholder: {
-                    Rectangle()
-                        .fill(ApproachNoteTheme.surface)
-                        .overlay {
-                            Image(systemName: "person.fill")
-                                .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
-                }
-                .frame(width: 150, height: 150)
-                .clipShape(RoundedRectangle(cornerRadius: 12))
-            } else {
-                Rectangle()
-                    .fill(ApproachNoteTheme.surface)
-                    .overlay {
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 40))
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
-                    .frame(width: 150, height: 150)
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-            }
+        HStack(alignment: .top, spacing: ApproachNoteTheme.spacingXL) {
+            // Artist image(s) — pages through all images when there are several.
+            PerformerImageCarousel(images: performer.images ?? [])
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
                 Text(performer.name)
                     .font(ApproachNoteTheme.largeTitle())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                if let birthDate = performer.birthDate {
-                    HStack(spacing: 4) {
-                        Text(birthDate)
-                        if let deathDate = performer.deathDate {
-                            Text("–")
-                            Text(deathDate)
-                        }
-                    }
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                // Lifespan: "1926 May 26" or "1926 May 26 – 1991 Sep 28"
+                if let lifespan = formattedLifespan(birth: performer.birthDate, death: performer.deathDate) {
+                    Text(lifespan)
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
 
-                // Primary instruments
-                if let instruments = performer.instruments?.filter({ $0.isPrimary == true }) {
-                    let instrumentNames = instruments.map { $0.name }.joined(separator: ", ")
-                    if !instrumentNames.isEmpty {
-                        Text(instrumentNames)
-                            .font(ApproachNoteTheme.title3())
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                    }
+                // All instruments, primary-first (matches iOS).
+                if let instruments = performer.instruments, !instruments.isEmpty {
+                    Text(instrumentList(instruments))
+                        .font(ApproachNoteTheme.body())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
             }
 
@@ -140,167 +126,63 @@ struct PerformerDetailView: View {
         }
     }
 
-    // MARK: - Biographical Information Section (Collapsible)
+    // MARK: - Biography
 
     @ViewBuilder
-    private func biographicalInfoSection(_ performer: PerformerDetail) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Collapsible Header
-            Button(action: {
-                withAnimation {
-                    isBiographicalInfoExpanded.toggle()
-                }
-            }) {
-                HStack {
-                    Text("Biographical Information")
-                        .font(ApproachNoteTheme.title3())
-                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                    Spacer()
-                    Image(systemName: isBiographicalInfoExpanded ? "chevron.up" : "chevron.down")
-                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                }
-                .padding()
-                .background(ApproachNoteTheme.surface)
-            }
-            .buttonStyle(.plain)
-
-            // Always show biography preview
-            if let biography = performer.biography, !biography.isEmpty {
-                Text(biography)
-                    .font(ApproachNoteTheme.body())
-                    .bodyLineSpacing()
+    private func biographySection(_ performer: PerformerDetail) -> some View {
+        if let biography = performer.biography, !biography.isEmpty {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                Text("BIOGRAPHY")
+                    .font(ApproachNoteTheme.title3())
+                    .bold()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                    .lineSpacing(4)
-                    .lineLimit(isBiographicalInfoExpanded ? nil : 3)
-                    .padding(.horizontal)
-                    .padding(.top, 12)
-            }
 
-            // Expandable Content
-            if isBiographicalInfoExpanded {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Birth/Death dates
-                    if performer.birthDate != nil || performer.deathDate != nil {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let birthDate = performer.birthDate {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "calendar")
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    Text("Born: \(birthDate)")
-                                        .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
-                            }
-                            if let deathDate = performer.deathDate {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "calendar")
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    Text("Died: \(deathDate)")
-                                        .font(ApproachNoteTheme.subheadline())
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
-                            }
-                        }
-                    }
-
-                    // Instruments
-                    if let instruments = performer.instruments, !instruments.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Instruments")
-                                .font(ApproachNoteTheme.headline())
-                                .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                            FlowLayout(spacing: 8) {
-                                ForEach(instruments, id: \.name) { instrument in
-                                    Text(instrument.name)
-                                        .font(ApproachNoteTheme.caption())
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(instrument.isPrimary == true ? ApproachNoteTheme.brand : ApproachNoteTheme.surface)
-                                        .foregroundColor(instrument.isPrimary == true ? .white : ApproachNoteTheme.textPrimary)
-                                        .cornerRadius(16)
-                                }
-                            }
-                        }
-                    }
-
-                    // Learn More (Wikipedia, MusicBrainz)
-                    learnMorePanel(performer)
-                }
-                .padding()
+                ExpandableBiography(
+                    biography: biography,
+                    maxCollapsedHeight: viewportHeight > 0 ? viewportHeight * 0.30 : .greatestFiniteMagnitude
+                )
             }
         }
-        .background(ApproachNoteTheme.surface)
-        .cornerRadius(10)
     }
 
-    // MARK: - Learn More Panel
+    // MARK: - Learn More
 
     @ViewBuilder
     private func learnMorePanel(_ performer: PerformerDetail) -> some View {
-        let hasWikipedia = performer.wikipediaUrl != nil
-        let hasMusicbrainz = performer.musicbrainzId != nil
+        let wikipediaURL = performer.wikipediaUrl
+        let jazzStandardsURL = performer.externalLinks?["jazzstandards"]
+        let musicbrainzURL = performer.musicbrainzId.map { "https://musicbrainz.org/artist/\($0)" }
 
-        if hasWikipedia || hasMusicbrainz {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Learn More")
-                    .font(ApproachNoteTheme.headline())
+        if wikipediaURL != nil || jazzStandardsURL != nil || musicbrainzURL != nil {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                Text("Learn More:")
+                    .font(ApproachNoteTheme.body(weight: .semibold))
+                    .bodyLineSpacing()
                     .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                VStack(spacing: 8) {
-                    // Wikipedia
-                    if let wikipediaUrl = performer.wikipediaUrl, let url = URL(string: wikipediaUrl) {
-                        Link(destination: url) {
-                            HStack {
-                                Image(systemName: "book.fill")
-                                    .foregroundColor(ApproachNoteTheme.accent)
-                                    .frame(width: 24)
-                                Text("Wikipedia")
-                                    .font(ApproachNoteTheme.body())
-                                    .bodyLineSpacing()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "arrow.up.right.square")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
+                VStack(spacing: ApproachNoteTheme.spacingXS) {
+                    if let wikipediaURL {
+                        externalLinkButton("Wikipedia", url: wikipediaURL)
                     }
-
-                    // MusicBrainz
-                    if let musicbrainzId = performer.musicbrainzId {
-                        let mbUrl = URL(string: "https://musicbrainz.org/artist/\(musicbrainzId)")!
-                        Link(destination: mbUrl) {
-                            HStack {
-                                Image(systemName: "waveform.circle.fill")
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                                    .frame(width: 24)
-                                Text("MusicBrainz")
-                                    .font(ApproachNoteTheme.body())
-                                    .bodyLineSpacing()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                                Spacer()
-                                Image(systemName: "arrow.up.right.square")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                            }
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 12)
-                            .background(Color.white)
-                            .cornerRadius(8)
-                        }
-                        .buttonStyle(.plain)
+                    if let jazzStandardsURL {
+                        externalLinkButton("Jazz Standards", url: jazzStandardsURL)
+                    }
+                    if let musicbrainzURL {
+                        externalLinkButton("MusicBrainz", url: musicbrainzURL)
                     }
                 }
+                // Keep the iOS pill styling but at a sensible width on a wide window.
+                .frame(maxWidth: 360, alignment: .leading)
             }
-            .padding()
-            .background(ApproachNoteTheme.surface)
-            .cornerRadius(10)
+        }
+    }
+
+    @ViewBuilder
+    private func externalLinkButton(_ label: String, url urlString: String) -> some View {
+        ApproachNoteButton(label, style: .secondary, trailingSystemImage: "arrow.up.right.square") {
+            if let url = URL(string: urlString) {
+                openURL(url)
+            }
         }
     }
 
@@ -311,52 +193,29 @@ struct PerformerDetailView: View {
         let filtered = filteredRecordings(recordings)
         let grouped = groupedRecordings(filtered)
 
-        VStack(alignment: .leading, spacing: 12) {
-            // Header with count and sort
-            HStack {
-                Image(systemName: "music.note.list")
-                    .foregroundColor(ApproachNoteTheme.brand)
-                Text("Recordings")
-                    .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+            // Header — typography only (no icon); sort pill sits next to the
+            // title rather than pinned to the far right.
+            HStack(alignment: .center, spacing: ApproachNoteTheme.spacingXS) {
+                HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
+                    Text("RECORDINGS")
+                        .font(ApproachNoteTheme.title3())
+                        .bold()
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                Text("(\(filtered.count))")
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    Text("(\(filtered.count))")
+                        .font(ApproachNoteTheme.subheadline())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                }
+
+                sortMenu
+                    .fixedSize()
 
                 Spacer()
-
-                // Sort menu
-                Menu {
-                    ForEach(PerformerRecordingSortOrder.allCases) { order in
-                        Button(action: { sortOrder = order }) {
-                            HStack {
-                                Text(order.displayName)
-                                if sortOrder == order {
-                                    Image(systemName: "checkmark")
-                                }
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 3) {
-                        Text(sortOrder.displayName)
-                            .font(ApproachNoteTheme.caption())
-                        Image(systemName: "chevron.down")
-                            .font(.caption2)
-                    }
-                    .foregroundColor(ApproachNoteTheme.brand)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
-                    .background(ApproachNoteTheme.brand.opacity(0.1))
-                    .cornerRadius(6)
-                }
-                .menuStyle(.borderlessButton)
             }
 
-            // Search and Filter Bar
-            VStack(spacing: 12) {
-                // Search Field
+            // Controls — search + brand-styled role segmented (mirrors iOS).
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                 HStack {
                     Image(systemName: "magnifyingglass")
                         .foregroundColor(ApproachNoteTheme.textSecondary)
@@ -370,26 +229,26 @@ struct PerformerDetailView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(10)
+                .padding(ApproachNoteTheme.spacingXS)
                 .background(ApproachNoteTheme.surface)
                 .cornerRadius(8)
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
-                        .stroke(ApproachNoteTheme.textSecondary.opacity(0.3), lineWidth: 1)
+                        .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
                 )
 
-                // Role Filter Picker
-                Picker("Filter", selection: $selectedFilter) {
-                    ForEach(RecordingFilter.allCases, id: \.self) { filter in
-                        Text(filter.rawValue).tag(filter)
-                    }
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+                    Text("Role")
+                        .font(ApproachNoteTheme.callout(weight: .semibold))
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+
+                    rolePicker
                 }
-                .pickerStyle(.segmented)
             }
 
-            // Recordings content
+            // Content
             if isRecordingsLoading {
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     ProgressView()
                         .scaleEffect(1.2)
                     Text("Loading recordings...")
@@ -399,7 +258,7 @@ struct PerformerDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else if filtered.isEmpty {
-                VStack(spacing: 12) {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
                     Image(systemName: "music.note")
                         .font(.system(size: 40))
                         .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
@@ -417,30 +276,144 @@ struct PerformerDetailView: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 40)
             } else {
-                // Grouped recordings
-                ForEach(grouped, id: \.groupKey) { group in
-                    VStack(alignment: .leading, spacing: 8) {
-                        // Group header
-                        Text("\(group.groupKey) (\(group.recordings.count))")
-                            .font(ApproachNoteTheme.headline())
-                            .foregroundColor(ApproachNoteTheme.brand)
-                            .padding(.top, 8)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(grouped, id: \.groupKey) { group in
+                        groupAccordion(group)
+                    }
+                }
+                .padding(.top, ApproachNoteTheme.spacingXS)
+            }
+        }
+    }
 
-                        // Horizontal scroll of recordings
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(alignment: .top, spacing: 16) {
-                                ForEach(group.recordings) { recording in
-                                    PerformerRecordingCard(recording: recording)
-                                        .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            selectedRecordingId = recording.recordingId
-                                        }
-                                }
-                            }
-                            .padding(.horizontal, 4)
+    // MARK: Sort menu (bordered pill)
+
+    @ViewBuilder
+    private var sortMenu: some View {
+        Menu {
+            ForEach(PerformerRecordingSortOrder.allCases) { order in
+                Button(action: {
+                    if sortOrder != order {
+                        expandedGroups.removeAll()
+                        sortOrder = order
+                    }
+                }) {
+                    HStack {
+                        Text(order.displayName)
+                        if sortOrder == order {
+                            Image(systemName: "checkmark")
                         }
                     }
                 }
+            }
+        } label: {
+            HStack(spacing: ApproachNoteTheme.spacingXS) {
+                (
+                    Text("Sort:")
+                        .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    + Text(" \(sortOrder.displayName)")
+                        .font(ApproachNoteTheme.subheadline())
+                )
+                .lineLimit(1)
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+            }
+            .foregroundColor(ApproachNoteTheme.textPrimary)
+            .padding(.horizontal, ApproachNoteTheme.spacingSM)
+            .padding(.vertical, ApproachNoteTheme.spacingXS)
+            .background(ApproachNoteTheme.surface)
+            .cornerRadius(8)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
+            )
+        }
+        .menuStyle(.borderlessButton)
+    }
+
+    // MARK: Role picker (brand-outlined segmented, matches iOS)
+
+    @ViewBuilder
+    private var rolePicker: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(RecordingFilter.allCases.enumerated()), id: \.element) { index, filter in
+                if index > 0 {
+                    Spacer(minLength: 4)
+                }
+                let isSelected = selectedFilter == filter
+                Button {
+                    selectedFilter = filter
+                } label: {
+                    Text(filter.rawValue.uppercased())
+                        .font(ApproachNoteTheme.footnote(weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                        .foregroundColor(isSelected ? ApproachNoteTheme.textOnAccent : ApproachNoteTheme.brand)
+                        .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                        .padding(.vertical, ApproachNoteTheme.spacingXS)
+                        .background(
+                            Capsule().fill(isSelected ? ApproachNoteTheme.brand : Color.clear)
+                        )
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
+        .padding(.vertical, ApproachNoteTheme.spacingXXS)
+        .frame(maxWidth: 360)
+        .overlay(
+            Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
+        )
+        .animation(.easeInOut(duration: 0.15), value: selectedFilter)
+    }
+
+    // MARK: Group accordion
+
+    @ViewBuilder
+    private func groupAccordion(_ group: (groupKey: String, recordings: [PerformerRecording])) -> some View {
+        let isExpanded = expandedGroups.contains(group.groupKey)
+
+        VStack(alignment: .leading, spacing: 0) {
+            Divider()
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if isExpanded {
+                        expandedGroups.remove(group.groupKey)
+                    } else {
+                        expandedGroups.insert(group.groupKey)
+                    }
+                }
+            }) {
+                HStack {
+                    Text("\(group.groupKey) (\(group.recordings.count))")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                    Spacer()
+                    Image(systemName: isExpanded ? "minus" : "plus")
+                        .font(ApproachNoteTheme.headline())
+                        .foregroundColor(ApproachNoteTheme.brand)
+                }
+                .padding(.vertical, ApproachNoteTheme.spacingSM)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            if isExpanded {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(alignment: .top, spacing: ApproachNoteTheme.spacingMD) {
+                        ForEach(group.recordings) { recording in
+                            PerformerRecordingCard(recording: recording)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    selectedRecordingId = recording.recordingId
+                                }
+                        }
+                    }
+                    .padding(.vertical, ApproachNoteTheme.spacingXS)
+                }
+                .padding(.bottom, ApproachNoteTheme.spacingSM)
             }
         }
     }
@@ -450,7 +423,6 @@ struct PerformerDetailView: View {
     private func filteredRecordings(_ recordings: [PerformerRecording]) -> [PerformerRecording] {
         var result = recordings
 
-        // Apply role filter
         switch selectedFilter {
         case .all:
             break
@@ -460,7 +432,6 @@ struct PerformerDetailView: View {
             result = result.filter { $0.role?.lowercased() == "sideman" }
         }
 
-        // Apply search filter
         if !searchText.isEmpty {
             let query = searchText.lowercased()
             result = result.filter { recording in
@@ -520,13 +491,56 @@ struct PerformerDetailView: View {
             letters[letterKey, default: []].append(recording)
         }
 
-        // Sort letter order alphabetically
         letterOrder.sort()
 
         return letterOrder.compactMap { key in
             guard let recs = letters[key] else { return nil }
             return (groupKey: key, recordings: recs)
         }
+    }
+
+    // MARK: - Formatting Helpers (match iOS)
+
+    /// "1926 May 26" (birth only) or "1926 May 26 – 1991 Sep 28" (birth–death).
+    private func formattedLifespan(birth: String?, death: String?) -> String? {
+        switch (formatPartialDate(birth), formatPartialDate(death)) {
+        case let (b?, d?): return "\(b) – \(d)"
+        case let (b?, nil): return b
+        case let (nil, d?): return d
+        default: return nil
+        }
+    }
+
+    /// Formats a (possibly partial) ISO date string as "YYYY Mon D".
+    /// MusicBrainz dates can be year-only ("1926"), year-month ("1926-05"),
+    /// or full ("1926-05-26"); each renders with as much detail as it carries.
+    private func formatPartialDate(_ raw: String?) -> String? {
+        guard let raw = raw?.trimmingCharacters(in: .whitespaces), !raw.isEmpty else { return nil }
+        let parts = raw.split(separator: "-")
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+
+        if parts.count >= 3 {
+            formatter.dateFormat = "yyyy-MM-dd"
+            if let date = formatter.date(from: "\(parts[0])-\(parts[1])-\(parts[2])") {
+                formatter.dateFormat = "yyyy MMM d"
+                return formatter.string(from: date)
+            }
+        }
+        if parts.count == 2 {
+            formatter.dateFormat = "yyyy-MM"
+            if let date = formatter.date(from: "\(parts[0])-\(parts[1])") {
+                formatter.dateFormat = "yyyy MMM"
+                return formatter.string(from: date)
+            }
+        }
+        return String(parts[0])
+    }
+
+    /// Comma-separated instrument names, primary instruments first.
+    private func instrumentList(_ instruments: [PerformerInstrument]) -> String {
+        let sorted = instruments.sorted { ($0.isPrimary == true) && !($1.isPrimary == true) }
+        return sorted.map(\.name).joined(separator: ", ")
     }
 
     // MARK: - Data Loading
@@ -556,21 +570,222 @@ struct PerformerDetailView: View {
     }
 }
 
-// MARK: - Performer Recording Card
+// MARK: - Performer Image Carousel
+//
+// Fixed-size square hero. A single image shows on its own; with multiple
+// images, the strip pages with a trackpad swipe, and hover-revealed arrow
+// buttons + tappable page dots step through them for mouse users. All three
+// share one scroll-position binding so swipe and clicks stay in sync.
+private struct PerformerImageCarousel: View {
+    let images: [ArtistImage]
 
+    private let size: CGFloat = 320
+    @State private var scrolledImageID: String?
+    @State private var isHovering = false
+
+    private var currentIndex: Int {
+        guard let id = scrolledImageID,
+              let idx = images.firstIndex(where: { $0.id == id }) else { return 0 }
+        return idx
+    }
+
+    var body: some View {
+        Group {
+            if images.isEmpty {
+                placeholder
+            } else if images.count == 1 {
+                thumbnail(images[0])
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 0) {
+                        ForEach(images) { image in
+                            thumbnail(image)
+                                .containerRelativeFrame(.horizontal)
+                        }
+                    }
+                    .scrollTargetLayout()
+                }
+                .scrollTargetBehavior(.paging)
+                .scrollPosition(id: $scrolledImageID)
+                .overlay(alignment: .leading) {
+                    if isHovering {
+                        navButton(systemImage: "chevron.left") { step(-1) }
+                    }
+                }
+                .overlay(alignment: .trailing) {
+                    if isHovering {
+                        navButton(systemImage: "chevron.right") { step(1) }
+                    }
+                }
+                .overlay(alignment: .bottom) {
+                    PageDots(count: images.count, current: currentIndex) { target in
+                        withAnimation(.easeInOut(duration: 0.2)) {
+                            scrolledImageID = images[target].id
+                        }
+                    }
+                    .padding(.bottom, ApproachNoteTheme.spacingXS)
+                }
+                .onAppear {
+                    if scrolledImageID == nil { scrolledImageID = images.first?.id }
+                }
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .onHover { isHovering = $0 }
+    }
+
+    private func step(_ delta: Int) {
+        guard !images.isEmpty else { return }
+        let target = (currentIndex + delta + images.count) % images.count
+        withAnimation(.easeInOut(duration: 0.2)) {
+            scrolledImageID = images[target].id
+        }
+    }
+
+    private func thumbnail(_ image: ArtistImage) -> some View {
+        AsyncImage(url: URL(string: image.thumbnailUrl ?? image.url)) { img in
+            img
+                .resizable()
+                // Keep the full image and scale to fit (no cropping); the
+                // square is filled behind it so letterboxing looks intentional.
+                .aspectRatio(contentMode: .fit)
+        } placeholder: {
+            placeholder
+        }
+        .frame(width: size, height: size)
+        .background(ApproachNoteTheme.surface)
+    }
+
+    private func navButton(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.white)
+                .padding(8)
+                .background(Circle().fill(Color.black.opacity(0.45)))
+        }
+        .buttonStyle(.plain)
+        .padding(8)
+    }
+
+    private var placeholder: some View {
+        Rectangle()
+            .fill(ApproachNoteTheme.surface)
+            .frame(width: size, height: size)
+            .overlay {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 40))
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
+    }
+}
+
+// MARK: - Page Dots
+
+private struct PageDots: View {
+    let count: Int
+    let current: Int
+    var onSelect: ((Int) -> Void)?
+
+    var body: some View {
+        HStack(spacing: ApproachNoteTheme.spacingXS) {
+            ForEach(0..<count, id: \.self) { index in
+                Circle()
+                    .fill(Color.white.opacity(index == current ? 0.95 : 0.45))
+                    .frame(width: 7, height: 7)
+                    .contentShape(Circle())
+                    .onTapGesture { onSelect?(index) }
+            }
+        }
+        .padding(.horizontal, ApproachNoteTheme.spacingXS)
+        .padding(.vertical, 6)
+        .background(Capsule().fill(Color.black.opacity(0.35)))
+    }
+}
+
+// MARK: - Expandable Biography
+//
+// Shows the biography clamped to `maxCollapsedHeight` (~30% of the screen).
+// When the full text exceeds that height, a READ MORE button expands it
+// inline. A hidden full-height copy measures the real height so we only
+// offer READ MORE when the text actually overflows. (Mirrors iOS.)
+private struct ExpandableBiography: View {
+    let biography: String
+    let maxCollapsedHeight: CGFloat
+
+    @State private var isExpanded = false
+    @State private var fullHeight: CGFloat = 0
+
+    private var paragraphs: [String] {
+        biography.components(separatedBy: "\n\n").filter { !$0.isEmpty }
+    }
+
+    private var isTruncatable: Bool {
+        fullHeight > maxCollapsedHeight + 1
+    }
+
+    @ViewBuilder
+    private var bioText: some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                Text(paragraph)
+                    .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+            bioText
+                .frame(maxHeight: isExpanded ? nil : maxCollapsedHeight, alignment: .top)
+                .clipped()
+                .background(
+                    // Hidden full-height copy; .fixedSize forces the ideal
+                    // height (ignoring the clamp above) so we can detect overflow.
+                    bioText
+                        .fixedSize(horizontal: false, vertical: true)
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear
+                                    .onAppear { fullHeight = proxy.size.height }
+                                    .onChange(of: proxy.size.height) { _, newValue in fullHeight = newValue }
+                            }
+                        )
+                        .hidden()
+                )
+
+            if isTruncatable && !isExpanded {
+                ApproachNoteButton("Read More", style: .secondary) {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded = true }
+                }
+                .frame(maxWidth: 200, alignment: .leading)
+            }
+        }
+    }
+}
+
+// MARK: - Performer Recording Card
+//
+// De-carded shelf item mirroring the iOS card: square artwork, then
+// Year (bold) · Recording title (bold) · Album title (normal).
 struct PerformerRecordingCard: View {
     let recording: PerformerRecording
     @State private var isHovering = false
 
-    private let artworkSize: CGFloat = 160
+    private let artworkSize: CGFloat = 150
 
     private var coverUrl: String? {
         recording.bestCoverArtMedium ?? recording.bestCoverArtSmall
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // Album artwork with badges
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+            // Album artwork with canonical badge
             ZStack(alignment: .topTrailing) {
                 AsyncImage(url: URL(string: coverUrl ?? "")) { image in
                     image
@@ -586,10 +801,10 @@ struct PerformerRecordingCard: View {
                         }
                 }
                 .frame(width: artworkSize, height: artworkSize)
-                .clipShape(RoundedRectangle(cornerRadius: 10))
-                .shadow(color: .black.opacity(0.15), radius: 6, x: 0, y: 3)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .shadow(color: .black.opacity(isHovering ? 0.25 : 0.15),
+                        radius: isHovering ? 8 : 6, x: 0, y: 3)
 
-                // Canonical badge
                 if recording.isCanonical == true {
                     Image(systemName: "star.fill")
                         .foregroundColor(.yellow)
@@ -600,88 +815,33 @@ struct PerformerRecordingCard: View {
                         .padding(6)
                 }
             }
+            .frame(width: artworkSize)
 
-            // Song title
+            // Year (bold)
+            if let year = recording.recordingYear {
+                Text(String(year))
+                    .font(ApproachNoteTheme.subheadline(weight: .bold))
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
+                    .frame(width: artworkSize, alignment: .leading)
+            }
+
+            // Recording / song title (bold)
             Text(recording.songTitle)
-                .font(ApproachNoteTheme.subheadline(weight: .semibold))
-                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .font(ApproachNoteTheme.subheadline(weight: .bold))
+                .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(1)
                 .frame(width: artworkSize, alignment: .leading)
 
-            // Album title
+            // Album title (normal)
             Text(recording.albumTitle ?? "Unknown Album")
-                .font(ApproachNoteTheme.body(weight: .medium))
-                .bodyLineSpacing()
+                .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(ApproachNoteTheme.textPrimary)
                 .lineLimit(2)
                 .frame(width: artworkSize, alignment: .leading)
-
-            // Year
-            if let year = recording.recordingYear {
-                Text(String(year))
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .frame(width: artworkSize, alignment: .leading)
-            }
         }
-        .padding(12)
-        .background(isHovering ? ApproachNoteTheme.background : ApproachNoteTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(isHovering ? ApproachNoteTheme.brand.opacity(0.5) : Color.clear, lineWidth: 2)
-        )
-        .onHover { hovering in
-            isHovering = hovering
-        }
+        .frame(width: artworkSize)
+        .onHover { isHovering = $0 }
         .animation(.easeInOut(duration: 0.15), value: isHovering)
-    }
-}
-
-// MARK: - Flow Layout for Tags
-
-struct FlowLayout: Layout {
-    var spacing: CGFloat = 8
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let result = FlowResult(in: proposal.width ?? 0, subviews: subviews, spacing: spacing)
-        return result.size
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let result = FlowResult(in: bounds.width, subviews: subviews, spacing: spacing)
-        for (index, subview) in subviews.enumerated() {
-            subview.place(at: CGPoint(x: bounds.minX + result.positions[index].x,
-                                       y: bounds.minY + result.positions[index].y),
-                         proposal: .unspecified)
-        }
-    }
-
-    struct FlowResult {
-        var size: CGSize = .zero
-        var positions: [CGPoint] = []
-
-        init(in maxWidth: CGFloat, subviews: Subviews, spacing: CGFloat) {
-            var x: CGFloat = 0
-            var y: CGFloat = 0
-            var rowHeight: CGFloat = 0
-
-            for subview in subviews {
-                let size = subview.sizeThatFits(.unspecified)
-
-                if x + size.width > maxWidth && x > 0 {
-                    x = 0
-                    y += rowHeight + spacing
-                    rowHeight = 0
-                }
-
-                positions.append(CGPoint(x: x, y: y))
-                rowHeight = max(rowHeight, size.height)
-                x += size.width + spacing
-            }
-
-            self.size = CGSize(width: maxWidth, height: y + rowHeight)
-        }
     }
 }
 
