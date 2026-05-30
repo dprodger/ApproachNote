@@ -14,7 +14,6 @@ import YouTubePlayerKit
 struct BackingTracksSection: View {
     let videos: [Video]
 
-    @State private var isSectionExpanded: Bool = true
     @State private var selectedVideo: Video?
 
     var body: some View {
@@ -27,44 +26,24 @@ struct BackingTracksSection: View {
                 Spacer().frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    DisclosureGroup(
-                        isExpanded: $isSectionExpanded,
-                    content: {
-                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            ForEach(videos) { video in
-                                VideoRowView(video: video) {
-                                    selectedVideo = video
-                                }
+                    Text("BACKING TRACKS")
+                        .font(ApproachNoteTheme.title())
+                        .bold()
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
+
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                        ForEach(videos) { video in
+                            VideoRowView(video: video) {
+                                selectedVideo = video
                             }
                         }
-                        .padding(.top, ApproachNoteTheme.spacingSM)
-                    },
-                    label: {
-                        HStack {
-                            Image(systemName: "play.circle.fill")
-                                .foregroundColor(ApproachNoteTheme.accent)
-                            Text("Backing Tracks")
-                                .font(ApproachNoteTheme.title2())
-                                .bold()
-                                .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                            Spacer()
-
-                            Text("\(videos.count)")
-                                .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                                .padding(.horizontal, ApproachNoteTheme.spacingXS)
-                                .padding(.vertical, ApproachNoteTheme.spacingXXS)
-                                .background(ApproachNoteTheme.accent.opacity(0.1))
-                                .cornerRadius(6)
-                        }
-                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                     }
-                )
-                .tint(ApproachNoteTheme.accent)
-            }
+                    .padding(.top, ApproachNoteTheme.spacingSM)
+                }
 
-            Spacer().frame(width: 24)
+                Spacer().frame(width: 24)
             }
             .background(ApproachNoteTheme.background)
             .sheet(item: $selectedVideo) { video in

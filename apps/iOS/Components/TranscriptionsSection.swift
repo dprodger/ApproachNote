@@ -12,7 +12,6 @@ import YouTubePlayerKit
 struct TranscriptionsSection: View {
     let transcriptions: [SoloTranscription]
 
-    @State private var isSectionExpanded: Bool = true
     @State private var selectedTranscription: SoloTranscription?
 
     var body: some View {
@@ -21,49 +20,28 @@ struct TranscriptionsSection: View {
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
                 .padding(.top, ApproachNoteTheme.spacingMD)
 
-            // HStack with explicit spacers ensures DisclosureGroup chevron is properly inset
             HStack(spacing: 0) {
                 Spacer().frame(width: 24)
 
                 VStack(alignment: .leading, spacing: 0) {
-                    DisclosureGroup(
-                        isExpanded: $isSectionExpanded,
-                    content: {
-                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            ForEach(transcriptions) { transcription in
-                                TranscriptionRowView(transcription: transcription) {
-                                    selectedTranscription = transcription
-                                }
+                    Text("SOLO TRANSCRIPTIONS")
+                        .font(ApproachNoteTheme.title())
+                        .bold()
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, ApproachNoteTheme.spacingSM)
+
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                        ForEach(transcriptions) { transcription in
+                            TranscriptionRowView(transcription: transcription) {
+                                selectedTranscription = transcription
                             }
                         }
-                        .padding(.top, ApproachNoteTheme.spacingSM)
-                    },
-                    label: {
-                        HStack {
-                            Image(systemName: "music.quarternote.3")
-                                .foregroundColor(ApproachNoteTheme.accent)
-                            Text("Solo Transcriptions")
-                                .font(ApproachNoteTheme.title2())
-                                .bold()
-                                .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                            Spacer()
-
-                            Text("\(transcriptions.count)")
-                                .font(ApproachNoteTheme.subheadline())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                                .padding(.horizontal, ApproachNoteTheme.spacingXS)
-                                .padding(.vertical, ApproachNoteTheme.spacingXXS)
-                                .background(ApproachNoteTheme.accent.opacity(0.1))
-                                .cornerRadius(6)
-                        }
-                        .padding(.vertical, ApproachNoteTheme.spacingSM)
                     }
-                )
-                .tint(ApproachNoteTheme.accent)
-            }
+                    .padding(.top, ApproachNoteTheme.spacingSM)
+                }
 
-            Spacer().frame(width: 24)
+                Spacer().frame(width: 24)
             }
             .background(ApproachNoteTheme.background)
             .sheet(item: $selectedTranscription) { transcription in

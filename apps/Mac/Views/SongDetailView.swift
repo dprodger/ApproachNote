@@ -882,23 +882,10 @@ struct SongDetailView: View {
     @ViewBuilder
     private var transcriptionsSection: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-            HStack {
-                Image(systemName: "music.quarternote.3")
-                    .foregroundColor(ApproachNoteTheme.accent)
-                Text("Solo Transcriptions")
-                    .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                Spacer()
-
-                Text("\(transcriptions.count)")
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
-                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
-                    .background(ApproachNoteTheme.accent.opacity(0.1))
-                    .cornerRadius(6)
-            }
+            Text("SOLO TRANSCRIPTIONS")
+                .font(ApproachNoteTheme.title())
+                .bold()
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             ForEach(transcriptions) { transcription in
                 TranscriptionRow(transcription: transcription)
@@ -914,23 +901,10 @@ struct SongDetailView: View {
     @ViewBuilder
     private var backingTracksSection: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-            HStack {
-                Image(systemName: "play.circle.fill")
-                    .foregroundColor(ApproachNoteTheme.accent)
-                Text("Backing Tracks")
-                    .font(ApproachNoteTheme.title2())
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                Spacer()
-
-                Text("\(backingTracks.count)")
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
-                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
-                    .background(ApproachNoteTheme.accent.opacity(0.1))
-                    .cornerRadius(6)
-            }
+            Text("BACKING TRACKS")
+                .font(ApproachNoteTheme.title())
+                .bold()
+                .foregroundColor(ApproachNoteTheme.textPrimary)
 
             ForEach(backingTracks) { video in
                 BackingTrackRow(video: video)
