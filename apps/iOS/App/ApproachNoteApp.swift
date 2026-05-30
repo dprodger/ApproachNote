@@ -21,7 +21,6 @@ struct ApproachNoteApp: App {
     @StateObject private var repertoireManager = RepertoireManager()
     @StateObject private var authManager = AuthenticationManager()
     @StateObject private var favoritesManager = FavoritesManager()
-    @StateObject private var themeManager = ThemeManager.shared
 
     // Password reset state
     @State private var resetPasswordToken: String?
@@ -63,11 +62,6 @@ struct ApproachNoteApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // Temporary: force a tree-wide refresh when the runtime
-                // palette changes. `ApproachNoteTheme.*` color tokens read
-                // statically, so we re-create the view tree on switch.
-                .id(themeManager.palette)
-                .environmentObject(themeManager)
                 .onOpenURL { url in
                     NSLog("🔗 Received deep link: \(url)")
                     

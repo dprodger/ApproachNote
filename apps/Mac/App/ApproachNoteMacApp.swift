@@ -16,7 +16,6 @@ struct ApproachNoteMacApp: App {
     @StateObject private var authManager = AuthenticationManager()
     @StateObject private var repertoireManager = RepertoireManager()
     @StateObject private var favoritesManager = FavoritesManager()
-    @StateObject private var themeManager = ThemeManager.shared
 
     // Onboarding state - persisted across launches
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -40,10 +39,6 @@ struct ApproachNoteMacApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                // Temporary: force a tree-wide refresh when the runtime
-                // palette changes. See iOS app entry for context.
-                .id(themeManager.palette)
-                .environmentObject(themeManager)
                 .handlesExternalEvents(preferring: ["approachnote"], allowing: ["*"])
                 .environmentObject(authManager)
                 .environmentObject(repertoireManager)
@@ -165,7 +160,6 @@ struct ApproachNoteMacApp: App {
             SettingsView()
                 .environmentObject(authManager)
                 .environmentObject(favoritesManager)
-                .environmentObject(themeManager)
         }
         #endif
     }

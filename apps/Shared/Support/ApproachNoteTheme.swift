@@ -401,41 +401,47 @@ extension ApproachNoteTheme {
 
 extension ApproachNoteTheme {
 
-    // Color tokens are computed properties that resolve through the current
-    // palette selected via `ThemeManager` (see `ThemePalette.swift`). This is
-    // a temporary affordance for evaluating multiple palettes at runtime; to
-    // lock in a single palette, restore these to `static let` and inline the
-    // chosen values.
-
     // MARK: - Brand
 
-    static var brand: Color { currentPaletteColors.brand }
+    static let brand = Color(hex: 0x363A87)
 
     // MARK: - Surfaces
 
-    static var background: Color   { currentPaletteColors.background }
-    static var surface: Color      { currentPaletteColors.surface }
-    static var surfaceMuted: Color { currentPaletteColors.surfaceMuted }
+    static let background   = Color(hex: 0xFFFCF7)
+    static let surface      = Color(hex: 0xFFFFFF)
+    static let surfaceMuted = Color(hex: 0xD9D7D7)
 
     // MARK: - Text
 
-    static var textPrimary: Color    { currentPaletteColors.textPrimary }
-    static var textSecondary: Color  { currentPaletteColors.textSecondary }
-    static var textTertiary: Color   { currentPaletteColors.textTertiary }
-    static var textOnDark: Color     { currentPaletteColors.textOnDark }
-    static var textOnAccent: Color   { currentPaletteColors.textOnAccent }
+    static let textPrimary   = Color(hex: 0x413737)
+    static let textSecondary = Color(hex: 0x675F5F)
+    static let textTertiary  = Color(hex: 0xB3AFAF)
+    static let textOnDark    = Color(hex: 0xFFFCF7)
+    static let textOnAccent  = Color.white
 
     // MARK: - Accent (interactive)
 
-    static var accent: Color            { currentPaletteColors.accent }
-    static var accentMuted: Color       { currentPaletteColors.accentMuted }
-    static var accentBackground: Color  { currentPaletteColors.accentBackground }
+    static let accent           = Color(hex: 0x363A87)
+    static let accentMuted      = Color(hex: 0x5D619F)
+    static let accentBackground = Color(hex: 0xECEDFF)
 
     // MARK: - Status
 
-    static var warning: Color           { currentPaletteColors.warning }
-    static var warningBackground: Color { currentPaletteColors.warningBackground }
+    static let warning           = Color(hex: 0xFF3A4E)
+    static let warningBackground = Color(hex: 0xFFEBED)
 
+}
+
+// MARK: - Color hex helper
+
+extension Color {
+    /// Initialize from a 24-bit RGB hex value, e.g. `Color(hex: 0x454EFF)`.
+    init(hex: UInt32, alpha: Double = 1.0) {
+        let r = Double((hex >> 16) & 0xFF) / 255.0
+        let g = Double((hex >>  8) & 0xFF) / 255.0
+        let b = Double( hex        & 0xFF) / 255.0
+        self.init(.sRGB, red: r, green: g, blue: b, opacity: alpha)
+    }
 }
 
 // MARK: - Section Headers
