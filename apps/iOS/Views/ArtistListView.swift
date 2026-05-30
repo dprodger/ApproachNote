@@ -12,6 +12,7 @@ import SwiftUI
 struct ArtistsListView: View {
     @StateObject private var performerService = PerformerService()
     @State private var searchText = ""
+    @State private var isSearchActive = false
     @State private var searchTask: Task<Void, Never>?
     @State private var hasPerformedInitialLoad = false
 
@@ -93,7 +94,7 @@ struct ArtistsListView: View {
             contentView
                 .background(ApproachNoteTheme.background)
                 .jazzNavigationBar(title: "Artists (\(totalArtistsCount.formatted()))")
-                .searchable(text: $searchText, prompt: "Search artists")
+                .searchable(text: $searchText, isPresented: $isSearchActive, prompt: "Search artists")
                 .onChange(of: searchText) { oldValue, newValue in
                     searchTask?.cancel()
                     searchTask = Task {
@@ -197,6 +198,15 @@ struct ArtistsListView: View {
                         withAnimation(.easeOut(duration: 0.1)) {
                             proxy.scrollTo(letter, anchor: .top)
                         }
+                    },
+                    onSearch: {
+                        // Jump to the top of the list, then reveal + focus the search field.
+                        if let first = allSectionLetters.first {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo(first, anchor: .top)
+                            }
+                        }
+                        isSearchActive = true
                     }
                 )
                 .padding(.trailing, ApproachNoteTheme.spacingXXS)

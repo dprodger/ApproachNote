@@ -12,6 +12,7 @@ struct SongsListView: View {
     @EnvironmentObject var repertoireManager: RepertoireManager
     @EnvironmentObject var authManager: AuthenticationManager
     @State private var searchText = ""
+    @State private var isSearchActive = false
     @State private var searchTask: Task<Void, Never>?
     @State private var showRepertoirePicker = false
     @State private var showLoginPrompt = false
@@ -45,7 +46,7 @@ struct SongsListView: View {
             contentView
                 .background(ApproachNoteTheme.background)
                 .jazzNavigationBar(title: "Songs (\(songService.songs.count.formatted()))")
-                .searchable(text: $searchText, prompt: "Search songs")
+                .searchable(text: $searchText, isPresented: $isSearchActive, prompt: "Search songs")
                 .onChange(of: searchText) { oldValue, newValue in
                     searchTask?.cancel()
                     searchTask = Task {
@@ -280,6 +281,15 @@ struct SongsListView: View {
                         withAnimation(.easeOut(duration: 0.1)) {
                             proxy.scrollTo(letter, anchor: .top)
                         }
+                    },
+                    onSearch: {
+                        // Jump to the top of the list, then reveal + focus the search field.
+                        if let first = sectionLetters.first {
+                            withAnimation(.easeOut(duration: 0.2)) {
+                                proxy.scrollTo(first, anchor: .top)
+                            }
+                        }
+                        isSearchActive = true
                     }
                 )
                 .padding(.trailing, ApproachNoteTheme.spacingXXS)
@@ -492,6 +502,10 @@ struct AlphabetIndexView: View {
     let letters: [String]
     var accentColor: Color = ApproachNoteTheme.brand
     let onTap: (String) -> Void
+    /// When provided, a magnifying-glass icon is shown at the top of the index
+    /// (before the first letter, iOS Contacts style). Tapping it jumps the list
+    /// to the top and activates the search field.
+    var onSearch: (() -> Void)? = nil
 
     // Track which letter is currently being touched/dragged over
     @State private var highlightedLetter: String?
@@ -503,6 +517,33 @@ struct AlphabetIndexView: View {
     private let letterWidth: CGFloat = 32
 
     var body: some View {
+        VStack(spacing: 0) {
+            if let onSearch {
+                Button(action: onSearch) {
+                    Image(systemName: "magnifyingglass")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundColor(accentColor)
+                        .frame(width: letterWidth, height: letterHeight)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Search")
+            }
+
+            // Letters carry the tap/drag gestures in their own coordinate space,
+            // kept separate from the search button above so the two don't conflict.
+            lettersColumn
+        }
+        .padding(.vertical, ApproachNoteTheme.spacingXS)
+        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(ApproachNoteTheme.background.opacity(0.95))
+                .shadow(color: .black.opacity(0.15), radius: 3, x: -2, y: 0)
+        )
+    }
+
+    private var lettersColumn: some View {
         VStack(spacing: 0) {
             ForEach(Array(letters.enumerated()), id: \.element) { index, letter in
                 Text(letter)
@@ -516,13 +557,6 @@ struct AlphabetIndexView: View {
                     .contentShape(Rectangle()) // Expand touch target to full frame
             }
         }
-        .padding(.vertical, ApproachNoteTheme.spacingXS)
-        .padding(.horizontal, ApproachNoteTheme.spacingXXS)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(ApproachNoteTheme.background.opacity(0.95))
-                .shadow(color: .black.opacity(0.15), radius: 3, x: -2, y: 0)
-        )
         .gesture(
             DragGesture(minimumDistance: 0)
                 .onChanged { value in
@@ -567,11 +601,11 @@ struct AlphabetIndexView: View {
         }
     }
 
-    /// Calculate which letter is at the given Y location
+    /// Calculate which letter is at the given Y location. The gesture lives on
+    /// `lettersColumn`, whose local origin is the first letter, so no padding
+    /// offset is needed.
     private func letterAt(location: CGPoint) -> String? {
-        // Account for vertical padding (8 points at top)
-        let adjustedY = location.y - 8
-        let index = Int(adjustedY / letterHeight)
+        let index = Int(location.y / letterHeight)
 
         guard index >= 0 && index < letters.count else {
             return nil
