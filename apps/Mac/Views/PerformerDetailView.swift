@@ -503,7 +503,7 @@ struct PerformerDetailView: View {
 
     // MARK: - Formatting Helpers (match iOS)
 
-    /// "1926 May 26" (birth only) or "1926 May 26 – 1991 Sep 28" (birth–death).
+    /// "May 26, 1926" (birth only) or "May 26, 1926 – September 28, 1991" (birth–death).
     private func formattedLifespan(birth: String?, death: String?) -> String? {
         switch (formatPartialDate(birth), formatPartialDate(death)) {
         case let (b?, d?): return "\(b) – \(d)"
@@ -513,7 +513,7 @@ struct PerformerDetailView: View {
         }
     }
 
-    /// Formats a (possibly partial) ISO date string as "YYYY Mon D".
+    /// Formats a (possibly partial) ISO date string as "Month D, YYYY".
     /// MusicBrainz dates can be year-only ("1926"), year-month ("1926-05"),
     /// or full ("1926-05-26"); each renders with as much detail as it carries.
     private func formatPartialDate(_ raw: String?) -> String? {
@@ -525,14 +525,14 @@ struct PerformerDetailView: View {
         if parts.count >= 3 {
             formatter.dateFormat = "yyyy-MM-dd"
             if let date = formatter.date(from: "\(parts[0])-\(parts[1])-\(parts[2])") {
-                formatter.dateFormat = "yyyy MMM d"
+                formatter.dateFormat = "MMMM d, yyyy"
                 return formatter.string(from: date)
             }
         }
         if parts.count == 2 {
             formatter.dateFormat = "yyyy-MM"
             if let date = formatter.date(from: "\(parts[0])-\(parts[1])") {
-                formatter.dateFormat = "yyyy MMM"
+                formatter.dateFormat = "MMMM yyyy"
                 return formatter.string(from: date)
             }
         }
