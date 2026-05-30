@@ -36,12 +36,18 @@ struct MusicBrainzSearchSheet: View {
             .background(ApproachNoteTheme.background)
             .navigationTitle("MusicBrainz Search")
             .navigationBarTitleDisplayMode(.inline)
+            // Style the nav bar from the live palette (the global
+            // UINavigationBar appearance is set once at launch and goes stale
+            // when the palette changes), matching jazzNavigationBar.
+            .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.brand)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                 }
             }
             .task {

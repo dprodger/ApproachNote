@@ -250,14 +250,24 @@ struct VideoPlayerSheet: View {
             .background(ApproachNoteTheme.background)
             .navigationTitle(video.title ?? "Backing Track")
             .navigationBarTitleDisplayMode(.inline)
+            // Style the nav bar from the live palette (the global
+            // UINavigationBar appearance is set once at launch and goes stale
+            // when the palette changes), matching jazzNavigationBar.
+            .toolbarBackground(ApproachNoteTheme.brand, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
+                    .fontWeight(.semibold)
+                    .foregroundColor(ApproachNoteTheme.textOnDark)
                 }
             }
         }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 
     private func formatDuration(_ seconds: Int) -> String {
