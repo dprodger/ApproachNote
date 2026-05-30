@@ -60,7 +60,7 @@ class FavoritesManager: ObservableObject {
         // Check authentication
         guard let authManager = authManager,
               authManager.isAuthenticated,
-              let token = authManager.getAccessToken() else {
+              let token = await authManager.validAccessToken() else {
             await MainActor.run {
                 self.favoriteRecordingIds = []
                 self.favoriteRecordings = []
@@ -95,7 +95,7 @@ class FavoritesManager: ObservableObject {
     @discardableResult
     func toggleFavorite(recordingId: String) async -> Int? {
         guard let authManager = authManager,
-              let token = authManager.getAccessToken() else {
+              let token = await authManager.validAccessToken() else {
             await MainActor.run {
                 errorMessage = "Please sign in to favorite recordings"
             }
@@ -149,7 +149,7 @@ class FavoritesManager: ObservableObject {
     /// - Returns: The new favorite count, or nil on error
     func addFavorite(recordingId: String) async -> Int? {
         guard let authManager = authManager,
-              let token = authManager.getAccessToken() else {
+              let token = await authManager.validAccessToken() else {
             await MainActor.run {
                 errorMessage = "Please sign in to favorite recordings"
             }
@@ -180,7 +180,7 @@ class FavoritesManager: ObservableObject {
     /// - Returns: The new favorite count, or nil on error
     func removeFavorite(recordingId: String) async -> Int? {
         guard let authManager = authManager,
-              let token = authManager.getAccessToken() else {
+              let token = await authManager.validAccessToken() else {
             await MainActor.run {
                 errorMessage = "Please sign in to manage favorites"
             }

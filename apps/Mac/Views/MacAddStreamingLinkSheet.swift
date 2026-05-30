@@ -329,7 +329,7 @@ struct MacAddStreamingLinkSheet: View {
     // MARK: - Actions
 
     private func saveLink() async {
-        guard let token = authManager.getAccessToken() else {
+        guard let token = await authManager.validAccessToken() else {
             errorMessage = "Please sign in to add streaming links"
             return
         }

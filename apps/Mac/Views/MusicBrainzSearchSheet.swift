@@ -249,7 +249,7 @@ struct MusicBrainzSearchSheet: View {
         isImporting = true
         selectedWork = nil
 
-        guard let token = authManager.getAccessToken() else {
+        guard let token = await authManager.validAccessToken() else {
             importError = "You must be logged in to import songs."
             isImporting = false
             return

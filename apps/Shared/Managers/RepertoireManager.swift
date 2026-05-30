@@ -312,7 +312,7 @@ class RepertoireManager: ObservableObject {
         
         // Fetch songs with authentication if needed
         Task {
-            if repertoire.id != "all", let authManager = authManager, let token = authManager.getAccessToken() {
+            if repertoire.id != "all", let authManager = authManager, let token = await authManager.validAccessToken() {
                 await songService.fetchSongsInRepertoire(
                     repertoireId: repertoire.id,
                     authToken: token

@@ -189,7 +189,7 @@ struct CommunitySettingsView: View {
     // MARK: - Data Loading
 
     private func loadContributionStats() async {
-        guard let token = authManager.getAccessToken() else {
+        guard let token = await authManager.validAccessToken() else {
             isLoading = false
             errorMessage = "Not authenticated"
             return

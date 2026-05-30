@@ -170,7 +170,7 @@ struct SongsListView: View {
 
     private func loadSongs() async {
         if repertoireManager.selectedRepertoire.id != "all",
-           let token = authManager.getAccessToken() {
+           let token = await authManager.validAccessToken() {
             await songService.fetchSongsInRepertoire(
                 repertoireId: repertoireManager.selectedRepertoire.id,
                 searchQuery: searchText,

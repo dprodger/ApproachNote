@@ -380,7 +380,7 @@ struct SettingsView: View {
     // MARK: - Data Loading
 
     private func loadContributionStats() async {
-        guard let token = authManager.getAccessToken() else {
+        guard let token = await authManager.validAccessToken() else {
             return
         }
 

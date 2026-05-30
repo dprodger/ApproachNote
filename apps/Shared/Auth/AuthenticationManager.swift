@@ -500,8 +500,63 @@ class AuthenticationManager: ObservableObject {
     }
     
     /// Get current access token (for manual requests)
+    ///
+    /// Returns whatever is in memory WITHOUT checking expiry. Access tokens
+    /// live only 15 minutes, so a token from this method may already be
+    /// expired and 401 on use. Prefer `validAccessToken()` for any request
+    /// that must succeed.
     func getAccessToken() -> String? {
         return accessToken
+    }
+
+    /// Get a valid (non-expired) access token, refreshing first if the current
+    /// one has expired or is about to.
+    ///
+    /// Use this instead of `getAccessToken()` for data-loading requests that
+    /// attach the token themselves (rather than going through
+    /// `makeAuthenticatedRequest`, which already refreshes reactively on 401).
+    ///
+    /// - Returns: A usable access token, or `nil` if the user is not
+    ///   authenticated or the refresh failed.
+    func validAccessToken() async -> String? {
+        guard let token = accessToken else { return nil }
+
+        if !Self.isTokenExpired(token) {
+            return token
+        }
+
+        Log.auth.debug("Access token expired or near expiry - refreshing before use")
+        let refreshed = await refreshAccessToken()
+        return refreshed ? accessToken : nil
+    }
+
+    /// Decode a JWT's `exp` claim (without verifying the signature) and report
+    /// whether it has expired. Tokens within `leeway` seconds of expiry are
+    /// treated as expired so we refresh proactively rather than racing the
+    /// clock. Unparseable tokens are treated as expired so the caller refreshes
+    /// instead of sending a bad token.
+    private static func isTokenExpired(_ token: String, leeway: TimeInterval = 30) -> Bool {
+        let segments = token.split(separator: ".")
+        guard segments.count == 3,
+              let payloadData = base64URLDecode(String(segments[1])),
+              let json = try? JSONSerialization.jsonObject(with: payloadData) as? [String: Any],
+              let exp = json["exp"] as? Double else {
+            return true
+        }
+
+        let expiry = Date(timeIntervalSince1970: exp)
+        return Date().addingTimeInterval(leeway) >= expiry
+    }
+
+    /// Decode a base64url-encoded string (JWT segments use base64url, not
+    /// standard base64, and omit padding).
+    private static func base64URLDecode(_ value: String) -> Data? {
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        let paddingLength = (4 - base64.count % 4) % 4
+        base64 += String(repeating: "=", count: paddingLength)
+        return Data(base64Encoded: base64)
     }
     
     /// Reset password using token from email
