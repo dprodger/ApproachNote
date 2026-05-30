@@ -18,11 +18,6 @@ struct ContentView: View {
                     Label("Artists", systemImage: "person.2.fill")
                 }
 
-            RecordingsListView()
-                .tabItem {
-                    Label("Recordings", systemImage: "opticaldisc")
-                }
-
             SettingsView()
                 .environmentObject(authManager)
                 .tabItem {

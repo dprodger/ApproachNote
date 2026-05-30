@@ -157,11 +157,6 @@ struct ApproachNoteMacApp: App {
                     NotificationCenter.default.post(name: .navigateToArtists, object: nil)
                 }
                 .keyboardShortcut("2", modifiers: .command)
-
-                Button("Recordings") {
-                    NotificationCenter.default.post(name: .navigateToRecordings, object: nil)
-                }
-                .keyboardShortcut("3", modifiers: .command)
             }
         }
 
@@ -332,7 +327,6 @@ struct MacPerformerDetailSheet: View {
 extension Notification.Name {
     static let navigateToSongs = Notification.Name("navigateToSongs")
     static let navigateToArtists = Notification.Name("navigateToArtists")
-    static let navigateToRecordings = Notification.Name("navigateToRecordings")
     /// Posted when the Artists tab becomes selected so its search field can
     /// take focus.
     static let focusArtistSearch = Notification.Name("focusArtistSearch")

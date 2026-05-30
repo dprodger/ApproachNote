@@ -10,7 +10,6 @@ import SwiftUI
 enum NavigationItem: String, CaseIterable, Identifiable {
     case songs = "Songs"
     case artists = "Artists"
-    case recordings = "Recordings"
 
     var id: String { rawValue }
 
@@ -18,7 +17,6 @@ enum NavigationItem: String, CaseIterable, Identifiable {
         switch self {
         case .songs: return "music.note.list"
         case .artists: return "person.2.fill"
-        case .recordings: return "opticaldisc"
         }
     }
 }
@@ -44,12 +42,6 @@ struct ContentView: View {
                     Label("Artists", systemImage: "person.2.fill")
                 }
                 .tag(NavigationItem.artists)
-
-            RecordingsListView()
-                .tabItem {
-                    Label("Recordings", systemImage: "opticaldisc")
-                }
-                .tag(NavigationItem.recordings)
         }
         .toolbar {
             ToolbarItem(placement: .automatic) {
@@ -129,9 +121,6 @@ struct ContentView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: .navigateToArtists)) { _ in
             selectedTab = .artists
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .navigateToRecordings)) { _ in
-            selectedTab = .recordings
         }
         .onChange(of: selectedTab) { _, newTab in
             // When the Artists tab is selected (via the tab control or the
