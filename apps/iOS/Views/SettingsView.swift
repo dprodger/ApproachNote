@@ -82,6 +82,7 @@ struct SettingsView: View {
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                             .padding(.horizontal)
                     }
+                    .padding(.top, authManager.isAuthenticated ? 0 : ApproachNoteTheme.spacingXL)
 
                     if authManager.isAuthenticated {
                         Divider()
