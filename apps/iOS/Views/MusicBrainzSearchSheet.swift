@@ -168,7 +168,7 @@ struct MusicBrainzSearchSheet: View {
     }
 
     private func workRowView(work: MusicBrainzWork) -> some View {
-        HStack(alignment: .top, spacing: ApproachNoteTheme.spacingSM) {
+        HStack(alignment: .center, spacing: ApproachNoteTheme.spacingSM) {
             // Score indicator
             scoreIndicator(score: work.score)
 
@@ -211,12 +211,12 @@ struct MusicBrainzSearchSheet: View {
         return VStack(spacing: ApproachNoteTheme.spacingXXS) {
             Circle()
                 .fill(color)
-                .frame(width: 8, height: 8)
+                .frame(width: 10, height: 10)
             Text("\(scoreValue)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(color)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(ApproachNoteTheme.textPrimary)
         }
-        .frame(width: 24)
+        .frame(width: 32)
     }
 
     // MARK: - Actions
