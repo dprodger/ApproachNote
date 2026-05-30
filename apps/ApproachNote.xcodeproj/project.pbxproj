@@ -21,7 +21,6 @@
 		B41D0FB32EE633EE00DB427C /* RecordingDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FA92EE633EE00DB427C /* RecordingDetailView.swift */; };
 		B41D0FB42EE633EE00DB427C /* SongsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FAC2EE633EE00DB427C /* SongsListView.swift */; };
 		B41D0FB52EE633EE00DB427C /* ArtistsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FA72EE633EE00DB427C /* ArtistsListView.swift */; };
-		B41D0FB62EE633EE00DB427C /* RecordingsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FAA2EE633EE00DB427C /* RecordingsListView.swift */; };
 		B41D0FB72EE633EE00DB427C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B41D0FA32EE633EE00DB427C /* ContentView.swift */; };
 		B4201ACB2F19551400CEA2CF /* CommunitySettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4201ACA2F19551400CEA2CF /* CommunitySettingsView.swift */; };
 		B42DA62C2FBCEC4C00A812C8 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = B42DA62B2FBCEC4C00A812C8 /* PostHog */; };
@@ -123,7 +122,6 @@
 		B41D0FA72EE633EE00DB427C /* ArtistsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ArtistsListView.swift; sourceTree = "<group>"; };
 		B41D0FA82EE633EE00DB427C /* PerformerDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PerformerDetailView.swift; sourceTree = "<group>"; };
 		B41D0FA92EE633EE00DB427C /* RecordingDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingDetailView.swift; sourceTree = "<group>"; };
-		B41D0FAA2EE633EE00DB427C /* RecordingsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecordingsListView.swift; sourceTree = "<group>"; };
 		B41D0FAB2EE633EE00DB427C /* SongDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongDetailView.swift; sourceTree = "<group>"; };
 		B41D0FAC2EE633EE00DB427C /* SongsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SongsListView.swift; sourceTree = "<group>"; };
 		B4201ACA2F19551400CEA2CF /* CommunitySettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunitySettingsView.swift; sourceTree = "<group>"; };
@@ -313,7 +311,6 @@
 				B41D0FA72EE633EE00DB427C /* ArtistsListView.swift */,
 				B41D0FA82EE633EE00DB427C /* PerformerDetailView.swift */,
 				B41D0FA92EE633EE00DB427C /* RecordingDetailView.swift */,
-				B41D0FAA2EE633EE00DB427C /* RecordingsListView.swift */,
 				B41D0FAB2EE633EE00DB427C /* SongDetailView.swift */,
 				B4BE01002F3600000000BE01 /* SongBulkEditRecordingsView.swift */,
 				B41D0FAC2EE633EE00DB427C /* SongsListView.swift */,
@@ -693,7 +690,6 @@
 				B486B3172F1D93C4005E6644 /* MacArtistCreationView.swift in Sources */,
 				B41D0FB52EE633EE00DB427C /* ArtistsListView.swift in Sources */,
 				B4B9C4C02F1AEC0100159A28 /* MusicBrainzSearchSheet.swift in Sources */,
-				B41D0FB62EE633EE00DB427C /* RecordingsListView.swift in Sources */,
 				B41D0FB72EE633EE00DB427C /* ContentView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
