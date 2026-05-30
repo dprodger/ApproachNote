@@ -56,35 +56,28 @@ struct SettingsView: View {
 
                     // Playback Settings Section
                     VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                        Text("Playback")
-                            .font(ApproachNoteTheme.headline())
+                        Text("Playback".uppercased())
+                            .font(ApproachNoteTheme.title3())
                             .foregroundColor(ApproachNoteTheme.textPrimary)
                             .padding(.horizontal)
 
-                        VStack(spacing: 0) {
-                            HStack {
-                                Image(systemName: "play.circle.fill")
-                                    .foregroundColor(ApproachNoteTheme.brand)
-                                Text("Preferred Service")
-                                    .font(ApproachNoteTheme.body())
-                                    .bodyLineSpacing()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                                Spacer()
-                                Picker("", selection: $preferredStreamingService) {
-                                    ForEach(StreamingService.allCases) { service in
-                                        Text(service.displayName).tag(service.rawValue)
-                                    }
+                        HStack {
+                            Text("Preferred Service")
+                                .font(ApproachNoteTheme.body())
+                                .bodyLineSpacing()
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
+                            Spacer()
+                            Picker("", selection: $preferredStreamingService) {
+                                ForEach(StreamingService.allCases) { service in
+                                    Text(service.displayName).tag(service.rawValue)
                                 }
-                                .pickerStyle(.menu)
-                                .tint(ApproachNoteTheme.brand)
                             }
-                            .padding()
-                            .background(ApproachNoteTheme.surface)
-                            .cornerRadius(8)
+                            .pickerStyle(.menu)
+                            .tint(ApproachNoteTheme.brand)
                         }
                         .padding(.horizontal)
 
-                        Text("Play buttons will open this service when available")
+                        Text("Default to playing on the selected service when there are multiple services available.")
                             .font(ApproachNoteTheme.caption())
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                             .padding(.horizontal)
@@ -96,12 +89,15 @@ struct SettingsView: View {
 
                         // Favorites Section
                         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            HStack {
-                                Image(systemName: "heart.fill")
-                                    .foregroundColor(.red)
-                                Text("Favorites")
-                                    .font(ApproachNoteTheme.headline())
+                            HStack(spacing: ApproachNoteTheme.spacingXS) {
+                                Text("Favorites".uppercased())
+                                    .font(ApproachNoteTheme.title3())
                                     .foregroundColor(ApproachNoteTheme.textPrimary)
+                                if favoritesManager.favoriteCount > 0 {
+                                    Text("\(favoritesManager.favoriteCount)")
+                                        .font(ApproachNoteTheme.title3(weight: .regular))
+                                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                                }
                             }
                             .padding(.horizontal)
 
@@ -171,13 +167,6 @@ struct SettingsView: View {
                                     .padding(.horizontal)
                                 }
                             }
-
-                            if favoritesManager.favoriteCount > 0 {
-                                Text("\(favoritesManager.favoriteCount) \(favoritesManager.favoriteCount == 1 ? "recording" : "recordings")")
-                                    .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .padding(.horizontal)
-                            }
                         }
 
                         Divider()
@@ -185,14 +174,10 @@ struct SettingsView: View {
 
                         // Contributions Section
                         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            HStack {
-                                Image(systemName: "person.3.fill")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                Text("Your Contributions")
-                                    .font(ApproachNoteTheme.headline())
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                            }
-                            .padding(.horizontal)
+                            Text("Your Contributions".uppercased())
+                                .font(ApproachNoteTheme.title3())
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
+                                .padding(.horizontal)
 
                             if isLoadingContributions {
                                 HStack {
@@ -205,48 +190,34 @@ struct SettingsView: View {
                             } else if let stats = contributionStats {
                                 VStack(spacing: 0) {
                                     ContributionStatRow(
-                                        icon: "music.note.list",
-                                        iconColor: ApproachNoteTheme.brand,
                                         label: "Transcriptions",
                                         count: stats.transcriptions
                                     )
 
                                     Divider()
-                                        .padding(.leading, 48)
 
                                     ContributionStatRow(
-                                        icon: "play.rectangle.fill",
-                                        iconColor: .green,
                                         label: "Backing Tracks",
                                         count: stats.backingTracks
                                     )
 
                                     Divider()
-                                        .padding(.leading, 48)
 
                                     ContributionStatRow(
-                                        icon: "metronome",
-                                        iconColor: ApproachNoteTheme.textSecondary,
                                         label: "Tempo Markings",
                                         count: stats.tempoMarkings
                                     )
 
                                     Divider()
-                                        .padding(.leading, 48)
 
                                     ContributionStatRow(
-                                        icon: "mic.fill",
-                                        iconColor: .purple,
                                         label: "Vocal/Instrumental",
                                         count: stats.instrumentalVocal
                                     )
 
                                     Divider()
-                                        .padding(.leading, 48)
 
                                     ContributionStatRow(
-                                        icon: "music.note",
-                                        iconColor: .blue,
                                         label: "Performance Keys",
                                         count: stats.keys
                                     )
@@ -288,19 +259,11 @@ struct SettingsView: View {
                     // Account Actions
                     VStack(spacing: 0) {
                         if authManager.isAuthenticated {
-                            Button(action: {
+                            ApproachNoteButton(
+                                "Log Out",
+                                leadingSystemImage: "rectangle.portrait.and.arrow.right"
+                            ) {
                                 authManager.logout()
-                            }) {
-                                HStack {
-                                    Image(systemName: "rectangle.portrait.and.arrow.right")
-                                        .foregroundColor(ApproachNoteTheme.brand)
-                                    Text("Log Out")
-                                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                                    Spacer()
-                                }
-                                .padding()
-                                .background(ApproachNoteTheme.surface)
-                                .cornerRadius(8)
                             }
                             .padding(.horizontal)
                         } else {
@@ -360,20 +323,13 @@ struct SettingsView: View {
 // MARK: - Contribution Stat Row
 
 private struct ContributionStatRow: View {
-    let icon: String
-    let iconColor: Color
     let label: String
     let count: Int
 
     var body: some View {
         HStack(spacing: ApproachNoteTheme.spacingSM) {
-            Image(systemName: icon)
-                .font(.system(size: 16))
-                .foregroundColor(iconColor)
-                .frame(width: 24)
-
             Text(label)
-                .font(ApproachNoteTheme.body())
+                .font(ApproachNoteTheme.body(weight: .bold))
                 .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
