@@ -288,14 +288,17 @@ struct SongsListView: View {
                                 songRowView(song: song)
                             }
                             .listRowBackground(ApproachNoteTheme.surface)
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            .contextMenu {
                                 // Only offer removal when viewing a specific
                                 // repertoire (not "All Songs"), so the target is unambiguous.
+                                // A context menu avoids colliding with the trailing
+                                // alphabet index that a swipe action would sit under.
                                 if repertoireManager.selectedRepertoire.id != "all" {
                                     Button(role: .destructive) {
                                         removeSongFromCurrentRepertoire(song)
                                     } label: {
-                                        Label("Remove", systemImage: "minus.circle")
+                                        Label("Remove from \(repertoireManager.selectedRepertoire.name)",
+                                              systemImage: "minus.circle")
                                     }
                                 }
                             }
