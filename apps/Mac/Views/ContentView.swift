@@ -392,7 +392,6 @@ struct GeneralSettingsView: View {
 
     // Research queue state
     @State private var queueSize: Int = 0
-    @State private var workerActive: Bool = false
     @State private var currentSongName: String? = nil
     @State private var progress: ResearchProgress? = nil
     @State private var isLoadingQueue: Bool = true
@@ -431,8 +430,8 @@ struct GeneralSettingsView: View {
                     }
                 } else {
                     HStack {
-                        Image(systemName: workerActive ? "arrow.triangle.2.circlepath" : "clock")
-                            .foregroundColor(workerActive ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary)
+                        Image(systemName: currentSongName != nil ? "arrow.triangle.2.circlepath" : "clock")
+                            .foregroundColor(currentSongName != nil ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary)
 
                         Text("Queue Size: \(queueSize)")
 
@@ -453,7 +452,7 @@ struct GeneralSettingsView: View {
                         .disabled(isRefreshing)
                     }
 
-                    if workerActive {
+                    if currentSongName != nil || progress != nil {
                         if let songName = currentSongName {
                             HStack {
                                 Text("Processing:")
@@ -497,7 +496,6 @@ struct GeneralSettingsView: View {
     private func loadQueueStatus() async {
         if let status = await researchService.fetchQueueStatus() {
             queueSize = status.queueSize
-            workerActive = status.workerActive
             currentSongName = status.currentSong?.songName
             progress = status.progress
         }
@@ -511,7 +509,6 @@ struct GeneralSettingsView: View {
 
         if let status = await researchService.fetchQueueStatus() {
             queueSize = status.queueSize
-            workerActive = status.workerActive
             currentSongName = status.currentSong?.songName
             progress = status.progress
         }

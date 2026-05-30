@@ -9,7 +9,6 @@ import SwiftUI
 
 struct AboutView: View {
     @State private var queueSize: Int = 0
-    @State private var workerActive: Bool = false
     @State private var currentSongName: String? = nil
     @State private var progress: ResearchProgress? = nil
     @State private var isLoadingQueue: Bool = true
@@ -89,23 +88,10 @@ struct AboutView: View {
                 Spacer()
                 
                 // View Tutorial Button
-                Button(action: {
+                ApproachNoteButton("View Tutorial", leadingSystemImage: "book.fill") {
                     showingOnboarding = true
-                }) {
-                    HStack {
-                        Image(systemName: "book.fill")
-                        Text("View Tutorial")
-                    }
-                    .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.brand)
-                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
-                    .padding(.vertical, ApproachNoteTheme.spacingSM)
-                    .background(
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(Color.white.opacity(0.95))
-                    )
-                    .shadow(color: .black.opacity(0.3), radius: 4, x: 0, y: 2)
                 }
+                .padding(.horizontal, 40)
                 
                 Spacer()
                 
@@ -116,7 +102,7 @@ struct AboutView: View {
                             .tint(.white)
                     } else {
                         HStack(spacing: ApproachNoteTheme.spacingXS) {
-                            Image(systemName: workerActive ? "arrow.triangle.2.circlepath" : "clock")
+                            Image(systemName: currentSongName != nil ? "arrow.triangle.2.circlepath" : "clock")
                                 .foregroundColor(.white.opacity(0.9))
                                 .font(ApproachNoteTheme.body())
                                 .bodyLineSpacing()
@@ -134,19 +120,13 @@ struct AboutView: View {
                             }
                         }
 
-                        if workerActive {
-                            if let songName = currentSongName {
-                                Text("Processing: \(songName)")
-                                    .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(.white.opacity(0.9))
-                                    .fontWeight(.medium)
-                                    .lineLimit(1)
-                                    .truncationMode(.tail)
-                            } else {
-                                Text("Processing...")
-                                    .font(ApproachNoteTheme.caption(italic: true))
-                                    .foregroundColor(.white.opacity(0.7))
-                            }
+                        if let songName = currentSongName {
+                            Text("Processing: \(songName)")
+                                .font(ApproachNoteTheme.caption())
+                                .foregroundColor(.white.opacity(0.9))
+                                .fontWeight(.medium)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
 
                             // Progress indicator
                             if let progress = progress {
@@ -247,7 +227,6 @@ struct AboutView: View {
     private func loadQueueStatus() async {
         if let status = await researchService.fetchQueueStatus() {
             queueSize = status.queueSize
-            workerActive = status.workerActive
             currentSongName = status.currentSong?.songName
             progress = status.progress
         }
@@ -266,7 +245,6 @@ struct AboutView: View {
         
         if let status = await researchService.fetchQueueStatus() {
             queueSize = status.queueSize
-            workerActive = status.workerActive
             currentSongName = status.currentSong?.songName
             progress = status.progress
         }
