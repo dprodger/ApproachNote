@@ -450,7 +450,7 @@ struct PerformerDetailView: View {
         case .year:
             return groupByDecade(recordings)
         case .name:
-            return groupBySongLetter(recordings)
+            return groupBySongTitle(recordings)
         }
     }
 
@@ -485,25 +485,27 @@ struct PerformerDetailView: View {
         }
     }
 
-    private func groupBySongLetter(_ recordings: [PerformerRecording]) -> [(groupKey: String, recordings: [PerformerRecording])] {
-        var letterOrder: [String] = []
-        var letters: [String: [PerformerRecording]] = [:]
+    private func groupBySongTitle(_ recordings: [PerformerRecording]) -> [(groupKey: String, recordings: [PerformerRecording])] {
+        var titleOrder: [String] = []
+        var titles: [String: [PerformerRecording]] = [:]
 
         for recording in recordings {
-            let firstChar = recording.songTitle.prefix(1).uppercased()
-            let letterKey = firstChar.first?.isLetter == true ? firstChar : "#"
+            let titleKey = recording.songTitle
 
-            if letters[letterKey] == nil {
-                letterOrder.append(letterKey)
+            if titles[titleKey] == nil {
+                titleOrder.append(titleKey)
             }
-            letters[letterKey, default: []].append(recording)
+            titles[titleKey, default: []].append(recording)
         }
 
-        letterOrder.sort()
+        titleOrder.sort { $0.localizedCaseInsensitiveCompare($1) == .orderedAscending }
 
-        return letterOrder.compactMap { key in
-            guard let recs = letters[key] else { return nil }
-            return (groupKey: key, recordings: recs)
+        return titleOrder.compactMap { key in
+            guard let recs = titles[key] else { return nil }
+            // Oldest-first within each song.
+            return (groupKey: key, recordings: recs.sorted {
+                ($0.recordingYear ?? Int.max) < ($1.recordingYear ?? Int.max)
+            })
         }
     }
 
