@@ -6,8 +6,12 @@
     {
       "layers" : [
         {
-          "image-name" : "Black on White.svg",
-          "name" : "Black on White"
+          "image-name" : "White on Blue.svg",
+          "name" : "White on Blue"
+        },
+        {
+          "image-name" : "Blue on White.png",
+          "name" : "Blue on White"
         }
       ],
       "shadow" : {
