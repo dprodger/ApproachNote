@@ -327,7 +327,13 @@ struct PerformerRecordingsSection: View {
         var decadeOrder: [String] = []
         var decades: [String: [PerformerRecording]] = [:]
 
-        for recording in filteredRecordings {
+        // Oldest-first: ascending by year (undated last). Iterating in this order
+        // makes both the decade groups and the recordings within them ascending.
+        let sorted = filteredRecordings.sorted {
+            ($0.recordingYear ?? Int.max) < ($1.recordingYear ?? Int.max)
+        }
+
+        for recording in sorted {
             let decadeKey: String
             if let year = recording.recordingYear {
                 let decade = (year / 10) * 10
