@@ -883,7 +883,7 @@ struct SongDetailView: View {
     private var transcriptionsSection: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("SOLO TRANSCRIPTIONS")
-                .font(ApproachNoteTheme.title())
+                .font(ApproachNoteTheme.title2())
                 .bold()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
@@ -902,7 +902,7 @@ struct SongDetailView: View {
     private var backingTracksSection: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("BACKING TRACKS")
-                .font(ApproachNoteTheme.title())
+                .font(ApproachNoteTheme.title2())
                 .bold()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 

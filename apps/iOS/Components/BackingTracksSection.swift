@@ -27,7 +27,7 @@ struct BackingTracksSection: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("BACKING TRACKS")
-                        .font(ApproachNoteTheme.title())
+                        .font(ApproachNoteTheme.title2())
                         .bold()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)

@@ -25,7 +25,7 @@ struct TranscriptionsSection: View {
 
                 VStack(alignment: .leading, spacing: 0) {
                     Text("SOLO TRANSCRIPTIONS")
-                        .font(ApproachNoteTheme.title())
+                        .font(ApproachNoteTheme.title2())
                         .bold()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
                         .frame(maxWidth: .infinity, alignment: .leading)
