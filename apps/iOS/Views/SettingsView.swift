@@ -118,7 +118,7 @@ struct SettingsView: View {
                                     .padding(.horizontal)
                             } else {
                                 ScrollView(.horizontal, showsIndicators: false) {
-                                    HStack(spacing: ApproachNoteTheme.spacingMD) {
+                                    HStack(alignment: .top, spacing: ApproachNoteTheme.spacingMD) {
                                         ForEach(favoritesManager.favoriteRecordings, id: \.id) { recording in
                                             NavigationLink(destination: RecordingDetailView(recordingId: recording.id)) {
                                                 VStack(spacing: ApproachNoteTheme.spacingXS) {
