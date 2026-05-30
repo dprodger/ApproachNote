@@ -15,6 +15,7 @@ struct SongsListView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var selectedSongId: String?
     @State private var showMusicBrainzSearch = false
+    @State private var removeErrorMessage: String?
 
     var body: some View {
         HSplitView {
@@ -38,6 +39,14 @@ struct SongsListView: View {
         .task {
             await repertoireManager.loadRepertoires()
             await loadSongs()
+        }
+        .alert("Remove Failed", isPresented: Binding(
+            get: { removeErrorMessage != nil },
+            set: { if !$0 { removeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(removeErrorMessage ?? "")
         }
     }
 
@@ -83,6 +92,18 @@ struct SongsListView: View {
                                     ? ApproachNoteTheme.brand
                                     : ApproachNoteTheme.background
                             )
+                            .contextMenu {
+                                // Only offer removal when viewing a specific
+                                // repertoire (not "All Songs"), so the target is unambiguous.
+                                if repertoireManager.selectedRepertoire.id != "all" {
+                                    Button(role: .destructive) {
+                                        removeSongFromCurrentRepertoire(song)
+                                    } label: {
+                                        Label("Remove from \(repertoireManager.selectedRepertoire.name)",
+                                              systemImage: "minus.circle")
+                                    }
+                                }
+                            }
                     }
                 }
             }
@@ -160,6 +181,28 @@ struct SongsListView: View {
                 repertoireId: repertoireManager.selectedRepertoire.id,
                 searchQuery: searchText
             )
+        }
+    }
+
+    /// Remove a song from the currently selected repertoire, then refresh the list.
+    private func removeSongFromCurrentRepertoire(_ song: Song) {
+        let repertoire = repertoireManager.selectedRepertoire
+        guard repertoire.id != "all" else { return }
+
+        Task {
+            let success = await repertoireManager.removeSongFromRepertoire(
+                songId: song.id,
+                repertoireId: repertoire.id
+            )
+            if success {
+                if selectedSongId == song.id {
+                    selectedSongId = nil
+                }
+                await loadSongs()
+            } else {
+                removeErrorMessage = repertoireManager.errorMessage
+                    ?? "Couldn't remove \"\(song.title)\" from \(repertoire.name). Please try again."
+            }
         }
     }
 

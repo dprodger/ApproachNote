@@ -177,6 +177,48 @@ class RepertoireManager: ObservableObject {
         }
     }
     
+    /// Remove a song from a repertoire (requires authentication, must be owner)
+    func removeSongFromRepertoire(songId: String, repertoireId: String) async -> Bool {
+        guard let authManager = authManager else {
+            await MainActor.run {
+                errorMessage = "Not authenticated"
+            }
+            return false
+        }
+
+        let url = URL.api(path: "/repertoires/\(repertoireId)/songs/\(songId)")
+
+        Log.data.debug("Removing song \(songId, privacy: .private) from repertoire \(repertoireId, privacy: .private)")
+
+        do {
+            // DELETE request with automatic token refresh
+            _ = try await authManager.makeAuthenticatedRequest(
+                url: url,
+                method: "DELETE"
+            )
+
+            Log.data.info("Song removed from repertoire")
+            // Refresh repertoires to update counts
+            await loadRepertoires()
+            return true
+
+        } catch URLError.userAuthenticationRequired {
+            await MainActor.run {
+                errorMessage = "Authentication expired"
+                isAuthenticated = false
+            }
+            Log.data.warning("Authentication required")
+            return false
+
+        } catch {
+            await MainActor.run {
+                errorMessage = "Failed to remove song: \(error.localizedDescription)"
+            }
+            Log.data.error("Failed to remove song: \(error.localizedDescription)")
+            return false
+        }
+    }
+
     /// Create new repertoire (requires authentication)
     func createRepertoire(name: String, description: String?) async -> Bool {
         guard let authManager = authManager else {

@@ -18,6 +18,7 @@ struct SongsListView: View {
     @State private var showLoginPrompt = false
     @State private var hasPerformedInitialLoad = false
     @State private var showMusicBrainzSearch = false
+    @State private var removeErrorMessage: String?
     
     // Computed property to group songs by first letter
     private var groupedSongs: [(String, [Song])] {
@@ -107,7 +108,26 @@ struct SongsListView: View {
             )
         }
     }
-    
+
+    /// Remove a song from the currently selected repertoire, then refresh the list.
+    private func removeSongFromCurrentRepertoire(_ song: Song) {
+        let repertoire = repertoireManager.selectedRepertoire
+        guard repertoire.id != "all" else { return }
+
+        Task {
+            let success = await repertoireManager.removeSongFromRepertoire(
+                songId: song.id,
+                repertoireId: repertoire.id
+            )
+            if success {
+                await loadSongs()
+            } else {
+                removeErrorMessage = repertoireManager.errorMessage
+                    ?? "Couldn't remove \"\(song.title)\" from \(repertoire.name). Please try again."
+            }
+        }
+    }
+
     // MARK: - Content Views
     
     @ViewBuilder
@@ -138,6 +158,14 @@ struct SongsListView: View {
                     }
                 }
             )
+        }
+        .alert("Remove Failed", isPresented: Binding(
+            get: { removeErrorMessage != nil },
+            set: { if !$0 { removeErrorMessage = nil } }
+        )) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(removeErrorMessage ?? "")
         }
     }
     
@@ -260,6 +288,17 @@ struct SongsListView: View {
                                 songRowView(song: song)
                             }
                             .listRowBackground(ApproachNoteTheme.surface)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                // Only offer removal when viewing a specific
+                                // repertoire (not "All Songs"), so the target is unambiguous.
+                                if repertoireManager.selectedRepertoire.id != "all" {
+                                    Button(role: .destructive) {
+                                        removeSongFromCurrentRepertoire(song)
+                                    } label: {
+                                        Label("Remove", systemImage: "minus.circle")
+                                    }
+                                }
+                            }
                         }
                     }
                     .id(letter) // Anchor for scrolling
