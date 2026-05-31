@@ -31,7 +31,7 @@ external_links->>'musicbrainz'.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+from typing import Optional, Sequence
 
 from core import research_jobs
 from db_utils import get_db_connection
@@ -40,23 +40,59 @@ from db_utils import get_db_connection
 logger = logging.getLogger(__name__)
 
 
-# Candidates: performers missing at least one reference. ORDER BY created_at
-# DESC so a partial sweep covers the most-recently-added performers first —
-# same convention as the release-label and Spotify-duration backfills.
-_CANDIDATE_PERFORMERS_SQL_TEMPLATE = """
-    SELECT id
-    FROM performers
-    WHERE (wikipedia_url IS NULL AND external_links->>'wikipedia' IS NULL)
-       OR (musicbrainz_id IS NULL AND external_links->>'musicbrainz' IS NULL)
-    ORDER BY created_at DESC
-    {limit_clause}
-"""
+VALID_REFTYPES = ('wikipedia', 'musicbrainz')
+
+# "Missing" predicates per reference type, honouring the external_links
+# fallback the handler also reads.
+_MISSING_WIKIPEDIA = (
+    "(wikipedia_url IS NULL AND external_links->>'wikipedia' IS NULL)"
+)
+_MISSING_MUSICBRAINZ = (
+    "(musicbrainz_id IS NULL AND external_links->>'musicbrainz' IS NULL)"
+)
 
 
-def find_candidate_performer_ids(limit: Optional[int] = None) -> list[str]:
-    """Return performer UUIDs missing a Wikipedia and/or MusicBrainz ref."""
+def _normalise_reftypes(reftypes: Optional[Sequence[str]]) -> list[str]:
+    """Return the requested reftypes (both if None/empty), validated."""
+    if not reftypes:
+        return list(VALID_REFTYPES)
+    invalid = [r for r in reftypes if r not in VALID_REFTYPES]
+    if invalid:
+        raise ValueError(f"unknown reftype(s): {invalid}")
+    # Preserve canonical order / dedupe.
+    return [r for r in VALID_REFTYPES if r in reftypes]
+
+
+def _candidate_where(reftypes: list[str]) -> str:
+    """Build the WHERE predicate: performer is a candidate if it's missing
+    ANY of the requested reference types."""
+    clauses = []
+    if 'wikipedia' in reftypes:
+        clauses.append(_MISSING_WIKIPEDIA)
+    if 'musicbrainz' in reftypes:
+        clauses.append(_MISSING_MUSICBRAINZ)
+    return " OR ".join(clauses)
+
+
+def find_candidate_performer_ids(
+    limit: Optional[int] = None,
+    reftypes: Optional[Sequence[str]] = None,
+) -> list[str]:
+    """Return performer UUIDs missing one of the requested references.
+
+    reftypes defaults to both Wikipedia and MusicBrainz. ORDER BY created_at
+    DESC so a partial sweep covers the most-recently-added performers first —
+    same convention as the release-label and Spotify-duration backfills.
+    """
+    reftypes = _normalise_reftypes(reftypes)
     limit_clause = "LIMIT %s" if limit is not None else ""
-    sql = _CANDIDATE_PERFORMERS_SQL_TEMPLATE.format(limit_clause=limit_clause)
+    sql = f"""
+        SELECT id
+        FROM performers
+        WHERE {_candidate_where(reftypes)}
+        ORDER BY created_at DESC
+        {limit_clause}
+    """
     params: tuple = (limit,) if limit is not None else ()
 
     with get_db_connection() as conn:
@@ -67,9 +103,14 @@ def find_candidate_performer_ids(limit: Optional[int] = None) -> list[str]:
 
 
 def enqueue_sweep(limit: Optional[int] = None,
+                  reftypes: Optional[Sequence[str]] = None,
                   priority: int = 110,
                   batch_size: int = 1000) -> dict[str, int]:
     """Find candidate performers and enqueue one verify job per row.
+
+    reftypes (default both) scopes BOTH the candidate query and the job
+    payload, so a Wikipedia-only sweep enqueues only Wikipedia-missing
+    performers and the handler skips the (slow) MusicBrainz lookup.
 
     Priority 110 sits behind user-driven work (50) and the normal
     research-pipeline default (100), so the sweep won't starve interactive
@@ -82,7 +123,8 @@ def enqueue_sweep(limit: Optional[int] = None,
         - skipped:    how many collapsed against an existing in-flight job
                       via the dedup index — safe and expected on re-runs.
     """
-    performer_ids = find_candidate_performer_ids(limit=limit)
+    reftypes = _normalise_reftypes(reftypes)
+    performer_ids = find_candidate_performer_ids(limit=limit, reftypes=reftypes)
     if not performer_ids:
         return {'candidates': 0, 'enqueued': 0, 'skipped': 0}
 
@@ -91,13 +133,15 @@ def enqueue_sweep(limit: Optional[int] = None,
         job_type='verify_performer_references',
         target_type=research_jobs.TARGET_PERFORMER,
         target_ids=performer_ids,
-        payload={},
+        payload={'reftypes': reftypes},
         priority=priority,
         batch_size=batch_size,
     )
 
     logger.info(
-        "performer_reference_verification: candidates=%d enqueued=%d skipped=%d",
+        "performer_reference_verification: reftypes=%s candidates=%d "
+        "enqueued=%d skipped=%d",
+        ",".join(reftypes),
         result['requested'], result['inserted'], result['skipped'],
     )
     return {

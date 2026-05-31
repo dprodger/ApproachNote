@@ -13,7 +13,8 @@ remove existing ones. Safe to re-run; the research_jobs unique index dedups
 against in-flight jobs.
 
 Usage:
-    python verify_performer_references.py
+    python verify_performer_references.py                       # both ref types
+    python verify_performer_references.py --reftype wikipedia   # Wikipedia only
     python verify_performer_references.py --limit 500
     python verify_performer_references.py --dry-run
     python verify_performer_references.py --name "Miles Davis"
@@ -54,13 +55,14 @@ def _resolve_performer_id(script, name=None, performer_id=None):
     return str(row['id'])
 
 
-def _enqueue_one(script, performer_uuid):
+def _enqueue_one(script, performer_uuid, reftypes):
     """Enqueue a single performer (used by --name / --id)."""
     job_id = research_jobs.enqueue(
         source=research_jobs.SOURCE_MUSICBRAINZ,
         job_type='verify_performer_references',
         target_type=research_jobs.TARGET_PERFORMER,
         target_id=performer_uuid,
+        payload={'reftypes': reftypes},
         priority=110,
     )
     script.print_summary({
@@ -80,6 +82,7 @@ def main():
         epilog="""
 Examples:
   python verify_performer_references.py
+  python verify_performer_references.py --reftype wikipedia
   python verify_performer_references.py --limit 500
   python verify_performer_references.py --dry-run
   python verify_performer_references.py --name "Miles Davis"
@@ -91,16 +94,29 @@ Examples:
     group.add_argument('--name', help='Enqueue only the performer with this name')
     group.add_argument('--id', help='Enqueue only the performer with this UUID')
 
+    script.parser.add_argument(
+        '--reftype',
+        choices=['wikipedia', 'musicbrainz'],
+        help=(
+            'Limit to one reference type. Omit to fill both. Wikipedia-only '
+            'skips the slow MusicBrainz lookups.'
+        ),
+    )
+
     script.add_dry_run_arg()
     script.add_debug_arg()
     script.add_limit_arg(default=None)
 
     args = script.parse_args()
 
+    # None (no --reftype) means "both"; the producer/handler default to both.
+    reftypes = [args.reftype] if args.reftype else None
+
     script.print_header({
         "DRY RUN": args.dry_run,
         "LIMIT": args.limit if args.limit is not None else 'all candidates',
         "PERFORMER": args.name or args.id or 'all missing-ref candidates',
+        "REFTYPE": args.reftype or 'wikipedia + musicbrainz',
     })
 
     # Single-performer path (--name / --id): resolve and enqueue directly.
@@ -117,12 +133,14 @@ Examples:
             )
             script.print_summary({'candidates': 1, 'enqueued': 0})
             return True
-        _enqueue_one(script, performer_uuid)
+        _enqueue_one(script, performer_uuid, reftypes)
         return True
 
-    # Sweep path: enqueue all candidates missing a reference.
+    # Sweep path: enqueue all candidates missing a requested reference.
     if args.dry_run:
-        performer_ids = find_candidate_performer_ids(limit=args.limit)
+        performer_ids = find_candidate_performer_ids(
+            limit=args.limit, reftypes=reftypes,
+        )
         script.logger.info(
             "Would enqueue %d performer(s) for reference verification",
             len(performer_ids),
@@ -138,7 +156,7 @@ Examples:
         })
         return True
 
-    stats = enqueue_sweep(limit=args.limit)
+    stats = enqueue_sweep(limit=args.limit, reftypes=reftypes)
     script.print_summary(stats)
     return True
 

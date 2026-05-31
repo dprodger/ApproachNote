@@ -309,6 +309,59 @@ class TestHandlerSuccess:
         MusicBrainzSearcher.assert_called_once_with(force_refresh=True)
 
 
+class TestHandlerReftypeScope:
+    def test_wikipedia_only_skips_musicbrainz_lookup(
+        self, perf_fixture, patched_searchers,
+    ):
+        # Performer missing BOTH refs, but a wiki-only job must not touch MB.
+        patched_searchers.wiki.search_wikipedia.return_value = (
+            'https://en.wikipedia.org/wiki/WikiOnly'
+        )
+
+        result = handler.verify_performer_references(
+            {'reftypes': ['wikipedia']}, FakeCtx(PERFORMER_MISSING_BOTH),
+        )
+
+        assert result['updated'] is True
+        assert result['wikipedia_added'] == 'https://en.wikipedia.org/wiki/WikiOnly'
+        assert result['musicbrainz_added'] is None
+        patched_searchers.mb.search_musicbrainz_artist.assert_not_called()
+
+        with get_db_connection() as conn:
+            wiki, mb = _performer_refs(conn, PERFORMER_MISSING_BOTH)
+        assert wiki == 'https://en.wikipedia.org/wiki/WikiOnly'
+        assert mb is None
+
+    def test_wikipedia_only_noops_when_wiki_present_even_if_mb_missing(
+        self, perf_fixture, patched_searchers,
+    ):
+        # PERFORMER_MISSING_MB has a wiki ref but no MB. A wiki-only job has
+        # nothing to do and must not run any search.
+        result = handler.verify_performer_references(
+            {'reftypes': ['wikipedia']}, FakeCtx(PERFORMER_MISSING_MB),
+        )
+        assert result['updated'] is False
+        assert result['reason'] == 'already_populated'
+        patched_searchers.wiki.search_wikipedia.assert_not_called()
+        patched_searchers.mb.search_musicbrainz_artist.assert_not_called()
+
+    def test_musicbrainz_only_skips_wikipedia_lookup(
+        self, perf_fixture, patched_searchers,
+    ):
+        patched_searchers.mb.search_musicbrainz_artist.return_value = [
+            {'id': 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee', 'name': 'Missing Both'},
+        ]
+
+        result = handler.verify_performer_references(
+            {'reftypes': ['musicbrainz']}, FakeCtx(PERFORMER_MISSING_BOTH),
+        )
+
+        assert result['updated'] is True
+        assert result['musicbrainz_added'] == 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+        assert result['wikipedia_added'] is None
+        patched_searchers.wiki.search_wikipedia.assert_not_called()
+
+
 class TestHandlerErrorPaths:
     def test_missing_performer_row_raises_permanent(
         self, perf_fixture, patched_searchers,
@@ -333,6 +386,38 @@ class TestSweep:
         # Both refs present (directly or via external_links) -> not a candidate.
         assert PERFORMER_HAS_BOTH not in candidates
         assert PERFORMER_WIKI_IN_LINKS not in candidates
+
+    def test_wikipedia_only_candidates_exclude_performers_with_wiki(
+        self, perf_fixture,
+    ):
+        candidates = sweep_mod.find_candidate_performer_ids(
+            reftypes=['wikipedia'],
+        )
+        # Missing wiki -> candidates.
+        assert PERFORMER_MISSING_BOTH in candidates
+        assert PERFORMER_MISSING_WIKI in candidates
+        # Has a wiki ref (directly or via external_links) -> not a wiki-only
+        # candidate, even though it's missing MB.
+        assert PERFORMER_MISSING_MB not in candidates
+        assert PERFORMER_HAS_BOTH not in candidates
+        assert PERFORMER_WIKI_IN_LINKS not in candidates
+
+    def test_wikipedia_only_sweep_sets_reftypes_payload(self, perf_fixture, db):
+        sweep_mod.enqueue_sweep(reftypes=['wikipedia'])
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT payload FROM research_jobs "
+                "WHERE source='musicbrainz' "
+                "AND job_type='verify_performer_references' "
+                "AND target_id = %s",
+                (PERFORMER_MISSING_BOTH,),
+            )
+            payload = cur.fetchone()[0]
+        assert payload == {'reftypes': ['wikipedia']}
+
+    def test_unknown_reftype_raises(self):
+        with pytest.raises(ValueError):
+            sweep_mod.find_candidate_performer_ids(reftypes=['spotify'])
 
     def test_enqueue_sweep_creates_one_job_per_candidate(self, perf_fixture, db):
         with db.cursor() as cur:

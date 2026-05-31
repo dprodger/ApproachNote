@@ -179,6 +179,16 @@ def backfill_release_label(payload: dict[str, Any], ctx) -> dict[str, Any]:
 # already missing at least one ref, and the idempotency guard below
 # short-circuits anything that filled in since enqueue.
 #
+# Scope is controlled by payload['reftypes'] — a subset of
+# {'wikipedia', 'musicbrainz'}. The producer sets it from the CLI --reftype
+# flag so you can run a Wikipedia-only sweep without the (slow, 1-req/sec)
+# MusicBrainz lookups. Absent/empty payload defaults to both, preserving the
+# original behaviour. reftype is carried in the payload rather than the
+# job_type because research_jobs dedups on (source, job_type, target_type,
+# target_id): a single job per performer never collides with itself, but a
+# wiki-only and an mb-only job for the SAME performer would. Run scopes
+# sequentially (let one drain before enqueuing the other) to avoid that.
+#
 # Source is 'musicbrainz' (not a new worker source) because MB's 1-req/sec
 # limit is the binding constraint and the single (musicbrainz, *) thread
 # serialises both the Wikipedia and MB calls under it. Both client classes
@@ -192,6 +202,19 @@ def backfill_release_label(payload: dict[str, Any], ctx) -> dict[str, Any]:
 # to a transient outage still has a NULL ref, so re-running the producer
 # re-enqueues it (the dedup index only collapses in-flight jobs). This is the
 # same self-healing property the label backfill relies on.
+
+_VALID_REFTYPES = ('wikipedia', 'musicbrainz')
+
+
+def _payload_reftypes(payload: dict[str, Any]) -> tuple[bool, bool]:
+    """Resolve which references this job should fill from payload['reftypes'].
+
+    Returns (want_wikipedia, want_musicbrainz). Absent/empty -> both, which
+    preserves the pre-flag behaviour.
+    """
+    reftypes = payload.get('reftypes') or list(_VALID_REFTYPES)
+    return ('wikipedia' in reftypes, 'musicbrainz' in reftypes)
+
 
 # Pull a few sample song titles for the same verification context the old
 # script built, so WikipediaSearcher can disambiguate common names.
@@ -260,6 +283,7 @@ def verify_performer_references(payload: dict[str, Any], ctx) -> dict[str, Any]:
     """
     performer_id = ctx.target_id
     force_refresh = bool(payload.get('force_refresh', False))
+    want_wikipedia, want_musicbrainz = _payload_reftypes(payload)
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
@@ -273,9 +297,13 @@ def verify_performer_references(payload: dict[str, Any], ctx) -> dict[str, Any]:
     old_wikipedia = _wikipedia_ref(row)
     old_musicbrainz = _musicbrainz_ref(row)
 
-    # Idempotency guard: both refs present means nothing for only-new mode to
-    # do. Covers stale claims and re-enqueues that raced an earlier fill.
-    if old_wikipedia and old_musicbrainz:
+    # Idempotency guard: nothing to do once every *requested* ref is present.
+    # Covers stale claims and re-enqueues that raced an earlier fill, and
+    # makes a wiki-only job a fast no-op for a performer that already has a
+    # Wikipedia ref (no MusicBrainz call regardless of its MB state).
+    wikipedia_satisfied = (not want_wikipedia) or bool(old_wikipedia)
+    musicbrainz_satisfied = (not want_musicbrainz) or bool(old_musicbrainz)
+    if wikipedia_satisfied and musicbrainz_satisfied:
         return {
             'updated': False,
             'reason': 'already_populated',
@@ -290,7 +318,7 @@ def verify_performer_references(payload: dict[str, Any], ctx) -> dict[str, Any]:
 
     new_refs: dict[str, str] = {}
 
-    if not old_wikipedia:
+    if want_wikipedia and not old_wikipedia:
         wiki_searcher = WikipediaSearcher(
             cache_days=7, force_refresh=force_refresh,
         )
@@ -298,7 +326,7 @@ def verify_performer_references(payload: dict[str, Any], ctx) -> dict[str, Any]:
         if found_url:
             new_refs['wikipedia'] = found_url
 
-    if not old_musicbrainz:
+    if want_musicbrainz and not old_musicbrainz:
         mb_client = MusicBrainzSearcher(force_refresh=force_refresh)
         found_id = _search_musicbrainz_artist_id(mb_client, name, context)
         if found_id:
