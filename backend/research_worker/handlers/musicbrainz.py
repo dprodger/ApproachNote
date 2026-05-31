@@ -14,6 +14,12 @@ Currently registered:
     Re-fetches one MB release and writes `label` / `catalog_number`
     back. Covers the ~71k pre-`+labels` releases (issue #195).
 
+  ('musicbrainz', 'verify_performer_references'), target_type='performer'
+    Fills a performer's missing Wikipedia / MusicBrainz references
+    (only-new mode). Durable-queue replacement for the old in-process
+    scripts/verify_performer_references.py. See that handler's own
+    docstring for the only-new / transient-handling rationale.
+
 Conventions for future MB handlers in this module:
 
   1. Instantiate `MusicBrainzSearcher(force_refresh=True)` per job. The
@@ -49,11 +55,13 @@ Conventions for future MB handlers in this module:
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from db_utils import get_db_connection
 from integrations.musicbrainz.client import MusicBrainzSearcher
 from integrations.musicbrainz.parsing import parse_release_data
+from integrations.wikipedia.utils import WikipediaSearcher
 
 from research_worker.errors import PermanentError, RetryableError
 from research_worker.registry import handler
@@ -156,3 +164,201 @@ def backfill_release_label(payload: dict[str, Any], ctx) -> dict[str, Any]:
         'catalog_number': catalog_number,
         'mbid': mbid,
     }
+
+
+# ---------------------------------------------------------------------------
+# verify_performer_references — fill missing Wikipedia / MusicBrainz refs
+# ---------------------------------------------------------------------------
+#
+# This is the durable-queue replacement for the old in-process
+# scripts/verify_performer_references.py. It runs in *only-new* mode: for one
+# performer it searches for whichever of {wikipedia_url, musicbrainz_id} is
+# missing and writes what it finds. It deliberately does NOT re-verify or
+# remove existing references — the producer
+# (core.performer_reference_verification) only enqueues performers that are
+# already missing at least one ref, and the idempotency guard below
+# short-circuits anything that filled in since enqueue.
+#
+# Source is 'musicbrainz' (not a new worker source) because MB's 1-req/sec
+# limit is the binding constraint and the single (musicbrainz, *) thread
+# serialises both the Wikipedia and MB calls under it. Both client classes
+# rate-limit their own live requests internally.
+#
+# Transient-vs-permanent: the underlying searchers swallow their own
+# network/HTTP errors and return None / [] for *both* "no match" and "API
+# blip". We can't distinguish the two without status plumbing the clients
+# don't expose, so a fruitless search records a {updated: False} no-op rather
+# than a RetryableError. That's safe for a one-off sweep: a performer missed
+# to a transient outage still has a NULL ref, so re-running the producer
+# re-enqueues it (the dedup index only collapses in-flight jobs). This is the
+# same self-healing property the label backfill relies on.
+
+# Pull a few sample song titles for the same verification context the old
+# script built, so WikipediaSearcher can disambiguate common names.
+_LOAD_PERFORMER_SQL = """
+    SELECT
+        p.id,
+        p.name,
+        p.external_links,
+        p.wikipedia_url,
+        p.musicbrainz_id,
+        p.birth_date,
+        p.death_date,
+        ARRAY_AGG(DISTINCT s.title) FILTER (WHERE s.title IS NOT NULL)
+            AS sample_songs
+    FROM performers p
+    LEFT JOIN recording_performers rp ON p.id = rp.performer_id
+    LEFT JOIN recordings r ON rp.recording_id = r.id
+    LEFT JOIN songs s ON r.song_id = s.id
+    WHERE p.id = %s
+    GROUP BY p.id, p.name, p.external_links, p.wikipedia_url,
+             p.musicbrainz_id, p.birth_date, p.death_date
+"""
+
+
+def _wikipedia_ref(row) -> str | None:
+    """Existing Wikipedia URL from the dedicated column or external_links."""
+    external_links = row['external_links'] or {}
+    return row.get('wikipedia_url') or external_links.get('wikipedia')
+
+
+def _musicbrainz_ref(row) -> str | None:
+    """Existing MB artist id from the dedicated column or external_links."""
+    external_links = row['external_links'] or {}
+    return row.get('musicbrainz_id') or external_links.get('musicbrainz')
+
+
+def _search_musicbrainz_artist_id(mb_client, performer_name, context):
+    """Return a verified MB artist id for an exact name match, or None.
+
+    Ported from the old script's search_musicbrainz(): take the search
+    hits, keep the first exact (case-insensitive) name match that
+    verify_musicbrainz_reference() confirms.
+    """
+    artists = mb_client.search_musicbrainz_artist(performer_name)
+    for artist in artists:
+        if artist.get('name', '').lower() != performer_name.lower():
+            continue
+        mb_id = artist.get('id')
+        if not mb_id:
+            continue
+        verification = mb_client.verify_musicbrainz_reference(
+            performer_name, mb_id, context,
+        )
+        if verification.get('valid'):
+            return mb_id
+    return None
+
+
+@handler('musicbrainz', 'verify_performer_references')
+def verify_performer_references(payload: dict[str, Any], ctx) -> dict[str, Any]:
+    """Fill in a performer's missing Wikipedia / MusicBrainz references.
+
+    Only-new semantics: searches for whichever ref is absent and writes it.
+    Existing references are left untouched. Returns a result dict describing
+    what (if anything) was added.
+    """
+    performer_id = ctx.target_id
+    force_refresh = bool(payload.get('force_refresh', False))
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(_LOAD_PERFORMER_SQL, (performer_id,))
+            row = cur.fetchone()
+
+    if row is None:
+        raise PermanentError(f"performer {performer_id} not found")
+
+    name = row['name']
+    old_wikipedia = _wikipedia_ref(row)
+    old_musicbrainz = _musicbrainz_ref(row)
+
+    # Idempotency guard: both refs present means nothing for only-new mode to
+    # do. Covers stale claims and re-enqueues that raced an earlier fill.
+    if old_wikipedia and old_musicbrainz:
+        return {
+            'updated': False,
+            'reason': 'already_populated',
+            'name': name,
+        }
+
+    context = {
+        'birth_date': row['birth_date'],
+        'death_date': row['death_date'],
+        'sample_songs': (row['sample_songs'] or [])[:5],
+    }
+
+    new_refs: dict[str, str] = {}
+
+    if not old_wikipedia:
+        wiki_searcher = WikipediaSearcher(
+            cache_days=7, force_refresh=force_refresh,
+        )
+        found_url = wiki_searcher.search_wikipedia(name, context)
+        if found_url:
+            new_refs['wikipedia'] = found_url
+
+    if not old_musicbrainz:
+        mb_client = MusicBrainzSearcher(force_refresh=force_refresh)
+        found_id = _search_musicbrainz_artist_id(mb_client, name, context)
+        if found_id:
+            new_refs['musicbrainz'] = found_id
+
+    if not new_refs:
+        return {
+            'updated': False,
+            'reason': 'no_refs_found',
+            'name': name,
+        }
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                _build_performer_update_sql(new_refs),
+                _build_performer_update_params(new_refs, performer_id),
+            )
+        conn.commit()
+
+    return {
+        'updated': True,
+        'name': name,
+        'wikipedia_added': new_refs.get('wikipedia'),
+        'musicbrainz_added': new_refs.get('musicbrainz'),
+    }
+
+
+def _build_performer_update_sql(new_refs: dict[str, str]) -> str:
+    """Compose the UPDATE for whichever refs were found.
+
+    Wikipedia and MusicBrainz write their dedicated columns; any other key
+    (none today, but kept for parity with the old script) merges into the
+    external_links JSONB.
+    """
+    set_parts: list[str] = []
+    if 'wikipedia' in new_refs:
+        set_parts.append("wikipedia_url = %s")
+    if 'musicbrainz' in new_refs:
+        set_parts.append("musicbrainz_id = %s")
+    other = {k: v for k, v in new_refs.items()
+             if k not in ('wikipedia', 'musicbrainz')}
+    if other:
+        set_parts.append(
+            "external_links = COALESCE(external_links, '{}'::jsonb) || %s::jsonb"
+        )
+    set_parts.append("updated_at = CURRENT_TIMESTAMP")
+    return f"UPDATE performers SET {', '.join(set_parts)} WHERE id = %s"
+
+
+def _build_performer_update_params(new_refs: dict[str, str],
+                                   performer_id: str) -> list:
+    params: list = []
+    if 'wikipedia' in new_refs:
+        params.append(new_refs['wikipedia'])
+    if 'musicbrainz' in new_refs:
+        params.append(new_refs['musicbrainz'])
+    other = {k: v for k, v in new_refs.items()
+             if k not in ('wikipedia', 'musicbrainz')}
+    if other:
+        params.append(json.dumps(other))
+    params.append(performer_id)
+    return params
