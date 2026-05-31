@@ -53,6 +53,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# Emit a progress heartbeat every N performers during a full run.
+PROGRESS_INTERVAL = 50
+
 
 class PerformerReferenceVerifier:
     """Verify and update external references for performers"""
@@ -249,15 +252,18 @@ class PerformerReferenceVerifier:
         old_display = old_url if old_url else "none"
         new_display = new_url if new_url else "none"
         
-        # Use different formatting based on status
+        # Use different formatting based on status. No-op outcomes
+        # (unchanged / skipped) are demoted to DEBUG so the INFO stream
+        # highlights only actual changes and items needing review; with
+        # 30k+ performers the per-row lines otherwise drown out signal.
         if status == "unchanged":
-            logger.info(f"✓ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
+            logger.debug(f"✓ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
         elif status == "changed":
             logger.info(f"✎ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
         elif status == "manual_inspection":
             logger.info(f"⚠ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
         elif status == "skipped":
-            logger.info(f"⊘ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
+            logger.debug(f"⊘ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
         elif status == "error":
             logger.info(f"✗ {name} | ID: {performer_id} | Old: {old_display} | New: {new_display} | Status: {status}")
         else:
@@ -660,17 +666,35 @@ class PerformerReferenceVerifier:
                 logger.info(f"  (No performer found with ID '{self.id_filter}')")
             return True
         
-        logger.info(f"Found {len(performers)} performer(s) to process")
+        total = len(performers)
+        logger.info(f"Found {total} performer(s) to process")
         logger.info("")
-        
+
         # Process each performer
+        start_time = time.time()
         for performer in performers:
             self.stats['performers_processed'] += 1
             success, made_api_calls = self.process_performer(performer)
-            
-            # Only sleep if we made actual API calls (not cached data)
-            if made_api_calls:
-                time.sleep(1.5)
+
+            # Heartbeat every PROGRESS_INTERVAL performers (and at the end),
+            # since per-row "unchanged"/"skipped" lines are now suppressed.
+            processed = self.stats['performers_processed']
+            if processed % PROGRESS_INTERVAL == 0 or processed == total:
+                elapsed = time.time() - start_time
+                rate = processed / elapsed if elapsed > 0 else 0
+                eta_min = (total - processed) / rate / 60 if rate > 0 else 0
+                logger.info(
+                    f"… {processed}/{total} ({processed * 100 // total}%) | "
+                    f"added {self.stats['references_added']}, "
+                    f"removed {self.stats['references_removed']}, "
+                    f"review {self.stats['invalid_references'] - self.stats['references_removed']}, "
+                    f"errors {self.stats['errors']} | "
+                    f"{rate:.1f}/s, ETA {eta_min:.0f}m"
+                )
+
+            # No per-performer sleep here: WikipediaSearcher.rate_limit() and
+            # the MusicBrainz path already throttle their own live requests, so
+            # an extra loop-level sleep just added idle time (~13h over 30k rows).
         
         # Print summary
         self.print_summary()
