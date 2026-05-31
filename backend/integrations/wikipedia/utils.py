@@ -252,6 +252,31 @@ class WikipediaSearcher:
             time.sleep(sleep_time)
         self.last_request_time = time.time()
 
+    def _strip_nickname(self, name):
+        """Remove a decorative quoted nickname and normalize smart quotes.
+
+        Performer names sometimes embed a nickname in quotes, e.g.
+        '“Brother” Jack McDuff' or '‘Papa’ John DeFrancesco'. The quoted part is
+        decorative; the legal name ('Jack McDuff') is what Wikipedia titles and
+        our matching want. Only paired double quotes ("..." / “...”) and paired
+        smart single quotes (‘...’) are stripped — a lone straight apostrophe
+        (O'Brien, 'Night Sweet Pea) has no opener, so such names are untouched.
+
+        The stripped form is only returned when it still has at least two
+        tokens (a plausible first + last name). If stripping collapses the
+        name to a single bare surname (e.g. '‘Doc’ West' -> 'West'), the
+        original is returned instead: a lone surname is too generic — it
+        fuzzy-matches unrelated famous people ('West' -> Kanye West) and
+        partial-matches any 'First Surname' page.
+        """
+        s = name.replace('“', '"').replace('”', '"')
+        s = re.sub(r'"[^"]*"', ' ', s)                  # "nickname"
+        s = re.sub(r'‘[^’]*’', ' ', s)   # ‘nickname’
+        s = re.sub(r'\s+', ' ', s).strip()
+        if s and len(s.split()) >= 2:
+            return s
+        return name.strip()
+
     def verify_wikipedia_reference(self, performer_name, wikipedia_url, context):
         """
         Verify that a Wikipedia URL is valid and refers to the correct performer
@@ -381,9 +406,13 @@ class WikipediaSearcher:
                             'score': 0
                         }
                 
-                # Remove disambiguation parentheses like "(saxophonist)"
-                page_name = re.sub(r'\s*\([^)]*\)\s*$', '', page_title_text).strip().lower()
-                performer_name_lower = performer_name.lower()
+                # Remove disambiguation parentheses like "(saxophonist)" and
+                # strip decorative quoted nicknames from both sides so e.g.
+                # '“Brother” Jack McDuff' matches the page titled 'Jack McDuff'
+                # as an exact (not merely partial) name match.
+                page_name = re.sub(r'\s*\([^)]*\)\s*$', '', page_title_text).strip()
+                page_name = self._strip_nickname(page_name).lower()
+                performer_name_lower = self._strip_nickname(performer_name).lower()
 
                 name_match = False
                 if page_name == performer_name_lower:
@@ -597,94 +626,93 @@ class WikipediaSearcher:
         return 1.0 - (edit_distance / max_len)
 
 
+    def _opensearch(self, query):
+        """Return candidate Wikipedia article URLs for a query via the
+        OpenSearch API, honoring the 7-day search cache.
+
+        Sets self.last_made_api_call. Returns a list of URLs (possibly empty);
+        a genuine empty result is cached so bulk re-runs skip it. Returns None
+        on a transient request failure so the caller can tell 'no results'
+        apart from 'lookup failed' (and we avoid caching the failure).
+        """
+        if not self.force_refresh:
+            cached = self._load_search_from_cache(query)
+            if cached is not None:
+                self.last_made_api_call = False
+                return cached
+
+        self.last_made_api_call = True
+        self.rate_limit()
+        try:
+            response = self.session.get(
+                "https://en.wikipedia.org/w/api.php",
+                params={'action': 'opensearch', 'search': query,
+                        'limit': 5, 'namespace': 0, 'format': 'json'},
+                timeout=10)
+        except requests.RequestException as e:
+            logger.warning(f"  OpenSearch request failed for {query!r}: {e}")
+            return None
+
+        if response.status_code != 200:
+            return None
+
+        data = response.json()
+        urls = data[3] if len(data) >= 4 and data[3] else []
+        if not self.force_refresh:
+            self._save_search_to_cache(query, urls)
+        return urls
+
     def search_wikipedia(self, performer_name, context):
         """
         Search Wikipedia for a performer
-        
+
         Args:
             performer_name: Name to search for
             context: Dict with additional info for verification
-            
+
         Returns:
             Wikipedia URL if found with reasonable confidence, None otherwise
         """
         try:
-            # Check cache first (unless force_refresh is enabled)
-            if not self.force_refresh:
-                cached_results = self._load_search_from_cache(performer_name)
-                if cached_results is not None:  # Changed from 'if cached_results:' to handle empty lists
-                    self.last_made_api_call = False  # Using cached search results
-                    if not cached_results:  # Empty list means no results found previously
-                        logger.debug(f"  Using cached empty search results (no Wikipedia page found)")
-                        return None
-                    logger.debug(f"  Using cached search results")
-                    urls = cached_results
-                else:
-                    # Perform API search
-                    self.last_made_api_call = True
-                    search_url = "https://en.wikipedia.org/w/api.php"
-                    params = {
-                        'action': 'opensearch',
-                        'search': performer_name,
-                        'limit': 5,
-                        'namespace': 0,
-                        'format': 'json'
-                    }
-                    
-                    self.rate_limit()
-                    response = self.session.get(search_url, params=params, timeout=10)
-                    
-                    if response.status_code != 200:
-                        return None
-                    
-                    data = response.json()
-                    if len(data) < 4 or not data[3]:
-                        # Cache empty results so we don't search again
-                        self._save_search_to_cache(performer_name, [])
-                        return None
-                    
-                    urls = data[3]
-                    
-                    # Save to cache
-                    self._save_search_to_cache(performer_name, urls)
-            else:
-                # Force refresh - skip cache
-                self.last_made_api_call = True
-                search_url = "https://en.wikipedia.org/w/api.php"
-                params = {
-                    'action': 'opensearch',
-                    'search': performer_name,
-                    'limit': 5,
-                    'namespace': 0,
-                    'format': 'json'
-                }
-                
-                self.rate_limit()
-                response = self.session.get(search_url, params=params, timeout=10)
-                
-                if response.status_code != 200:
-                    return None
-                
-                data = response.json()
-                if len(data) < 4 or not data[3]:
-                    return None
-                
-                urls = data[3]
+            # Search the nickname-stripped (more canonical) form first, then
+            # the name as stored. e.g. '“Brother” Jack McDuff' searches
+            # 'Jack McDuff' first so the canonical article is found and
+            # preferred over an album/redirect that the decorated name returns.
+            queries = []
+            stripped = self._strip_nickname(performer_name)
+            if stripped.lower() != performer_name.lower():
+                queries.append(stripped)
+            queries.append(performer_name)
 
-            # Verify each URL until we find a good match
+            candidate_urls = []
+            any_api_call = False
+            for query in queries:
+                urls = self._opensearch(query)
+                any_api_call = any_api_call or self.last_made_api_call
+                for url in (urls or []):
+                    if url not in candidate_urls:
+                        candidate_urls.append(url)
+            self.last_made_api_call = any_api_call
+
+            if not candidate_urls:
+                logger.debug("  No Wikipedia search results")
+                return None
+
+            # Verify each candidate until we find a good match
             # Note: verify_wikipedia_reference will also set last_made_api_call
-            for url in urls[:5]:
+            for url in candidate_urls[:8]:
                 verification = self.verify_wikipedia_reference(performer_name, url, context)
                 logger.debug(f"  Checked {url}: valid={verification['valid']}, confidence={verification['confidence']}, score={verification.get('score', 0)}, reason={verification['reason']}")
                 if verification['valid']:
                     logger.debug(f"  Found Wikipedia: {url} (confidence: {verification['confidence']}, score: {verification.get('score', 0)})")
                     logger.debug(f"    Reason: {verification['reason']}")
                     return url
-            
-            # No valid URL found - cache empty results
+
+            # No candidate verified - cache empty under the stored name so a
+            # re-run skips re-verifying (preserves bulk-run speed).
             self._save_search_to_cache(performer_name, [])
             return None
-            
+
         except Exception as e:
             logger.error(f"Error searching Wikipedia for {performer_name}: {e}")
             return None
