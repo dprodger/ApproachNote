@@ -170,14 +170,16 @@ struct NotImplementedView: View {
 struct InfoRow: View {
     let label: String
     let value: String
-    
+    var deEmphasized: Bool = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(label)
                 .font(.caption)
                 .foregroundColor(.secondary)
             Text(value)
-                .font(.body)
+                .font(deEmphasized ? .caption.monospaced() : .body)
+                .foregroundColor(deEmphasized ? .secondary : .primary)
         }
     }
 }

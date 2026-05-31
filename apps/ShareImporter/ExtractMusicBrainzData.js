@@ -155,17 +155,42 @@ ExtractMusicBrainzData.prototype = {
             title = pageTitle.replace(/\s*-\s*MusicBrainz\s*$/, '').trim();
         }
         
-        // Extract composer(s) - try multiple selectors
-        var composers = [];
-        
-        // Look for composer or writer in the details list
-        var composerElements = document.querySelectorAll('dd.writer a[href*="/artist/"], dd.composer a[href*="/artist/"]');
-        composerElements.forEach(function(element) {
-            var composerName = element.textContent.trim();
-            if (composerName && composers.indexOf(composerName) === -1) {
-                composers.push(composerName);
+        // Composer(s) are filled in from the MusicBrainz web service below
+        // (see the artist-rels fetch before completionFunction). The DOM is an
+        // unreliable source because the relationship markup varies and the work
+        // page is increasingly served behind a JS challenge. We still keep a
+        // best-effort DOM scrape as a fallback if the API call fails.
+        function scrapeComposersFromDOM() {
+            var found = [];
+            function addFromDd(dd) {
+                if (!dd) return;
+                dd.querySelectorAll('a[href*="/artist/"]').forEach(function(element) {
+                    var name = element.textContent.trim();
+                    if (name && found.indexOf(name) === -1) {
+                        found.push(name);
+                    }
+                });
             }
-        });
+            document.querySelectorAll('dt').forEach(function(dt) {
+                var label = dt.textContent.trim().toLowerCase();
+                if (label.indexOf('composer') !== -1 || label.indexOf('writer') !== -1) {
+                    var sibling = dt.nextElementSibling;
+                    while (sibling && sibling.tagName === 'DD') {
+                        addFromDd(sibling);
+                        sibling = sibling.nextElementSibling;
+                    }
+                }
+            });
+            if (found.length === 0) {
+                document.querySelectorAll('dd.writer a[href*="/artist/"], dd.composer a[href*="/artist/"]').forEach(function(element) {
+                    var name = element.textContent.trim();
+                    if (name && found.indexOf(name) === -1) {
+                        found.push(name);
+                    }
+                });
+            }
+            return found;
+        }
         
         // Extract type (song, instrumental, etc.)
         var workType = "";
@@ -220,36 +245,89 @@ ExtractMusicBrainzData.prototype = {
         };
         
         // Only add optional fields if they have values
-        if (composers.length > 0) {
-            result.composers = composers;
-        }
-        
         if (workType) {
             result.workType = workType;
         }
-        
+
         if (musicalKey) {
             result.key = musicalKey;
         }
-        
+
         if (iswc) {
             result.iswc = iswc;
         }
-        
+
         if (language) {
             result.language = language;
         }
-        
+
         if (annotation) {
             result.annotation = annotation;
         }
-        
+
         if (wikipediaUrl) {
             result.wikipediaUrl = wikipediaUrl;
         }
-        
-        // Return results to the extension
-        arguments.completionFunction(result);
+
+        // Resolve composers from the MusicBrainz web service (authoritative),
+        // then return results to the extension. completionFunction must be
+        // called exactly once, so guard the timeout/fetch race. Alias the
+        // extension args because `arguments` is shadowed inside the callbacks
+        // by their own implicit arguments object.
+        var extensionArgs = arguments;
+        var completed = false;
+        function finish(composerList) {
+            if (completed) return;
+            completed = true;
+            if (composerList && composerList.length > 0) {
+                result.composers = composerList;
+            }
+            extensionArgs.completionFunction(result);
+        }
+
+        // Safety net: never let a hung request strand the import.
+        var timeoutId = setTimeout(function() {
+            finish(scrapeComposersFromDOM());
+        }, 4000);
+
+        if (musicbrainzId) {
+            var apiUrl = "https://musicbrainz.org/ws/2/work/" + musicbrainzId +
+                "?inc=artist-rels&fmt=json";
+            fetch(apiUrl, { headers: { "Accept": "application/json" } })
+                .then(function(response) {
+                    return response.ok ? response.json() : null;
+                })
+                .then(function(json) {
+                    clearTimeout(timeoutId);
+                    var names = [];
+                    if (json && json.relations) {
+                        // Prefer "composer"; fall back to writer/lyricist only
+                        // if no composer relationship exists.
+                        var rels = json.relations.filter(function(rel) {
+                            return rel.type === "composer";
+                        });
+                        if (rels.length === 0) {
+                            rels = json.relations.filter(function(rel) {
+                                return rel.type === "writer" || rel.type === "lyricist";
+                            });
+                        }
+                        rels.forEach(function(rel) {
+                            var name = rel.artist && rel.artist.name ? rel.artist.name.trim() : "";
+                            if (name && names.indexOf(name) === -1) {
+                                names.push(name);
+                            }
+                        });
+                    }
+                    finish(names.length > 0 ? names : scrapeComposersFromDOM());
+                })
+                .catch(function() {
+                    clearTimeout(timeoutId);
+                    finish(scrapeComposersFromDOM());
+                });
+        } else {
+            clearTimeout(timeoutId);
+            finish(scrapeComposersFromDOM());
+        }
     },
 
     extractYouTubeData: function(arguments, url) {

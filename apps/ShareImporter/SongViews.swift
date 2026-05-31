@@ -16,10 +16,6 @@ struct SongImportConfirmationView: View {
     var body: some View {
         VStack(spacing: 20) {
             VStack(spacing: 12) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 50))
-                    .foregroundColor(.blue)
-                
                 Text("Import Song")
                     .font(.title2)
                     .bold()
@@ -46,13 +42,11 @@ struct SongImportConfirmationView: View {
                         InfoRow(label: "Key", value: key)
                     }
                     
-                    InfoRow(label: "MusicBrainz ID", value: songData.musicbrainzId)
+                    InfoRow(label: "MusicBrainz ID", value: songData.musicbrainzId, deEmphasized: true)
                 }
-                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
             }
-            .background(Color(.systemGray6))
-            .cornerRadius(12)
-            .padding(.horizontal)
             
             Spacer()
             

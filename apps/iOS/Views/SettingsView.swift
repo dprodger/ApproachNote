@@ -268,19 +268,8 @@ struct SettingsView: View {
                             }
                             .padding(.horizontal)
                         } else {
-                            Button(action: {
+                            ApproachNoteButton("Sign In / Sign Up") {
                                 isShowingLogin = true
-                            }) {
-                                HStack {
-                                    Image(systemName: "person.crop.circle.badge.plus")
-                                        .foregroundColor(ApproachNoteTheme.brand)
-                                    Text("Sign In or Create Account")
-                                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                                    Spacer()
-                                }
-                                .padding()
-                                .background(ApproachNoteTheme.surface)
-                                .cornerRadius(8)
                             }
                             .padding(.horizontal)
                         }
