@@ -23,6 +23,17 @@ from pathlib import Path
 backend_dir = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(backend_dir))
 
+# Load environment variables from .env in the backend directory (matches
+# script_base.py). Without this, db_utils sees empty DB_* vars and the
+# connection falls back to the local Postgres socket.
+try:
+    from dotenv import load_dotenv
+    env_path = backend_dir / '.env'
+    if env_path.exists():
+        load_dotenv(env_path)
+except ImportError:
+    pass  # python-dotenv not installed, skip
+
 # Third-party imports
 import requests
 
