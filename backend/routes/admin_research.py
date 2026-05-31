@@ -215,12 +215,17 @@ def get_job(job_id: int):
 
 @admin_research_bp.route('/stats', methods=['GET'])
 def stats():
-    """Counts by (source, status) + last-24h throughput + total dead."""
-    sql_by_source = """
-        SELECT source, status, count(*) AS n
+    """Counts by (source, status) + per-job_type breakdown + last-24h
+    throughput + total dead."""
+    # One query at (source, job_type, status) granularity feeds both the
+    # source rollup and the per-job_type detail — a source can host several
+    # job_types (e.g. musicbrainz hosts backfill_release_label and
+    # verify_performer_references), which the source rollup alone hides.
+    sql_by_job_type = """
+        SELECT source, job_type, status, count(*) AS n
         FROM research_jobs
-        GROUP BY source, status
-        ORDER BY source, status
+        GROUP BY source, job_type, status
+        ORDER BY source, job_type, status
     """
     sql_throughput = """
         SELECT
@@ -233,18 +238,27 @@ def stats():
     """
     with get_db_connection() as conn:
         with conn.cursor() as cur:
-            cur.execute(sql_by_source)
-            by_source = cur.fetchall()
+            cur.execute(sql_by_job_type)
+            rows = cur.fetchall()
             cur.execute(sql_throughput)
             totals = cur.fetchone()
 
-    # Pivot into {source: {status: n}}
-    pivoted: dict[str, dict[str, int]] = {}
-    for row in by_source:
-        pivoted.setdefault(row['source'], {})[row['status']] = row['n']
+    # Pivot into {source: {status: n}} (rollup) and
+    # {source: {job_type: {status: n}}} (detail).
+    by_source: dict[str, dict[str, int]] = {}
+    by_job_type: dict[str, dict[str, dict[str, int]]] = {}
+    for row in rows:
+        source, job_type, status, n = (
+            row['source'], row['job_type'], row['status'], row['n'],
+        )
+        src_bucket = by_source.setdefault(source, {})
+        src_bucket[status] = src_bucket.get(status, 0) + n
+        jt_bucket = by_job_type.setdefault(source, {}).setdefault(job_type, {})
+        jt_bucket[status] = jt_bucket.get(status, 0) + n
 
     return jsonify({
-        'by_source': pivoted,
+        'by_source': by_source,
+        'by_job_type': by_job_type,
         'totals': dict(totals) if totals else {},
     })
 

@@ -87,6 +87,12 @@
         }
         .by-source-table th:first-child, .by-source-table td:first-child { text-align: left; }
         .by-source-table th { color: #888; font-weight: 600; font-size: 0.85em; }
+        /* Source rollup rows are bold; per-job_type sub-rows sit indented and
+           muted beneath their source, with no divider above each sub-row. */
+        .by-source-table tr.source-row td { font-weight: 600; border-bottom: none; }
+        .by-source-table tr.job-type-row td { color: #888; border-bottom: none; }
+        .by-source-table tr.job-type-row td.job-type-cell { padding-left: 22px; font-weight: 400; }
+        .by-source-table tr.job-type-row:last-child td { border-bottom: 1px solid #f0f0f0; }
 
         /* Jobs section */
         .jobs-section { margin-top: 8px; }
@@ -460,22 +466,34 @@
                 document.getElementById('total-dead').textContent = (t.dead_total ?? 0).toLocaleString();
 
                 const bySource = data.by_source || {};
+                const byJobType = data.by_job_type || {};
                 const sources = Object.keys(bySource).sort();
                 const tbody = document.getElementById('stats-by-source');
                 if (!sources.length) {
                     tbody.innerHTML = '<tr><td colspan="5" style="color:#aaa;">No jobs yet.</td></tr>';
                 } else {
+                    const cells = (row) => `
+                        <td>${(row.queued ?? 0).toLocaleString()}</td>
+                        <td>${(row.running ?? 0).toLocaleString()}</td>
+                        <td>${(row.done ?? 0).toLocaleString()}</td>
+                        <td>${(row.dead ?? 0).toLocaleString()}</td>`;
                     tbody.innerHTML = sources.map(s => {
-                        const row = bySource[s];
-                        return `
-                          <tr>
+                        // Parent row: the source rollup (summed across job_types).
+                        let html = `
+                          <tr class="source-row">
                             <td>${s}</td>
-                            <td>${(row.queued ?? 0).toLocaleString()}</td>
-                            <td>${(row.running ?? 0).toLocaleString()}</td>
-                            <td>${(row.done ?? 0).toLocaleString()}</td>
-                            <td>${(row.dead ?? 0).toLocaleString()}</td>
-                          </tr>
-                        `;
+                            ${cells(bySource[s])}
+                          </tr>`;
+                        // Sub-rows: one per job_type under this source.
+                        const jobTypes = Object.keys(byJobType[s] || {}).sort();
+                        for (const jt of jobTypes) {
+                            html += `
+                              <tr class="job-type-row">
+                                <td class="job-type-cell">${jt}</td>
+                                ${cells(byJobType[s][jt])}
+                              </tr>`;
+                        }
+                        return html;
                     }).join('');
                 }
                 document.getElementById('stats-updated').textContent = 'updated ' + new Date().toLocaleTimeString();
