@@ -19,6 +19,26 @@ from core.cache_utils import get_cache_dir
 
 logger = logging.getLogger(__name__)
 
+# Terms that mark a page's primary subject as a non-musician. Used to reject
+# pages whose infobox/lead clearly describe an actor, athlete, politician, etc.
+# Kept focused to avoid false rejects; only applied when NO music term is also
+# present in the infobox/lead.
+_NON_MUSICIAN_TERMS = [
+    'actor', 'actress', 'filmmaker', 'screenwriter', 'comedian',
+    'basketball', 'footballer', 'baseball', 'quarterback', 'athlete',
+    'politician', 'senator', 'congressman', 'governor', 'mayor', 'president',
+    'novelist', 'painter', 'sculptor', 'economist', 'physicist', 'philosopher',
+]
+
+# Music terms whose presence in the infobox/lead protects a genuine musician
+# from the non-musician guard above (e.g. 'jazz organist').
+_MUSICIAN_TERMS = [
+    'musician', 'singer', 'vocalist', 'pianist', 'organist', 'guitarist',
+    'bassist', 'drummer', 'saxophonist', 'trumpeter', 'trombonist',
+    'composer', 'bandleader', 'jazz', 'blues', 'bebop', 'swing',
+]
+
+
 class WikipediaSearcher:
     """Shared Wikipedia search functionality with caching"""
     
@@ -308,6 +328,12 @@ class WikipediaSearcher:
             # Get the main content area (skip navigation/menus)
             content_div = soup.find('div', {'id': 'mw-content-text'}) or soup.find('div', {'class': 'mw-parser-output'})
             if content_div:
+                # Drop hatnotes ("For the musician, see ...") before reading the
+                # text: they are cross-references to OTHER subjects, and letting
+                # their keywords leak in mis-scores the page (e.g. the actor Kirk
+                # Douglas hatnote mentions "musician" and points at the real one).
+                for hatnote in content_div.select('div.hatnote, .hatnote'):
+                    hatnote.decompose()
                 page_text = content_div.get_text().lower()
             else:
                 page_text = soup.get_text().lower()
@@ -364,10 +390,11 @@ class WikipediaSearcher:
             reasons = []
             
             # Check name similarity
+            page_title_text = ''
             page_title = soup.find('h1', {'id': 'firstHeading'})
             if page_title:
                 page_title_text = page_title.get_text().strip()
-                
+
                 # Check if the title disambiguation clearly indicates a NON-musician
                 # Extract the disambiguation term in parentheses (e.g., "(basketball)" from "Sam Jones (basketball)")
                 disambiguation_match = re.search(r'\(([^)]+)\)$', page_title_text)
@@ -455,6 +482,7 @@ class WikipediaSearcher:
                     reasons.append(f"Name mismatch: expected '{performer_name}', page is '{page_title_text}'")
             
             # Look for infobox (strong signal this is a musician page)
+            infobox_text = ''
             infobox = soup.find('table', {'class': 'infobox'})
             if infobox:
                 infobox_text = infobox.get_text().lower()
@@ -503,28 +531,65 @@ class WikipediaSearcher:
                 # Generic terms only get partial credit and only if we have other signals
                 confidence_score += 5
                 reasons.append(f"Found generic music keywords: {', '.join(found_generic[:2])}")
-            
+
+            # Guard: reject pages whose primary subject is clearly a non-musician
+            # (actor, athlete, politician, ...). We look only at the infobox and
+            # the lead sentence — an incidental "musician" mention later in the
+            # body must not rescue e.g. the actor Kirk Douglas. A music term in
+            # the infobox/lead protects genuine musicians ('jazz organist').
+            lead_text = page_text[:600]
+            subject_text = f"{infobox_text} {lead_text}"
+            non_musician_hits = [t for t in _NON_MUSICIAN_TERMS if self._word_in_text(t, subject_text)]
+            music_hits = [t for t in _MUSICIAN_TERMS if self._word_in_text(t, subject_text)]
+            if non_musician_hits and not music_hits:
+                logger.debug(f"Primary subject looks non-musician ({non_musician_hits[:2]}), no music signal - rejecting")
+                return {
+                    'valid': False,
+                    'confidence': 'high',
+                    'reason': f"Page subject appears to be a {non_musician_hits[0]}, not a musician",
+                    'score': 0
+                }
+
             # Check birth/death dates if available
+            has_corroboration = False
             if context.get('birth_date'):
                 birth_year = str(context['birth_date'].year) if hasattr(context['birth_date'], 'year') else str(context['birth_date'])[:4]
                 if birth_year in page_text[:2000]:
                     confidence_score += 25
+                    has_corroboration = True
                     reasons.append(f"Birth year {birth_year} found on page")
-            
+
             if context.get('death_date'):
                 death_year = str(context['death_date'].year) if hasattr(context['death_date'], 'year') else str(context['death_date'])[:4]
                 if death_year in page_text[:2000]:
                     confidence_score += 20
+                    has_corroboration = True
                     reasons.append(f"Death year {death_year} found on page")
-            
+
             # Check if any of the performer's songs are mentioned
             if context.get('sample_songs'):
-                song_mentions = [song for song in context['sample_songs'] 
+                song_mentions = [song for song in context['sample_songs']
                                if song and song.lower() in page_text]
                 if song_mentions:
                     confidence_score += 25
+                    has_corroboration = True
                     reasons.append(f"Found song references: {', '.join(song_mentions[:2])}")
-            
+
+            # Guard: a parenthetically disambiguated title (e.g.
+            # "Joe Jones (Fluxus musician)") means several same-named people
+            # exist, so a bare name + generic music keywords isn't enough to
+            # know which one this is. Require corroboration (birth/death year or
+            # a song on the page) before accepting such a page.
+            title_disambiguated = bool(re.search(r'\([^)]+\)\s*$', page_title_text))
+            if title_disambiguated and not has_corroboration:
+                logger.debug(f"Disambiguated title '{page_title_text}' without corroboration - not accepting")
+                return {
+                    'valid': False,
+                    'confidence': 'low',
+                    'reason': f"Disambiguated page '{page_title_text}' needs birth/death or song corroboration (score: {confidence_score})",
+                    'score': confidence_score
+                }
+
             # Determine validity based on confidence score
             # Require at least 50 points (medium confidence) to accept
             if confidence_score >= 50:
