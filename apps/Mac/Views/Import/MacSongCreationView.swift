@@ -18,7 +18,6 @@ struct MacSongCreationView: View {
     @State private var composer: String
     @State private var musicbrainzId: String
     @State private var workType: String
-    @State private var key: String
 
     @State private var isSaving = false
     @State private var showingError = false
@@ -33,30 +32,14 @@ struct MacSongCreationView: View {
         _composer = State(initialValue: importedData?.composerString ?? "")
         _musicbrainzId = State(initialValue: importedData?.musicbrainzId ?? "")
         _workType = State(initialValue: importedData?.workType ?? "")
-        _key = State(initialValue: importedData?.key ?? "")
     }
 
     var body: some View {
         VStack(spacing: 0) {
             // Header
             HStack {
-                Button("Cancel") {
-                    dismiss()
-                }
-                .keyboardShortcut(.cancelAction)
-
-                Spacer()
-
                 Text("Create Song")
                     .font(ApproachNoteTheme.headline())
-
-                Spacer()
-
-                Button("Save") {
-                    saveSong()
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(title.isEmpty || isSaving)
             }
             .padding()
 
@@ -70,37 +53,25 @@ struct MacSongCreationView: View {
 
                     TextField("Composer", text: $composer)
                         .textFieldStyle(.roundedBorder)
-
-                    TextField("MusicBrainz ID", text: $musicbrainzId)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(.body, design: .monospaced))
                 } header: {
                     Text("Basic Information")
-                }
-
-                Section {
-                    TextField("Work Type (e.g., Song, Instrumental)", text: $workType)
-                        .textFieldStyle(.roundedBorder)
-
-                    TextField("Key (e.g., Eb, F minor)", text: $key)
-                        .textFieldStyle(.roundedBorder)
-                } header: {
-                    Text("Additional Details")
-                }
-
-                Section {
-                    Text("Additional details (structure, recordings) can be added later through the app.")
-                        .font(ApproachNoteTheme.caption())
-                        .foregroundColor(.secondary)
                 }
             }
             .formStyle(.grouped)
             .padding()
 
-            if isSaving {
-                ProgressView("Saving...")
-                    .padding()
+            // Footer buttons
+            VStack(spacing: 12) {
+                ApproachNoteButton("Create Song", isLoading: isSaving, action: saveSong)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(title.isEmpty || isSaving)
+
+                ApproachNoteButton("Cancel", style: .secondary) {
+                    dismiss()
+                }
+                .keyboardShortcut(.cancelAction)
             }
+            .padding()
         }
         .frame(minWidth: 400, minHeight: 400)
         .alert("Error", isPresented: $showingError) {

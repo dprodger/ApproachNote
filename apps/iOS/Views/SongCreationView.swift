@@ -23,7 +23,6 @@ struct SongCreationView: View {
     @State private var composer: String
     @State private var musicbrainzId: String
     @State private var workType: String
-    @State private var key: String
 
     @State private var isSaving = false
     @State private var showingError = false
@@ -41,8 +40,7 @@ struct SongCreationView: View {
         _composer = State(initialValue: importedData?.composerString ?? "")
         _musicbrainzId = State(initialValue: importedData?.musicbrainzId ?? "")
         _workType = State(initialValue: importedData?.workType ?? "")
-        _key = State(initialValue: importedData?.key ?? "")
-        
+
         NSLog("✅ Init complete, title state: '%@'", importedData?.title ?? "EMPTY")
     }
     
@@ -52,47 +50,21 @@ struct SongCreationView: View {
                 Section(header: Text("Basic Information")) {
                     TextField("Song Title", text: $title)
                     TextField("Composer", text: $composer)
-                    TextField("MusicBrainz ID", text: $musicbrainzId)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .font(.system(.body, design: .monospaced))
-                }
-                
-                Section(header: Text("Additional Details")) {
-                    TextField("Work Type (e.g., Song, Instrumental)", text: $workType)
-                    TextField("Key (e.g., Eb, F minor)", text: $key)
-                }
-                
-                Section {
-                    Text("Additional details (structure, recordings) can be added later through the app.")
-                        .font(ApproachNoteTheme.caption())
-                        .foregroundColor(.secondary)
-                }
-                
-                Section {
-                    Button(action: saveSong) {
-                        if isSaving {
-                            HStack {
-                                ProgressView()
-                                Text("Creating Song...")
-                            }
-                        } else {
-                            Text("Create Song")
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .disabled(title.isEmpty || isSaving)
-                    .foregroundColor(title.isEmpty ? Color.gray : Color.blue)
                 }
             }
             .navigationTitle("Create Song")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Cancel") {
+            .safeAreaInset(edge: .bottom) {
+                VStack(spacing: 12) {
+                    ApproachNoteButton("Create Song", isLoading: isSaving, action: saveSong)
+                        .disabled(title.isEmpty || isSaving)
+
+                    ApproachNoteButton("Cancel", style: .secondary) {
                         dismiss()
                     }
                 }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
             }
             .onAppear {
                 NSLog("📱 SongCreationView.onAppear()")

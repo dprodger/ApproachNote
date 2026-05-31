@@ -152,6 +152,7 @@ struct MacNotImplementedView: View {
 struct MacInfoRow: View {
     let label: String
     let value: String
+    var deEmphasized: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -159,7 +160,8 @@ struct MacInfoRow: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             Text(value)
-                .font(.body)
+                .font(deEmphasized ? .caption.monospaced() : .body)
+                .foregroundColor(deEmphasized ? .secondary : .primary)
         }
     }
 }
@@ -486,10 +488,6 @@ struct MacSongImportConfirmationView: View {
     var body: some View {
         VStack(spacing: 16) {
             VStack(spacing: 8) {
-                Image(systemName: "music.note")
-                    .font(.system(size: 40))
-                    .foregroundColor(.blue)
-
                 Text("Import Song")
                     .font(.title2)
                     .bold()
@@ -516,13 +514,11 @@ struct MacSongImportConfirmationView: View {
                         MacInfoRow(label: "Key", value: key)
                     }
 
-                    MacInfoRow(label: "MusicBrainz ID", value: songData.musicbrainzId)
+                    MacInfoRow(label: "MusicBrainz ID", value: songData.musicbrainzId, deEmphasized: true)
                 }
-                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal)
             }
-            .background(Color(NSColor.controlBackgroundColor))
-            .cornerRadius(8)
-            .padding(.horizontal)
 
             Spacer()
 
