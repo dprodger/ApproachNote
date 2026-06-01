@@ -14,10 +14,11 @@ URL: it only walks performers that already have one. Finding the URL is a
 separate concern (that's what the reference verifier does); this populates the
 data behind a URL we already trust.
 
-It runs in only-new mode: it fills fields Wikipedia has and the DB lacks, but
-never overwrites an existing value. Safe to re-run — the research_jobs unique
-index dedups against in-flight jobs, and re-running re-examines every
-Wikipedia-URL performer (Wikipedia content evolves).
+Birth date, death date, and image are only-new (written only when the DB
+lacks them); biography is refreshed from Wikipedia on every run (overwriting
+any existing blurb), so edited Wikipedia bios propagate. Safe to re-run — the
+research_jobs unique index dedups against in-flight jobs, and re-running
+re-examines every Wikipedia-URL performer (Wikipedia content evolves).
 
 Usage:
     python load_performer_wikipedia_data.py                 # all wiki-URL performers

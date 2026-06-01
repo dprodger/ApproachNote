@@ -247,7 +247,7 @@ class TestHandlerSuccess:
         assert result['updated'] is True
         assert result['birth_date_added'] == '1940-07-17'
         assert result['death_date_added'] == '2005-03-02'
-        assert result['biography_added'] is True
+        assert result['biography_updated'] is True
         assert result['image_added'] is True
 
         with get_db_connection() as conn:
@@ -278,7 +278,7 @@ class TestHandlerSuccess:
         self, perf_fixture, patched_fetch,
     ):
         # Wikipedia reports a different birth date + a new bio; the existing
-        # birth must be preserved, only the missing bio written.
+        # birth must be preserved (only-new), only the bio written.
         patched_fetch.return_value = PerformerWikipediaData(
             birth_date='1999-12-31',
             biography='Newly discovered biography.',
@@ -291,19 +291,19 @@ class TestHandlerSuccess:
 
         assert result['updated'] is True
         assert result['birth_date_added'] is None       # not overwritten
-        assert result['biography_added'] is True
+        assert result['biography_updated'] is True
 
         with get_db_connection() as conn:
             row = _performer_row(conn, PERFORMER_HAS_BIRTH)
         assert str(row['birth_date']) == '1930-01-01'    # unchanged
         assert row['biography'] == 'Newly discovered biography.'
 
-    def test_only_new_skips_date_fetch_when_dates_present(
+    def test_biography_is_always_requested(
         self, perf_fixture, patched_fetch,
     ):
         # PERFORMER_HAS_BIRTH has a birth but no death -> dates still wanted
-        # (for the missing death). Confirm the want flags are computed: bio is
-        # missing so want_biography True, birth present so it won't be written.
+        # (for the missing death). Biography is always requested, even though
+        # this performer has none yet; birth is present so it won't be written.
         patched_fetch.return_value = PerformerWikipediaData(page_fetched=True)
         handler.enrich_performer_from_wikipedia({}, FakeCtx(PERFORMER_HAS_BIRTH))
         kwargs = patched_fetch.call_args.kwargs
@@ -323,17 +323,53 @@ class TestHandlerSuccess:
         )
 
 
-class TestHandlerNoOps:
-    def test_already_populated_short_circuits_without_fetch(
+class TestBiographyRefresh:
+    def test_existing_biography_is_overwritten_when_changed(
         self, perf_fixture, patched_fetch,
     ):
+        # Fully-populated performer (birth+death+bio+wiki image) still gets a
+        # page fetch, and a changed Wikipedia bio replaces the stored one.
+        # Dates are present (only-new) and an image already exists, so only the
+        # biography is written.
+        patched_fetch.return_value = PerformerWikipediaData(
+            birth_date='1800-01-01',                   # ignored (birth present)
+            biography='A revised, fuller biography.',
+            page_fetched=True,
+        )
+
         result = handler.enrich_performer_from_wikipedia(
             {}, FakeCtx(PERFORMER_FULLY_POPULATED),
         )
-        assert result['updated'] is False
-        assert result['reason'] == 'already_populated'
-        patched_fetch.assert_not_called()
 
+        patched_fetch.assert_called_once()
+        assert result['updated'] is True
+        assert result['biography_updated'] is True
+        assert result['birth_date_added'] is None
+        assert result['image_added'] is False
+
+        with get_db_connection() as conn:
+            row = _performer_row(conn, PERFORMER_FULLY_POPULATED)
+        assert row['biography'] == 'A revised, fuller biography.'
+        assert str(row['birth_date']) == '1926-05-26'  # unchanged
+
+    def test_unchanged_biography_is_a_no_op(
+        self, perf_fixture, patched_fetch,
+    ):
+        # Wikipedia returns the same bio the DB already holds -> no write.
+        patched_fetch.return_value = PerformerWikipediaData(
+            biography='A fully documented life.', page_fetched=True,
+        )
+
+        result = handler.enrich_performer_from_wikipedia(
+            {}, FakeCtx(PERFORMER_FULLY_POPULATED),
+        )
+
+        patched_fetch.assert_called_once()  # the page is still fetched
+        assert result['updated'] is False
+        assert result['reason'] == 'nothing_new'
+
+
+class TestHandlerNoOps:
     def test_nothing_new_when_wikipedia_empty(
         self, perf_fixture, patched_fetch,
     ):

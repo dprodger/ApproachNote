@@ -5,9 +5,11 @@ Currently registered:
 
   ('wikipedia', 'enrich_performer_from_wikipedia'), target_type='performer'
     For one performer that already has a Wikipedia URL, fetch the page and
-    fill any of {birth_date, death_date, biography, primary image} that
-    Wikipedia carries and the DB lacks. Only-new: existing values are never
-    overwritten.
+    populate {birth_date, death_date, biography, primary image}. Birth date,
+    death date, and image are only-new (written only when the DB lacks them).
+    Biography is refreshed on every run — it's overwritten whenever Wikipedia
+    carries one that differs from the stored blurb — so an edited Wikipedia
+    bio propagates on the next sweep.
 
 Why a dedicated 'wikipedia' source (rather than folding this into the
 musicbrainz handler that also touches Wikipedia for reference discovery):
@@ -25,8 +27,8 @@ because Wikipedia content evolves and a future sweep should re-examine
 everyone. The handler is the thing that decides, per-field, whether there is
 anything new to write, so re-running the producer is cheap and safe.
 
-Only-new persistence (matching the producer's intent): a fruitless fetch — or
-one where Wikipedia simply has nothing the DB is missing — records a
+Persistence outcomes: a fruitless fetch — or one where Wikipedia has nothing
+the DB needs (no missing date/image and an unchanged biography) — records a
 {updated: False} no-op rather than a RetryableError. The searcher swallows its
 own network errors and returns None for both "page missing" and "transient
 blip", so we can't distinguish them; re-running the producer re-enqueues a
@@ -110,33 +112,35 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
             f"performer {performer_id} has no Wikipedia URL"
         )
 
-    # Per-field "is this missing?" — drives which work we do and what we write.
+    # Birth date, death date, and image are only-new: we only fetch/write them
+    # when the DB lacks them. Biography is the exception — it's refreshed from
+    # Wikipedia on every run (overwriting any existing blurb), so we always
+    # fetch the page and re-read it. That means a wiki-URL performer is always
+    # worth a (cache-served) page fetch; there's no "already populated"
+    # short-circuit.
     want_birth = row['birth_date'] is None
     want_death = row['death_date'] is None
-    want_biography = not (row['biography'] or '').strip()
     want_image = not row['has_wikipedia_image']
-
-    # Nothing missing -> skip the network entirely. (Rare: needs a deceased,
-    # fully-documented performer with a Wikipedia image already saved.)
-    if not (want_birth or want_death or want_biography or want_image):
-        return {'updated': False, 'reason': 'already_populated', 'name': name}
 
     searcher = WikipediaSearcher(cache_days=7, force_refresh=force_refresh)
     data = fetch_performer_data(
         searcher,
         wiki_url,
         want_dates=(want_birth or want_death),
-        want_biography=want_biography,
+        want_biography=True,
         want_image=want_image,
     )
 
-    # Only-new: collect the fields Wikipedia supplied that the DB was missing.
     field_updates: dict[str, str] = {}
+    # Only-new for dates: write only what the DB was missing.
     if want_birth and data.birth_date:
         field_updates['birth_date'] = data.birth_date
     if want_death and data.death_date:
         field_updates['death_date'] = data.death_date
-    if want_biography and data.biography:
+    # Refresh biography whenever Wikipedia has one that differs from what we
+    # hold — including replacing an existing blurb. Skip the write when it's
+    # unchanged so re-runs don't churn rows or report spurious updates.
+    if data.biography and data.biography != (row['biography'] or '').strip():
         field_updates['biography'] = data.biography
 
     image_saved = False
@@ -156,7 +160,7 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
         'name': name,
         'birth_date_added': field_updates.get('birth_date'),
         'death_date_added': field_updates.get('death_date'),
-        'biography_added': bool(field_updates.get('biography')),
+        'biography_updated': 'biography' in field_updates,
         'image_added': image_saved,
     }
 
