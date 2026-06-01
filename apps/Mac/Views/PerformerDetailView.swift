@@ -59,7 +59,7 @@ struct PerformerDetailView: View {
                     // Recordings with filtering, sort, and +/- accordions
                     recordingsSection(performer.recordings ?? [])
                 }
-                .padding()
+                .padding(ApproachNoteTheme.spacingXL)
             } else {
                 Text("Artist not found")
                     .foregroundColor(.secondary)
@@ -103,7 +103,7 @@ struct PerformerDetailView: View {
             // Artist image(s) — pages through all images when there are several.
             PerformerImageCarousel(images: performer.images ?? [])
 
-            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 Text(performer.name)
                     .font(ApproachNoteTheme.largeTitle())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
