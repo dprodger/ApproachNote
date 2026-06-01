@@ -25,6 +25,7 @@ from db_utils import get_db_connection
 from integrations.wikipedia.performer_data import (
     PerformerWikipediaData,
     WikipediaImage,
+    parse_date,
 )
 from research_worker.errors import PermanentError
 from research_worker.handlers import wikipedia as handler
@@ -153,6 +154,39 @@ def _wikipedia_image_rows(conn, performer_id: str):
             (performer_id,),
         )
         return cur.fetchall()
+
+
+# ---------------------------------------------------------------------------
+# Date parsing
+# ---------------------------------------------------------------------------
+
+class TestParseDate:
+    @pytest.mark.parametrize("text,expected", [
+        ('(1941-06-12)June 12, 1941', '1941-06-12'),  # hidden ISO preferred
+        ('May 26, 1926', '1926-05-26'),
+        ('26 May 1926', '1926-05-26'),
+        ('1926', '1926-01-01'),                       # bare year
+        ('June 1941', '1941-06-01'),                  # month + year
+    ])
+    def test_valid_dates_parse(self, text, expected):
+        assert parse_date(text) == expected
+
+    @pytest.mark.parametrize("text", [
+        'April 31, 1940',                 # April has 30 days
+        'February 30, 1940',              # impossible
+        '(1940-02-30)February 30, 1940',  # impossible hidden ISO -> fall through
+        '',
+        'no date here',
+    ])
+    def test_impossible_or_absent_dates_return_none(self, text):
+        # Regression: impossible calendar dates used to be emitted verbatim
+        # (e.g. '1940-04-31') and crashed the UPDATE with DatetimeFieldOverflow.
+        assert parse_date(text) is None
+
+    def test_impossible_day_falls_through_to_month_year(self):
+        # A bad day-of-month still yields a usable month/year date when the
+        # text carries a separate "Month Year" the looser pattern can match.
+        assert parse_date('April 1940') == '1940-04-01'
 
 
 # ---------------------------------------------------------------------------

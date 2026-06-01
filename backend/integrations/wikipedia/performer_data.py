@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime
 from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import quote, unquote
@@ -103,7 +104,13 @@ def parse_date(date_text: str) -> Optional[str]:
     # Hidden ISO date in parentheses is the most reliable signal.
     paren_iso = re.search(r'\((\d{4})-(\d{2})-(\d{2})\)', date_text)
     if paren_iso:
-        return f"{paren_iso.group(1)}-{paren_iso.group(2)}-{paren_iso.group(3)}"
+        candidate = _valid_iso_date(
+            f"{paren_iso.group(1)}-{paren_iso.group(2)}-{paren_iso.group(3)}"
+        )
+        if candidate:
+            return candidate
+        # An impossible hidden date (e.g. Feb 30) — fall through and try the
+        # human-readable forms in the cleaned text.
 
     cleaned = re.sub(r'\([^)]*\)', '', date_text).strip()
 
@@ -126,12 +133,29 @@ def parse_date(date_text: str) -> Optional[str]:
 
     for pattern, formatter in patterns:
         match = re.search(pattern, cleaned)
-        if match:
-            try:
-                return formatter(match)
-            except Exception:  # noqa: BLE001 - bad capture, try next pattern
-                continue
+        if not match:
+            continue
+        try:
+            formatted = formatter(match)
+        except Exception:  # noqa: BLE001 - bad capture, try next pattern
+            continue
+        # The formatter can emit an impossible calendar date (e.g. a captured
+        # day-of-month that doesn't exist, or a stray number read as the day),
+        # which Postgres rejects with DatetimeFieldOverflow. Validate against
+        # the real calendar and try the next, looser pattern if it fails.
+        candidate = _valid_iso_date(formatted)
+        if candidate:
+            return candidate
     return None
+
+
+def _valid_iso_date(s: str) -> Optional[str]:
+    """Return `s` iff it is a real YYYY-MM-DD calendar date, else None."""
+    try:
+        datetime.strptime(s, '%Y-%m-%d')
+        return s
+    except ValueError:
+        return None
 
 
 def extract_birth_death_dates(soup: BeautifulSoup) -> tuple[Optional[str], Optional[str]]:
