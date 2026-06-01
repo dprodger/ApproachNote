@@ -103,6 +103,13 @@ services:
         value: /data/apple_music_catalog
       - key: APPLE_MUSIC_CATALOG_DB
         value: /data/apple_music_catalog.duckdb
+      # MusicBrainz / Wikipedia HTTP caches live on the persistent disk too,
+      # so they survive deploys instead of being wiped with the ephemeral
+      # repo checkout (core/cache_utils.get_cache_root reads CACHE_ROOT).
+      # Worker-only: the web service has no /data mount and keeps its default
+      # ephemeral cache.
+      - key: CACHE_ROOT
+        value: /data/cache
       # --- secrets (set in dashboard) ---
       - key: DATABASE_URL
         sync: false
