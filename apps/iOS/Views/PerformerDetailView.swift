@@ -29,6 +29,13 @@ struct PerformerDetailView: View {
     // Two-phase loading: summary loads first (fast), then recordings load in background
     @State private var isRecordingsLoading: Bool = true
 
+    /// Regular width (iPad) gets a two-column top section: metadata on the left,
+    /// a smaller artist image on the right. Compact width keeps the full-bleed
+    /// image hero stacked above the metadata.
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var isWideLayout: Bool { horizontalSizeClass == .regular }
+    private static let wideArtworkMaxWidth: CGFloat = 360
+
     var body: some View {
         ScrollView {
             VStack(spacing: 0) {
@@ -44,68 +51,9 @@ struct PerformerDetailView: View {
                 .background(ApproachNoteTheme.background)
             } else if let performer = performer {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Image hero — full-bleed, above the name, swipeable.
-                    if let images = performer.images, !images.isEmpty {
-                        ArtistImageCarousel(
-                            images: images,
-                            availableWidth: viewportWidth,
-                            maxHeight: viewportHeight
-                        )
-                    }
-
-                    // Header + biography content (shares the 24pt screen gutter).
-                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-                        // Artist Name
-                        Text(performer.name)
-                            .font(ApproachNoteTheme.largeTitle())
-                            .bold()
-                            .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                        // Lifespan: "1926 May 26" or "1926 May 26 – 1991 Sep 28"
-                        if let lifespan = formattedLifespan(birth: performer.birthDate, death: performer.deathDate) {
-                            Text(lifespan)
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
-
-                        // Instruments (after dates, before biography)
-                        if let instruments = performer.instruments, !instruments.isEmpty {
-                            Text(instrumentList(instruments))
-                                .font(ApproachNoteTheme.body())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
-
-                        // Biography
-                        if let biography = performer.biography, !biography.isEmpty {
-                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                                Text("BIOGRAPHY")
-                                    .font(ApproachNoteTheme.title3())
-                                    .bold()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                                ExpandableBiography(
-                                    biography: biography,
-                                    maxCollapsedHeight: viewportHeight > 0 ? viewportHeight * 0.5625 : .greatestFiniteMagnitude
-                                )
-                            }
-                            .padding(.top, ApproachNoteTheme.spacingXS)
-                        }
-
-                        // Learn More links (after the biography, before recordings)
-                        ExternalReferencesPanel(
-                            wikipediaUrl: performer.wikipediaUrl,
-                            musicbrainzId: performer.musicbrainzId,
-                            externalLinks: performer.externalLinks,
-                            entityId: performer.id,
-                            entityName: performer.name,
-                            isArtist: true,
-                            showsBackground: false
-                        )
-                        .padding(.top, ApproachNoteTheme.spacingXS)
-                    }
-                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
-                    .padding(.top, (performer.images?.isEmpty == false) ? ApproachNoteTheme.spacingLG : ApproachNoteTheme.spacingXL)
-                    .padding(.bottom, ApproachNoteTheme.spacingMD)
+                    // Image + header — two-column on wide (iPad) layouts, stacked
+                    // (full-bleed image above the metadata) on compact layouts.
+                    performerTopSection(performer)
 
                     // Recordings Section (mirrors SongDetailView layout)
                     PerformerRecordingsSection(
@@ -187,6 +135,105 @@ struct PerformerDetailView: View {
                     isRecordingsLoading = false
                 }
             }
+        }
+    }
+
+    // MARK: - Top Section (image + header)
+
+    /// Image hero + header metadata. On regular-width layouts the metadata sits
+    /// to the left of a roughly half-size artist image; on compact layouts the
+    /// image is a full-bleed hero stacked above the metadata, as before.
+    @ViewBuilder
+    private func performerTopSection(_ performer: PerformerDetail) -> some View {
+        if isWideLayout {
+            HStack(alignment: .top, spacing: ApproachNoteTheme.spacingXL) {
+                performerHeader(performer)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let images = performer.images, !images.isEmpty {
+                    ArtistImageCarousel(
+                        images: images,
+                        availableWidth: Self.wideArtworkMaxWidth,
+                        maxHeight: viewportHeight
+                    )
+                    .frame(maxWidth: Self.wideArtworkMaxWidth)
+                    .cornerRadius(12)
+                }
+            }
+            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+            .padding(.top, ApproachNoteTheme.spacingXL)
+            .padding(.bottom, ApproachNoteTheme.spacingMD)
+        } else {
+            VStack(alignment: .leading, spacing: 0) {
+                // Image hero — full-bleed, above the name, swipeable.
+                if let images = performer.images, !images.isEmpty {
+                    ArtistImageCarousel(
+                        images: images,
+                        availableWidth: viewportWidth,
+                        maxHeight: viewportHeight
+                    )
+                }
+
+                // Header + biography content (shares the 24pt screen gutter).
+                performerHeader(performer)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                    .padding(.top, (performer.images?.isEmpty == false) ? ApproachNoteTheme.spacingLG : ApproachNoteTheme.spacingXL)
+                    .padding(.bottom, ApproachNoteTheme.spacingMD)
+            }
+        }
+    }
+
+    /// Name, lifespan, instruments, biography, and external reference links.
+    @ViewBuilder
+    private func performerHeader(_ performer: PerformerDetail) -> some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+            // Artist Name
+            Text(performer.name)
+                .font(ApproachNoteTheme.largeTitle())
+                .bold()
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+
+            // Lifespan: "1926 May 26" or "1926 May 26 – 1991 Sep 28"
+            if let lifespan = formattedLifespan(birth: performer.birthDate, death: performer.deathDate) {
+                Text(lifespan)
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
+
+            // Instruments (after dates, before biography)
+            if let instruments = performer.instruments, !instruments.isEmpty {
+                Text(instrumentList(instruments))
+                    .font(ApproachNoteTheme.body())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
+
+            // Biography
+            if let biography = performer.biography, !biography.isEmpty {
+                VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                    Text("BIOGRAPHY")
+                        .font(ApproachNoteTheme.title3())
+                        .bold()
+                        .foregroundColor(ApproachNoteTheme.textPrimary)
+
+                    ExpandableBiography(
+                        biography: biography,
+                        maxCollapsedHeight: viewportHeight > 0 ? viewportHeight * 0.5625 : .greatestFiniteMagnitude
+                    )
+                }
+                .padding(.top, ApproachNoteTheme.spacingXS)
+            }
+
+            // Learn More links (after the biography, before recordings)
+            ExternalReferencesPanel(
+                wikipediaUrl: performer.wikipediaUrl,
+                musicbrainzId: performer.musicbrainzId,
+                externalLinks: performer.externalLinks,
+                entityId: performer.id,
+                entityName: performer.name,
+                isArtist: true,
+                showsBackground: false
+            )
+            .padding(.top, ApproachNoteTheme.spacingXS)
         }
     }
 
