@@ -39,6 +39,11 @@ struct RecordingDetailView: View {
     private var selectedReleaseId: String? { viewModel.selectedReleaseId }
     private var localFavoriteCount: Int? { viewModel.localFavoriteCount }
     @Environment(\.openURL) var openURL
+
+    /// Regular width (iPad, landscape phones in some cases) gets a two-column
+    /// top section: metadata on the left, smaller album art on the right.
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var isWideLayout: Bool { horizontalSizeClass == .regular }
     
     // MARK: - Computed Properties for Selected Release
     
@@ -179,86 +184,11 @@ struct RecordingDetailView: View {
             } else if let recording = recording {
                 VStack(alignment: .leading, spacing: 0) {
                     VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-                        // Album Information
-                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            // Album artwork
-                            Group {
-                                if let frontUrl = displayAlbumArtLarge {
-                                    CachedAsyncImage(
-                                        url: URL(string: frontUrl),
-                                        content: { image in
-                                            image
-                                                .resizable()
-                                                .aspectRatio(contentMode: .fit)
-                                                .frame(maxWidth: .infinity)
-                                                .cornerRadius(12)
-                                        },
-                                        placeholder: {
-                                            Rectangle()
-                                                .fill(ApproachNoteTheme.surface)
-                                                .aspectRatio(1, contentMode: .fit)
-                                                .cornerRadius(12)
-                                                .overlay(
-                                                    ProgressView()
-                                                        .tint(ApproachNoteTheme.textSecondary)
-                                                )
-                                        }
-                                    )
-                                } else {
-                                    albumArtPlaceholder
-                                }
-                            }
-                            .shadow(radius: 8)
-                            .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
-
-                            // Recording Name (Year) — matches SongDetailView title pattern
-                            HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
-                                if let songTitle = recording.songTitle {
-                                    (
-                                        Text(songTitle)
-                                            .font(ApproachNoteTheme.largeTitle(weight: .bold))
-                                            .foregroundColor(ApproachNoteTheme.textPrimary)
-                                        + Text(recording.recordingYear.map { " (\(String($0)))" } ?? "")
-                                            .font(ApproachNoteTheme.largeTitle(weight: .regular))
-                                            .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    )
-                                }
-                            }
-
-                            // Recording title (when different from song title)
-                            if let recordingTitle = recording.displayTitle {
-                                Text("as \"\(recordingTitle)\"")
-                                    .font(ApproachNoteTheme.subheadline(italic: true))
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
-
-                            // Release Name
-                            Text(displayAlbumTitle)
-                                .font(ApproachNoteTheme.title2())
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                                .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
-
-                            if let composer = recording.composer {
-                                Text("Composed by \(composer)")
-                                    .font(ApproachNoteTheme.body())
-                                    .bodyLineSpacing()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                            }
-
-                            // Recording metadata pulled out of the old collapsible section
-                            recordingMetadataBlock(recording)
-
-                            // Streaming services indicator
-                            if hasStreamingSource {
-                                streamingServicesIndicator
-                            }
-
-                            // Favorite control (relocated from the nav bar
-                            // header, which now carries only back + authority).
-                            favoriteControl
-                        }
-                        .padding(.horizontal, ApproachNoteTheme.spacingLG)
-                        .padding(.vertical, ApproachNoteTheme.spacingMD)
+                        // Album Information — two-column on wide (iPad) layouts,
+                        // stacked on compact (iPhone) layouts.
+                        topSection(recording)
+                            .padding(.horizontal, ApproachNoteTheme.spacingLG)
+                            .padding(.vertical, ApproachNoteTheme.spacingMD)
 
                         // Releases Section - shows all releases containing this recording
                         if let releases = recording.releases, releases.count > 1 {
@@ -690,6 +620,113 @@ struct RecordingDetailView: View {
             Spacer()
         }
         .padding(.top, ApproachNoteTheme.spacingXS)
+    }
+
+    // MARK: - Top Section (artwork + metadata)
+
+    /// The album art + headline metadata. On regular-width layouts the metadata
+    /// sits to the left of a roughly half-size album cover; on compact layouts
+    /// the cover stacks above the metadata as before.
+    @ViewBuilder
+    private func topSection(_ recording: Recording) -> some View {
+        if isWideLayout {
+            HStack(alignment: .top, spacing: ApproachNoteTheme.spacingLG) {
+                metadataColumn(recording)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                albumArtwork
+                    .frame(maxWidth: 360)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                albumArtwork
+                metadataColumn(recording)
+            }
+        }
+    }
+
+    /// Album cover artwork (or placeholder), with shadow and selection animation.
+    private var albumArtwork: some View {
+        Group {
+            if let frontUrl = displayAlbumArtLarge {
+                CachedAsyncImage(
+                    url: URL(string: frontUrl),
+                    content: { image in
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .cornerRadius(12)
+                    },
+                    placeholder: {
+                        Rectangle()
+                            .fill(ApproachNoteTheme.surface)
+                            .aspectRatio(1, contentMode: .fit)
+                            .cornerRadius(12)
+                            .overlay(
+                                ProgressView()
+                                    .tint(ApproachNoteTheme.textSecondary)
+                            )
+                    }
+                )
+            } else {
+                albumArtPlaceholder
+            }
+        }
+        .shadow(radius: 8)
+        .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
+    }
+
+    /// Headline + factual metadata column (title, album, composer, release info,
+    /// streaming links, favorite control).
+    @ViewBuilder
+    private func metadataColumn(_ recording: Recording) -> some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+            // Recording Name (Year) — matches SongDetailView title pattern
+            HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
+                if let songTitle = recording.songTitle {
+                    (
+                        Text(songTitle)
+                            .font(ApproachNoteTheme.largeTitle(weight: .bold))
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
+                        + Text(recording.recordingYear.map { " (\(String($0)))" } ?? "")
+                            .font(ApproachNoteTheme.largeTitle(weight: .regular))
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                    )
+                }
+            }
+
+            // Recording title (when different from song title)
+            if let recordingTitle = recording.displayTitle {
+                Text("as \"\(recordingTitle)\"")
+                    .font(ApproachNoteTheme.subheadline(italic: true))
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
+
+            // Release Name
+            Text(displayAlbumTitle)
+                .font(ApproachNoteTheme.title2())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
+
+            if let composer = recording.composer {
+                Text("Composed by \(composer)")
+                    .font(ApproachNoteTheme.body())
+                    .bodyLineSpacing()
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
+            }
+
+            // Recording metadata pulled out of the old collapsible section
+            recordingMetadataBlock(recording)
+
+            // Streaming services indicator
+            if hasStreamingSource {
+                streamingServicesIndicator
+            }
+
+            // Favorite control (relocated from the nav bar
+            // header, which now carries only back + authority).
+            favoriteControl
+        }
     }
 
     // MARK: - Album Art Placeholder
