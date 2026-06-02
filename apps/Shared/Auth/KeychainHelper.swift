@@ -40,7 +40,13 @@ class KeychainHelper {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked,
+            // Use the data-protection keychain (entitlement-gated) instead of the
+            // legacy file-based keychain (code-signature-gated). Without this, a
+            // standalone-signed Mac build is treated as a different app than the
+            // one that stored the token, triggering a "wants to use confidential
+            // information" prompt. No-op on iOS, where it's already the default.
+            kSecUseDataProtectionKeychain as String: true
         ]
         
         let status = SecItemAdd(query as CFDictionary, nil)
@@ -62,7 +68,8 @@ class KeychainHelper {
             kSecAttrService as String: service,
             kSecAttrAccount as String: key,
             kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
+            kSecMatchLimit as String: kSecMatchLimitOne,
+            kSecUseDataProtectionKeychain as String: true
         ]
         
         var result: AnyObject?
@@ -88,9 +95,10 @@ class KeychainHelper {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
-            kSecAttrAccount as String: key
+            kSecAttrAccount as String: key,
+            kSecUseDataProtectionKeychain as String: true
         ]
-        
+
         let status = SecItemDelete(query as CFDictionary)
         
         // Success if deleted or item didn't exist
