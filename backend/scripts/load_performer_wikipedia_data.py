@@ -4,9 +4,9 @@ Load performer biographical data + imagery from Wikipedia — enqueue onto the
 research queue.
 
 Enqueues one ('wikipedia', 'enrich_performer_from_wikipedia') job per
-performer that has a Wikipedia URL. The actual page fetch and the only-new DB
-writes (birth_date, death_date, biography, primary image) happen on the
-durable research-queue worker — see
+performer that has a Wikipedia URL. The actual page fetch and the DB writes
+(birth_date, death_date, biography, and all content images on the page) happen
+on the durable research-queue worker — see
 research_worker/handlers/wikipedia.py.
 
 Unlike verify_performer_references.py, this does NOT search for a Wikipedia
@@ -14,11 +14,14 @@ URL: it only walks performers that already have one. Finding the URL is a
 separate concern (that's what the reference verifier does); this populates the
 data behind a URL we already trust.
 
-Birth date, death date, and image are only-new (written only when the DB
-lacks them); biography is refreshed from Wikipedia on every run (overwriting
-any existing blurb), so edited Wikipedia bios propagate. Safe to re-run — the
-research_jobs unique index dedups against in-flight jobs, and re-running
-re-examines every Wikipedia-URL performer (Wikipedia content evolves).
+Birth and death dates are only-new (written only when the DB lacks them);
+biography is refreshed from Wikipedia on every run (overwriting any existing
+blurb), so edited Wikipedia bios propagate; images are harvested in full on
+every run — every content photo on the page is linked when new (deduped by
+URL), so additional images get picked up even for performers who already have
+a Wikipedia image. Safe to re-run — the research_jobs unique index dedups
+against in-flight jobs, and re-running re-examines every Wikipedia-URL
+performer (Wikipedia content evolves).
 
 Usage:
     python load_performer_wikipedia_data.py                 # all wiki-URL performers
@@ -68,8 +71,9 @@ def main():
         name="load_performer_wikipedia_data",
         description=(
             "Enqueue per-performer Wikipedia-enrichment jobs (birth/death "
-            "dates, biography, image) onto the research-queue worker "
-            "(only-new mode). Walks every performer that has a Wikipedia URL."
+            "dates, biography, images) onto the research-queue worker. Dates "
+            "are only-new; biography and images refresh every run. Walks every "
+            "performer that has a Wikipedia URL."
         ),
         epilog="""
 Examples:

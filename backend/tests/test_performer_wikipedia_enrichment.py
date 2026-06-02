@@ -22,9 +22,15 @@ import pytest
 
 from core import performer_wikipedia_enrichment as sweep_mod
 from db_utils import get_db_connection
+from integrations.wikipedia import performer_data
 from integrations.wikipedia.performer_data import (
     PerformerWikipediaData,
     WikipediaImage,
+    _full_res_from_thumb,
+    _gather_content_image_candidates,
+    _image_filename,
+    _is_content_photo,
+    fetch_all_images,
     parse_date,
 )
 from research_worker.errors import PermanentError
@@ -148,9 +154,10 @@ def _performer_row(conn, performer_id: str):
 def _wikipedia_image_rows(conn, performer_id: str):
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT im.url, ai.is_primary FROM images im "
+            "SELECT im.url, ai.is_primary, ai.display_order FROM images im "
             "JOIN artist_images ai ON ai.image_id = im.id "
-            "WHERE ai.performer_id = %s AND im.source = 'wikipedia'",
+            "WHERE ai.performer_id = %s AND im.source = 'wikipedia' "
+            "ORDER BY ai.display_order",
             (performer_id,),
         )
         return cur.fetchall()
@@ -187,6 +194,144 @@ class TestParseDate:
         # A bad day-of-month still yields a usable month/year date when the
         # text carries a separate "Month Year" the looser pattern can match.
         assert parse_date('April 1940') == '1940-04-01'
+
+
+# ---------------------------------------------------------------------------
+# Image scraping / filtering (network-free)
+# ---------------------------------------------------------------------------
+
+_UP = '//upload.wikimedia.org/wikipedia/commons/thumb'
+
+# An article body with two real photos plus assorted clutter that the filters
+# must reject: an SVG logo, a tiny flag icon, a (wide) signature PNG, and an
+# off-Commons external image.
+_ARTICLE_HTML = f"""
+<div id="mw-content-text"><div class="mw-parser-output">
+  <table class="infobox"><tr><td>
+    <img src="{_UP}/a/ab/Lead.jpg/220px-Lead.jpg" width="220" height="300">
+  </td></tr></table>
+  <figure>
+    <img src="{_UP}/c/cd/Body.jpg/250px-Body.jpg" width="250" height="180">
+  </figure>
+  <img src="{_UP}/e/ef/Commons-logo.svg/20px-Commons-logo.svg.png" width="20" height="27">
+  <img src="{_UP}/9/99/Flag_icon.png/16px-Flag_icon.png" width="16" height="11">
+  <img src="//upload.wikimedia.org/wikipedia/en/thumb/1/12/Signature.png/150px-Signature.png" width="150" height="40">
+  <img src="https://example.com/external.jpg" width="300" height="300">
+</div></div>
+"""
+
+
+class TestImageUrlHelpers:
+    def test_full_res_from_thumb_strips_size_prefix(self):
+        thumb = 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.jpg/220px-Foo.jpg'
+        assert _full_res_from_thumb(thumb) == (
+            'https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg'
+        )
+
+    def test_full_res_from_thumb_passthrough_for_original(self):
+        original = 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg'
+        assert _full_res_from_thumb(original) == original
+
+    def test_image_filename_from_thumb_and_original(self):
+        assert _image_filename(
+            'https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Foo.jpg/220px-Foo.jpg'
+        ) == 'Foo.jpg'
+        assert _image_filename(
+            'https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg'
+        ) == 'Foo.jpg'
+        assert _image_filename(None) is None
+
+
+class TestIsContentPhoto:
+    def _tag(self, **attrs):
+        from bs4 import BeautifulSoup
+        bits = ' '.join(f'{k}="{v}"' for k, v in attrs.items())
+        return BeautifulSoup(f'<img {bits}>', 'html.parser').find('img')
+
+    def test_accepts_a_real_photo(self):
+        url = 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg'
+        assert _is_content_photo(self._tag(width='220'), url, 'Foo.jpg') is True
+
+    def test_rejects_non_upload_host(self):
+        assert _is_content_photo(
+            self._tag(width='300'), 'https://example.com/x.jpg', 'x.jpg',
+        ) is False
+
+    def test_rejects_svg_and_other_non_photo_extensions(self):
+        url = 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Logo.svg'
+        assert _is_content_photo(self._tag(width='220'), url, 'Logo.svg') is False
+
+    def test_rejects_small_images(self):
+        url = 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Icon.png'
+        assert _is_content_photo(self._tag(width='16'), url, 'Icon.png') is False
+
+    def test_rejects_missing_width(self):
+        url = 'https://upload.wikimedia.org/wikipedia/commons/a/ab/Foo.jpg'
+        assert _is_content_photo(self._tag(), url, 'Foo.jpg') is False
+
+    def test_rejects_clutter_filenames(self):
+        url = 'https://upload.wikimedia.org/wikipedia/en/1/12/Signature.png'
+        assert _is_content_photo(self._tag(width='150'), url, 'Signature.png') is False
+
+
+class TestGatherContentImageCandidates:
+    def test_keeps_only_real_photos_in_order(self):
+        searcher = SimpleNamespace(_fetch_wikipedia_page=lambda url: _ARTICLE_HTML)
+        cands = _gather_content_image_candidates(searcher, WIKI_URL)
+        assert [c['filename'] for c in cands] == ['Lead.jpg', 'Body.jpg']
+        assert cands[0]['full_url'] == (
+            'https://upload.wikimedia.org/wikipedia/commons/a/ab/Lead.jpg'
+        )
+        assert cands[0]['width'] == 220
+
+    def test_empty_when_page_unavailable(self):
+        searcher = SimpleNamespace(_fetch_wikipedia_page=lambda url: None)
+        assert _gather_content_image_candidates(searcher, WIKI_URL) == []
+
+
+class TestFetchAllImages:
+    def test_lead_first_then_body_deduped(self, mocker):
+        # Lead shares Body-page's 'Lead.jpg' file, so the scraped Lead is
+        # deduped against the API lead; only Body.jpg is appended.
+        lead = WikipediaImage(
+            url='https://upload.wikimedia.org/wikipedia/commons/a/ab/Lead.jpg',
+        )
+        mocker.patch.object(performer_data, 'fetch_main_image', return_value=lead)
+        mocker.patch.object(
+            performer_data, '_fetch_image_license',
+            side_effect=lambda s, u: {
+                'license_type': 'unknown', 'license_url': None,
+                'attribution': None, 'width': None, 'height': None, 'url': u,
+            },
+        )
+        searcher = SimpleNamespace(_fetch_wikipedia_page=lambda url: _ARTICLE_HTML)
+
+        images = fetch_all_images(searcher, WIKI_URL)
+        urls = [im.url for im in images]
+        assert urls == [
+            'https://upload.wikimedia.org/wikipedia/commons/a/ab/Lead.jpg',
+            'https://upload.wikimedia.org/wikipedia/commons/c/cd/Body.jpg',
+        ]
+
+    def test_respects_limit(self, mocker):
+        mocker.patch.object(performer_data, 'fetch_main_image', return_value=None)
+        mocker.patch.object(
+            performer_data, '_fetch_image_license',
+            side_effect=lambda s, u: {
+                'license_type': 'unknown', 'license_url': None,
+                'attribution': None, 'width': None, 'height': None, 'url': u,
+            },
+        )
+        many = ''.join(
+            f'<img src="{_UP}/a/ab/Photo{i}.jpg/220px-Photo{i}.jpg" '
+            f'width="220" height="220">'
+            for i in range(10)
+        )
+        html = f'<div class="mw-parser-output">{many}</div>'
+        searcher = SimpleNamespace(_fetch_wikipedia_page=lambda url: html)
+
+        images = fetch_all_images(searcher, WIKI_URL, limit=3)
+        assert len(images) == 3
 
 
 # ---------------------------------------------------------------------------
@@ -236,7 +381,7 @@ class TestHandlerSuccess:
             birth_date='1940-07-17',
             death_date='2005-03-02',
             biography='An influential player.',
-            image=_image(),
+            images=[_image()],
             page_fetched=True,
         )
 
@@ -248,7 +393,7 @@ class TestHandlerSuccess:
         assert result['birth_date_added'] == '1940-07-17'
         assert result['death_date_added'] == '2005-03-02'
         assert result['biography_updated'] is True
-        assert result['image_added'] is True
+        assert result['images_added'] == 1
 
         with get_db_connection() as conn:
             row = _performer_row(conn, PERFORMER_URL_EMPTY_DATA)
@@ -345,7 +490,7 @@ class TestBiographyRefresh:
         assert result['updated'] is True
         assert result['biography_updated'] is True
         assert result['birth_date_added'] is None
-        assert result['image_added'] is False
+        assert result['images_added'] == 0
 
         with get_db_connection() as conn:
             row = _performer_row(conn, PERFORMER_FULLY_POPULATED)
@@ -367,6 +512,67 @@ class TestBiographyRefresh:
         patched_fetch.assert_called_once()  # the page is still fetched
         assert result['updated'] is False
         assert result['reason'] == 'nothing_new'
+
+
+class TestImageHarvest:
+    def test_harvests_multiple_images_lead_is_primary(
+        self, perf_fixture, patched_fetch,
+    ):
+        # An image-less performer gets every harvested image linked, lead
+        # first as primary, the rest non-primary in page order.
+        patched_fetch.return_value = PerformerWikipediaData(
+            images=[_image('lead.jpg'), _image('body1.jpg'), _image('body2.jpg')],
+            page_fetched=True,
+        )
+
+        result = handler.enrich_performer_from_wikipedia(
+            {}, FakeCtx(PERFORMER_URL_EMPTY_DATA),
+        )
+
+        assert result['updated'] is True
+        assert result['images_added'] == 3
+
+        with get_db_connection() as conn:
+            images = _wikipedia_image_rows(conn, PERFORMER_URL_EMPTY_DATA)
+        urls = [r['url'] for r in images]
+        assert urls == [
+            _TEST_IMAGE_PREFIX + 'lead.jpg',
+            _TEST_IMAGE_PREFIX + 'body1.jpg',
+            _TEST_IMAGE_PREFIX + 'body2.jpg',
+        ]
+        assert [r['is_primary'] for r in images] == [True, False, False]
+        assert [r['display_order'] for r in images] == [0, 1, 2]
+
+    def test_refound_image_left_untouched_new_ones_appended(
+        self, perf_fixture, patched_fetch,
+    ):
+        # Fully-populated performer already holds a Wikipedia image. Re-finding
+        # it must leave it untouched (no duplicate link, stays primary) while a
+        # genuinely-new image is appended after it, non-primary.
+        refound = WikipediaImage(
+            url=EXISTING_IMAGE_URL, source_identifier='Test Performer',
+        )
+        patched_fetch.return_value = PerformerWikipediaData(
+            biography='A fully documented life.',  # unchanged -> no field write
+            images=[refound, _image('new.jpg')],
+            page_fetched=True,
+        )
+
+        result = handler.enrich_performer_from_wikipedia(
+            {}, FakeCtx(PERFORMER_FULLY_POPULATED),
+        )
+
+        assert result['updated'] is True
+        assert result['images_added'] == 1
+
+        with get_db_connection() as conn:
+            images = _wikipedia_image_rows(conn, PERFORMER_FULLY_POPULATED)
+        # Existing image still present and primary; new one appended after it.
+        by_url = {r['url']: r for r in images}
+        assert by_url[EXISTING_IMAGE_URL]['is_primary'] is True
+        new_row = by_url[_TEST_IMAGE_PREFIX + 'new.jpg']
+        assert new_row['is_primary'] is False
+        assert new_row['display_order'] > by_url[EXISTING_IMAGE_URL]['display_order']
 
 
 class TestHandlerNoOps:

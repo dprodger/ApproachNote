@@ -14,10 +14,14 @@ Two source paths feed the four fields:
     (fetched via WikipediaSearcher, honouring its 7-day disk cache), parsed
     out of the infobox and lead paragraphs.
 
-  - image comes primarily from the MediaWiki `pageimages` API (the page's
-    chosen lead image at full resolution), with an infobox-HTML scrape as a
-    fallback when the API returns no image. License/attribution metadata is
-    pulled from the `imageinfo` API.
+  - images: the page's lead image comes from the MediaWiki `pageimages` API
+    (the chosen lead image at full resolution), with an infobox-HTML scrape as
+    a fallback when the API returns no image. On top of that lead, we walk the
+    rendered article HTML for additional content photographs (body thumbnails,
+    extra infobox images), filtered to real raster photos and capped per page.
+    License/attribution metadata for every image is pulled from the
+    `imageinfo` API. The handler dedups by URL, so re-found images are left
+    untouched and only genuinely-new ones get linked.
 
 The date and biography extraction is ported from the old
 scripts/load_artists_from_wikipedia.py; the image fetching is a streamlined
@@ -30,7 +34,7 @@ from __future__ import annotations
 import logging
 import re
 from datetime import datetime
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 from urllib.parse import quote, unquote
 
@@ -39,6 +43,27 @@ from bs4 import BeautifulSoup
 logger = logging.getLogger(__name__)
 
 _API_URL = "https://en.wikipedia.org/w/api.php"
+
+# How many images we'll harvest from a single performer page per run. Keeps the
+# lead/infobox photo plus a handful of body photos without bloating performers
+# who have very long articles.
+_DEFAULT_IMAGE_LIMIT = 6
+
+# Minimum rendered width (px) for a body image to count as content. Filters out
+# inline icons, flag thumbnails, and pictograms, which render small.
+_MIN_CONTENT_IMAGE_WIDTH = 100
+
+# Raster extensions we treat as photographs. SVGs (logos, signatures, icons) and
+# media stills (audio/video) are excluded.
+_PHOTO_EXTENSIONS = ('.jpg', '.jpeg', '.png')
+
+# Substrings in a Commons filename that mark non-photo clutter surviving the
+# raster + size filters (e.g. a wide PNG logo or signature). Lower-cased match.
+_CLUTTER_FILENAME_TERMS = (
+    'logo', 'signature', 'commons-logo', 'magnify', 'speaker', 'loudspeaker',
+    'sound-icon', 'audio', 'wiktionary', 'wikiquote', 'wikisource',
+    'wikimedia', 'wikidata', 'ambox', 'question_book', 'padlock', 'edit-icon',
+)
 
 _MONTHS = {
     'january': '01', 'jan': '01',
@@ -75,11 +100,13 @@ class WikipediaImage:
 @dataclass
 class PerformerWikipediaData:
     """Everything we could pull from one performer's Wikipedia page. Any field
-    may be None when the page doesn't carry it (or wasn't requested)."""
+    may be None (or, for images, an empty list) when the page doesn't carry it
+    (or wasn't requested)."""
     birth_date: Optional[str] = None
     death_date: Optional[str] = None
     biography: Optional[str] = None
-    image: Optional[WikipediaImage] = None
+    # All harvested images, lead/primary candidate first, in page order.
+    images: list[WikipediaImage] = field(default_factory=list)
     page_fetched: bool = False  # False when the article HTML couldn't be loaded
 
 
@@ -224,6 +251,47 @@ def _page_title_from_url(wikipedia_url: str) -> Optional[str]:
     return unquote(match.group(1))
 
 
+def _absolute_src(src: str) -> str:
+    """Resolve a protocol-relative or root-relative <img src> to an absolute
+    https URL."""
+    if src.startswith('//'):
+        return 'https:' + src
+    if src.startswith('/'):
+        return 'https://en.wikipedia.org' + src
+    return src
+
+
+def _full_res_from_thumb(img_src: str) -> str:
+    """Recover the original-resolution file URL from a Wikipedia thumbnail URL.
+
+    A thumbnail is .../thumb/a/ab/Foo.jpg/220px-Foo.jpg, where the original is
+    .../a/ab/Foo.jpg — i.e. the file name appears as the directory before a
+    size-prefixed leaf. Drop the /thumb/ segment and strip that trailing leaf
+    to recover the original. A URL that isn't a thumbnail is returned unchanged.
+    """
+    if '/thumb/' not in img_src:
+        return img_src
+    full = img_src.replace('/thumb/', '/')
+    return re.sub(r'/[^/]+$', '', full)
+
+
+def _image_filename(url: Optional[str]) -> Optional[str]:
+    """Return the canonical Commons file name from a thumbnail or original URL,
+    used to dedup the same underlying image across thumb sizes.
+
+    Thumbnail: .../thumb/a/ab/Foo.jpg/220px-Foo.jpg -> 'Foo.jpg'
+    Original:  .../commons/a/ab/Foo.jpg             -> 'Foo.jpg'
+    """
+    if not url:
+        return None
+    if '/thumb/' in url:
+        # The file title is the segment before the size-prefixed leaf.
+        parts = url.split('/')
+        if len(parts) >= 2:
+            return unquote(parts[-2])
+    return unquote(url.split('/')[-1].split('?')[0])
+
+
 def _normalize_license(license_str: Optional[str]) -> str:
     if not license_str or license_str == 'unknown':
         return 'unknown'
@@ -300,21 +368,8 @@ def _scrape_infobox_image(searcher, page_title: str, page_url: str) -> Optional[
     if not img_tag or not img_tag.get('src'):
         return None
 
-    img_src = img_tag.get('src')
-    if img_src.startswith('//'):
-        img_src = 'https:' + img_src
-    elif img_src.startswith('/'):
-        img_src = 'https://en.wikipedia.org' + img_src
-
-    # Wikipedia serves a thumbnail like .../thumb/.../Foo.jpg/220px-Foo.jpg.
-    # Strip /thumb/ and the size-prefixed leaf to recover the original.
-    full_img_url = img_src
-    if '/thumb/' in img_src:
-        full_img_url = re.sub(r'/thumb/', '/', img_src)
-        leaf = re.search(r'/([^/]+)$', img_src)
-        if leaf:
-            filename = re.sub(r'^\d+px-', '', leaf.group(1))
-            full_img_url = re.sub(r'/[^/]+$', '/' + filename, full_img_url)
+    img_src = _absolute_src(img_tag.get('src'))
+    full_img_url = _full_res_from_thumb(img_src)
 
     lic = _fetch_image_license(searcher, full_img_url)
     return WikipediaImage(
@@ -381,6 +436,124 @@ def fetch_main_image(searcher, wikipedia_url: str) -> Optional[WikipediaImage]:
     )
 
 
+def _is_content_photo(img_tag, full_url: str, filename: Optional[str]) -> bool:
+    """Decide whether a rendered <img> is a real content photograph worth
+    harvesting (vs an icon, logo, flag, signature, or media still).
+
+    Cheap, network-free checks only — runs over every <img> on the page.
+    """
+    if 'upload.wikimedia.org' not in full_url:
+        return False
+    if not filename:
+        return False
+    lower = filename.lower()
+    if not lower.endswith(_PHOTO_EXTENSIONS):
+        return False
+    if any(term in lower for term in _CLUTTER_FILENAME_TERMS):
+        return False
+    # Rendered width filters out inline pictograms; absent width is rare for
+    # real content thumbnails, so treat "no width" as too small.
+    try:
+        width = int(img_tag.get('width'))
+    except (TypeError, ValueError):
+        return False
+    return width >= _MIN_CONTENT_IMAGE_WIDTH
+
+
+def _gather_content_image_candidates(searcher, wikipedia_url: str) -> list[dict]:
+    """Scrape the rendered article HTML for content-photo candidates.
+
+    Returns a list of dicts (filename, full_url, thumb_url, width, height) in
+    page order, deduped by canonical filename. Network-free beyond the (cached)
+    page fetch — license lookups are left to the caller so we only pay them for
+    images we actually keep.
+    """
+    html = searcher._fetch_wikipedia_page(wikipedia_url)
+    if not html:
+        return []
+
+    soup = BeautifulSoup(html, 'html.parser')
+    content = (soup.find('div', {'id': 'mw-content-text'})
+               or soup.find('div', class_='mw-parser-output'))
+    if not content:
+        return []
+
+    candidates: list[dict] = []
+    seen: set[str] = set()
+    for img_tag in content.find_all('img'):
+        src = img_tag.get('src')
+        if not src:
+            continue
+        thumb_url = _absolute_src(src)
+        full_url = _full_res_from_thumb(thumb_url)
+        filename = _image_filename(full_url)
+        if not _is_content_photo(img_tag, full_url, filename):
+            continue
+        key = filename.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+
+        def _dim(attr):
+            try:
+                return int(img_tag.get(attr))
+            except (TypeError, ValueError):
+                return None
+
+        candidates.append({
+            'filename': filename,
+            'full_url': full_url,
+            'thumb_url': thumb_url,
+            'width': _dim('width'),
+            'height': _dim('height'),
+        })
+    return candidates
+
+
+def fetch_all_images(
+    searcher, wikipedia_url: str, *, limit: int = _DEFAULT_IMAGE_LIMIT,
+) -> list[WikipediaImage]:
+    """Harvest up to `limit` content images from a performer's Wikipedia page.
+
+    The page's canonical lead image (via `fetch_main_image`) comes first, then
+    additional body/infobox photographs scraped from the rendered article,
+    deduped against the lead and each other by canonical filename. License
+    metadata is fetched only for the images we keep.
+    """
+    page_title = _page_title_from_url(wikipedia_url) or ''
+    results: list[WikipediaImage] = []
+    seen: set[str] = set()
+
+    lead = fetch_main_image(searcher, wikipedia_url)
+    if lead:
+        results.append(lead)
+        lead_fn = _image_filename(lead.url)
+        if lead_fn:
+            seen.add(lead_fn.lower())
+
+    for cand in _gather_content_image_candidates(searcher, wikipedia_url):
+        if len(results) >= limit:
+            break
+        key = cand['filename'].lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        lic = _fetch_image_license(searcher, cand['full_url'])
+        results.append(WikipediaImage(
+            url=lic['url'] or cand['full_url'],
+            thumbnail_url=cand['thumb_url'],
+            source_identifier=page_title or None,
+            source_page_url=wikipedia_url,
+            license_type=lic['license_type'],
+            license_url=lic['license_url'],
+            attribution=lic['attribution'],
+            width=lic['width'] or cand['width'],
+            height=lic['height'] or cand['height'],
+        ))
+
+    return results[:limit]
+
+
 # ---------------------------------------------------------------------------
 # Orchestration
 # ---------------------------------------------------------------------------
@@ -397,9 +570,11 @@ def fetch_performer_data(
 
     `searcher` is a WikipediaSearcher (page fetches honour its disk cache and
     rate limiting). Each `want_*` flag lets the caller skip work for fields
-    already present in the DB — e.g. skip the two image API calls when the
-    performer already has a Wikipedia image. Returns a PerformerWikipediaData;
-    fields not requested (or not found) are left None.
+    already present in the DB — e.g. skip date parsing once both dates are
+    stored. `want_image` harvests every content photo on the page (lead first),
+    not just the lead, so additional images get picked up even for a performer
+    who already has a Wikipedia image. Returns a PerformerWikipediaData; fields
+    not requested (or not found) are left at their empty default.
     """
     data = PerformerWikipediaData()
 
@@ -414,6 +589,6 @@ def fetch_performer_data(
                 data.biography = extract_biography(soup)
 
     if want_image:
-        data.image = fetch_main_image(searcher, wikipedia_url)
+        data.images = fetch_all_images(searcher, wikipedia_url)
 
     return data

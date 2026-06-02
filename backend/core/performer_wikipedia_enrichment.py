@@ -4,17 +4,19 @@ Performer Wikipedia-enrichment sweep.
 Producer side of the ('wikipedia', 'enrich_performer_from_wikipedia') job.
 It enqueues one job per performer that has a Wikipedia URL; the handler in
 research_worker/handlers/wikipedia.py does the page fetch and the DB writes
-(birth_date, death_date, biography, primary image). Dates and image are
-only-new; biography is refreshed from Wikipedia on every run (overwriting any
-existing blurb), so edited Wikipedia bios propagate on the next sweep.
+(birth_date, death_date, biography, images). Dates are only-new; biography is
+refreshed from Wikipedia on every run (overwriting any existing blurb); images
+are harvested in full and linked when new (deduped by URL), so additional page
+images get picked up even for performers who already have one — all of which
+propagate on the next sweep.
 
 Deliberately NOT gated on missing fields. Unlike the reference-verification
 sweep (which only enqueues performers missing a ref), this walks *every*
 performer that has a Wikipedia URL, every run:
 
-  - Wikipedia content evolves — a biography or image can appear, or a death
-    date can be added, long after the row was created. Re-examining everyone
-    is how we pick those up.
+  - Wikipedia content evolves — a biography or new image can appear, or a
+    death date can be added, long after the row was created. Re-examining
+    everyone is how we pick those up.
   - The hit rate is modest (only a minority of performers have a Wikipedia
     URL at all), so the full set is not overwhelming, and the handler
     short-circuits cheaply for anything already complete.

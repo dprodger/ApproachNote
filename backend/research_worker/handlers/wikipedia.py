@@ -5,11 +5,14 @@ Currently registered:
 
   ('wikipedia', 'enrich_performer_from_wikipedia'), target_type='performer'
     For one performer that already has a Wikipedia URL, fetch the page and
-    populate {birth_date, death_date, biography, primary image}. Birth date,
-    death date, and image are only-new (written only when the DB lacks them).
-    Biography is refreshed on every run — it's overwritten whenever Wikipedia
-    carries one that differs from the stored blurb — so an edited Wikipedia
-    bio propagates on the next sweep.
+    populate {birth_date, death_date, biography, images}. Birth and death dates
+    are only-new (written only when the DB lacks them). Images are harvested in
+    full on every run: we walk the page for every content photo (not just the
+    lead) and link any we don't already hold, deduped by URL — a re-found image
+    is left untouched while genuinely-new ones get added. Biography is refreshed
+    on every run — it's overwritten whenever Wikipedia carries one that differs
+    from the stored blurb — so an edited Wikipedia bio propagates on the next
+    sweep.
 
 Why a dedicated 'wikipedia' source (rather than folding this into the
 musicbrainz handler that also touches Wikipedia for reference discovery):
@@ -48,10 +51,12 @@ from research_worker.errors import PermanentError
 from research_worker.registry import handler
 
 
-# Pull the performer's current state plus two presence flags so the handler
-# can decide, per field, whether there's anything to fetch/write. The image
-# flag is wikipedia-source-specific: a performer with a Spotify image but no
-# Wikipedia one is still a candidate for a Wikipedia image.
+# Pull the performer's current state plus a presence flag so the handler can
+# decide, per field, whether there's anything to fetch/write. `has_any_image`
+# drives whether a freshly-harvested image becomes the performer's primary —
+# we only auto-promote a primary when the performer has none at all. We no
+# longer gate image harvesting on an existing Wikipedia image: every run walks
+# the page for new photos and relies on URL dedup to skip ones we already hold.
 _LOAD_PERFORMER_SQL = """
     SELECT
         p.id,
@@ -61,11 +66,6 @@ _LOAD_PERFORMER_SQL = """
         p.biography,
         p.wikipedia_url,
         p.external_links,
-        EXISTS (
-            SELECT 1 FROM artist_images ai
-            JOIN images im ON im.id = ai.image_id
-            WHERE ai.performer_id = p.id AND im.source = 'wikipedia'
-        ) AS has_wikipedia_image,
         EXISTS (
             SELECT 1 FROM artist_images ai WHERE ai.performer_id = p.id
         ) AS has_any_image
@@ -87,10 +87,13 @@ def _wikipedia_url(row) -> str | None:
 
 @handler('wikipedia', 'enrich_performer_from_wikipedia')
 def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, Any]:
-    """Fill a performer's missing biographical fields + image from Wikipedia.
+    """Fill a performer's missing biographical fields + harvest images from
+    Wikipedia.
 
-    Only-new: searches only for fields the DB lacks and writes only those.
-    Returns a result dict describing what (if anything) was added.
+    Dates are only-new (written only when the DB lacks them); biography is
+    refreshed every run; images are harvested in full and linked when new
+    (deduped by URL). Returns a result dict describing what (if anything) was
+    added.
     """
     performer_id = ctx.target_id
     force_refresh = bool(payload.get('force_refresh', False))
@@ -112,15 +115,15 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
             f"performer {performer_id} has no Wikipedia URL"
         )
 
-    # Birth date, death date, and image are only-new: we only fetch/write them
-    # when the DB lacks them. Biography is the exception — it's refreshed from
-    # Wikipedia on every run (overwriting any existing blurb), so we always
-    # fetch the page and re-read it. That means a wiki-URL performer is always
+    # Birth and death dates are only-new: we only fetch/write them when the DB
+    # lacks them. Biography is refreshed from Wikipedia on every run
+    # (overwriting any existing blurb). Images are harvested in full on every
+    # run — we walk the page for every content photo and let URL dedup leave
+    # already-held images untouched. That means a wiki-URL performer is always
     # worth a (cache-served) page fetch; there's no "already populated"
     # short-circuit.
     want_birth = row['birth_date'] is None
     want_death = row['death_date'] is None
-    want_image = not row['has_wikipedia_image']
 
     searcher = WikipediaSearcher(cache_days=7, force_refresh=force_refresh)
     data = fetch_performer_data(
@@ -128,7 +131,7 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
         wiki_url,
         want_dates=(want_birth or want_death),
         want_biography=True,
-        want_image=want_image,
+        want_image=True,
     )
 
     field_updates: dict[str, str] = {}
@@ -143,13 +146,11 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
     if data.biography and data.biography != (row['biography'] or '').strip():
         field_updates['biography'] = data.biography
 
-    image_saved = False
-    if want_image and data.image:
-        image_saved = _save_wikipedia_image(
-            performer_id, data.image, is_primary=not row['has_any_image'],
-        )
+    images_added = _save_wikipedia_images(
+        performer_id, data.images, had_any_image=row['has_any_image'],
+    )
 
-    if not field_updates and not image_saved:
+    if not field_updates and not images_added:
         return {'updated': False, 'reason': 'nothing_new', 'name': name}
 
     if field_updates:
@@ -161,7 +162,7 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
         'birth_date_added': field_updates.get('birth_date'),
         'death_date_added': field_updates.get('death_date'),
         'biography_updated': 'biography' in field_updates,
-        'image_added': image_saved,
+        'images_added': images_added,
     }
 
 
@@ -192,7 +193,47 @@ _INSERT_IMAGE_SQL = """
 """
 
 
-def _save_wikipedia_image(performer_id: str, image, is_primary: bool) -> bool:
+def _save_wikipedia_images(performer_id: str, images, had_any_image: bool) -> int:
+    """Link every harvested image to the performer, deduped by URL.
+
+    `images` arrives lead-first. The lead is promoted to the performer's
+    primary only when the performer started with no images at all; everything
+    else is appended after the current highest display_order, preserving page
+    order. Returns the count of newly-created performer<->image links.
+    """
+    if not images:
+        return 0
+
+    next_order = _next_display_order(performer_id)
+    added = 0
+    have_image = had_any_image
+    for image in images:
+        # First newly-linked image on a performer with none becomes primary.
+        is_primary = not have_image and added == 0
+        if _save_wikipedia_image(
+            performer_id, image, is_primary=is_primary, display_order=next_order,
+        ):
+            added += 1
+            next_order += 1
+            have_image = True
+    return added
+
+
+def _next_display_order(performer_id: str) -> int:
+    """Next free display_order slot for a performer's images (0 when none)."""
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT COALESCE(MAX(display_order), -1) AS m "
+                "FROM artist_images WHERE performer_id = %s",
+                (performer_id,),
+            )
+            return cur.fetchone()['m'] + 1
+
+
+def _save_wikipedia_image(
+    performer_id: str, image, is_primary: bool, display_order: int = 0,
+) -> bool:
     """Insert the image (or reuse an existing row by URL) and link it to the
     performer. Returns True if a new performer<->image link was created."""
     with get_db_connection() as conn:
@@ -222,8 +263,8 @@ def _save_wikipedia_image(performer_id: str, image, is_primary: bool) -> bool:
             cur.execute(
                 "INSERT INTO artist_images "
                 "(performer_id, image_id, is_primary, display_order) "
-                "VALUES (%s, %s, %s, 0)",
-                (performer_id, image_id, is_primary),
+                "VALUES (%s, %s, %s, %s)",
+                (performer_id, image_id, is_primary, display_order),
             )
         conn.commit()
     return True
