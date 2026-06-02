@@ -9,6 +9,8 @@
 //
 
 import SwiftUI
+import AppKit
+import os
 
 // MARK: - Recording Filter Enum
 enum RecordingFilter: String, CaseIterable {
@@ -654,17 +656,14 @@ private struct PerformerImageCarousel: View {
     }
 
     private func thumbnail(_ image: ArtistImage) -> some View {
-        AsyncImage(url: URL(string: image.thumbnailUrl ?? image.url)) { img in
-            img
-                .resizable()
-                // Keep the full image and scale to fit (no cropping); the
-                // square is filled behind it so letterboxing looks intentional.
-                .aspectRatio(contentMode: .fit)
-        } placeholder: {
-            placeholder
-        }
-        .frame(width: size, height: size)
-        .background(ApproachNoteTheme.surface)
+        // NB: deliberately NOT SwiftUI.AsyncImage. On macOS AsyncImage issues
+        // its requests with an empty User-Agent, which upload.wikimedia.org
+        // rejects with HTTP 403 (its UA policy blocks blank agents), so
+        // Wikipedia-hosted performer photos silently fall back to the
+        // placeholder. WikimediaImage sends an explicit User-Agent instead.
+        WikimediaImage(urlString: image.thumbnailUrl ?? image.url)
+            .frame(width: size, height: size)
+            .background(ApproachNoteTheme.surface)
     }
 
     private func navButton(systemImage: String, action: @escaping () -> Void) -> some View {
@@ -680,9 +679,76 @@ private struct PerformerImageCarousel: View {
     }
 
     private var placeholder: some View {
+        PerformerImagePlaceholder()
+            .frame(width: size, height: size)
+    }
+}
+
+// MARK: - Wikimedia-safe Remote Image
+//
+// Loads a performer photo with an explicit User-Agent header. macOS
+// SwiftUI.AsyncImage sends an empty agent, which upload.wikimedia.org answers
+// with HTTP 403, so Wikipedia-hosted images never render through AsyncImage on
+// the Mac. Backed by URLSession.shared (and thus URLCache.shared) so repeat
+// views are served from cache.
+private struct WikimediaImage: View {
+    let urlString: String
+
+    @State private var nsImage: NSImage?
+
+    var body: some View {
+        Group {
+            if let nsImage {
+                Image(nsImage: nsImage)
+                    .resizable()
+                    // Keep the full image and scale to fit (no cropping); the
+                    // square behind it fills so letterboxing looks intentional.
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                PerformerImagePlaceholder()
+            }
+        }
+        .task(id: urlString) { await load() }
+    }
+
+    private func load() async {
+        nsImage = nil
+        guard let url = URL(string: urlString) else { return }
+
+        var request = URLRequest(url: url)
+        request.setValue(
+            "ApproachNote/1.0 (+support@approachnote.com)",
+            forHTTPHeaderField: "User-Agent"
+        )
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, http.statusCode != 200 {
+                Log.network.warning(
+                    "Performer image HTTP \(http.statusCode, privacy: .public): \(urlString, privacy: .public)"
+                )
+                return
+            }
+            // The view may have been recycled to a different URL while we were
+            // awaiting; .task(id:) cancels us, so guard against a stale write.
+            guard !Task.isCancelled, let image = NSImage(data: data) else { return }
+            nsImage = image
+        } catch is CancellationError {
+            // Superseded by a newer URL — nothing to do.
+        } catch {
+            Log.network.error(
+                "Performer image load failed: \(error.localizedDescription, privacy: .public)"
+            )
+        }
+    }
+}
+
+// MARK: - Performer Image Placeholder
+
+private struct PerformerImagePlaceholder: View {
+    var body: some View {
         Rectangle()
             .fill(ApproachNoteTheme.surface)
-            .frame(width: size, height: size)
             .overlay {
                 Image(systemName: "person.fill")
                     .font(.system(size: 40))
