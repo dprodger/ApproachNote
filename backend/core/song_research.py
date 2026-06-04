@@ -24,6 +24,7 @@ from integrations.musicbrainz.release_importer import MBReleaseImporter
 from db_utils import get_db_connection, execute_query
 from integrations.musicbrainz.utils import MusicBrainzSearcher, update_song_composer, update_song_wikipedia_url, update_song_composed_year
 from core import research_queue, research_jobs
+from core import performer_reference_verification
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +85,27 @@ def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
         "spotify=1, apple=1, youtube=%d/%d recordings",
         song_id, queued, len(recordings),
     )
+
+    # Performer Wikipedia: enqueue a verify job for each of this song's
+    # performers that still lacks a Wikipedia URL (GH #208). Reuses the
+    # verify_performer_references handler, so confidence scoring, only-new
+    # idempotency, and MusicBrainz rate limiting all live in one place.
+    # Wikipedia-only — performers imported from MusicBrainz already carry a
+    # musicbrainz_id, so the slow MB lookup isn't needed on the hot path.
+    try:
+        perf_stats = performer_reference_verification.enqueue_for_song(
+            song_id, reftypes=['wikipedia'],
+        )
+        logger.info(
+            "Enqueued performer Wikipedia jobs for song %s: candidates=%d "
+            "enqueued=%d skipped=%d",
+            song_id, perf_stats['candidates'], perf_stats['enqueued'],
+            perf_stats['skipped'],
+        )
+    except Exception:
+        logger.exception(
+            "failed to enqueue performer wikipedia jobs for song %s", song_id,
+        )
 
 
 def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> Dict[str, Any]:

@@ -1,5 +1,5 @@
 """
-Performer reference-verification sweep (only-new mode).
+Performer reference-verification producers (only-new mode).
 
 Producer side of the durable-queue replacement for the old in-process
 scripts/verify_performer_references.py. It scans for performers missing a
@@ -8,6 +8,14 @@ Wikipedia and/or MusicBrainz reference and enqueues one
 queue. The handler in research_worker/handlers/musicbrainz.py does the
 actual Wikipedia + MB search and DB UPDATE — see that file for the
 only-new / transient-handling semantics.
+
+Two producers share that candidate logic and the same job/handler:
+
+  - enqueue_sweep()    — global backfill, run by the batch script.
+  - enqueue_for_song() — ingestion seam, called from
+    core.song_research._enqueue_downstream_jobs after a MusicBrainz import so
+    a freshly-ingested performer gains its Wikipedia URL automatically (GH
+    #208) without an out-of-band batch run.
 
 Per-performer was chosen over a single mega-job for the same reasons as the
 release-label backfill (see core.release_label_backfill):
@@ -100,6 +108,80 @@ def find_candidate_performer_ids(
             cur.execute(sql, params)
             rows = cur.fetchall()
     return [str(row['id']) for row in rows]
+
+
+def find_song_performer_ids(
+    song_id: str,
+    reftypes: Optional[Sequence[str]] = None,
+) -> list[str]:
+    """Return UUIDs of performers credited on a song's recordings that are
+    missing one of the requested references.
+
+    Scopes the same "missing ref" predicate as the global sweep to a single
+    song, via recording_performers -> recordings. Used by the ingestion seam
+    so only this song's performers get enqueued, not the whole catalogue.
+    """
+    reftypes = _normalise_reftypes(reftypes)
+    sql = f"""
+        SELECT DISTINCT p.id
+        FROM performers p
+        JOIN recording_performers rp ON rp.performer_id = p.id
+        JOIN recordings r ON r.id = rp.recording_id
+        WHERE r.song_id = %s
+          AND ({_candidate_where(reftypes)})
+    """
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, (song_id,))
+            rows = cur.fetchall()
+    return [str(row['id']) for row in rows]
+
+
+def enqueue_for_song(song_id: str,
+                     reftypes: Optional[Sequence[str]] = None,
+                     priority: int = 100,
+                     batch_size: int = 1000) -> dict[str, int]:
+    """Enqueue verify jobs for one song's performers missing a reference.
+
+    The ingestion-time counterpart to enqueue_sweep: instead of scanning the
+    whole catalogue it targets just the performers credited on `song_id`'s
+    recordings. Shares the candidate predicate, job type, handler, and dedup
+    index with the sweep, so it inherits only-new semantics and idempotency —
+    re-ingesting a song never re-runs a performer that already has the ref.
+
+    Default priority 100 (the normal research-pipeline default) sits behind
+    user-driven work (50) so it won't delay interactive matching, and ahead of
+    the bulk sweep (110).
+
+    Returns the same {'candidates', 'enqueued', 'skipped'} shape as
+    enqueue_sweep.
+    """
+    reftypes = _normalise_reftypes(reftypes)
+    performer_ids = find_song_performer_ids(song_id, reftypes=reftypes)
+    if not performer_ids:
+        return {'candidates': 0, 'enqueued': 0, 'skipped': 0}
+
+    result = research_jobs.enqueue_many_for_targets(
+        source=research_jobs.SOURCE_MUSICBRAINZ,
+        job_type='verify_performer_references',
+        target_type=research_jobs.TARGET_PERFORMER,
+        target_ids=performer_ids,
+        payload={'reftypes': reftypes},
+        priority=priority,
+        batch_size=batch_size,
+    )
+
+    logger.info(
+        "performer_reference_verification[song=%s]: reftypes=%s candidates=%d "
+        "enqueued=%d skipped=%d",
+        song_id, ",".join(reftypes),
+        result['requested'], result['inserted'], result['skipped'],
+    )
+    return {
+        'candidates': result['requested'],
+        'enqueued': result['inserted'],
+        'skipped': result['skipped'],
+    }
 
 
 def enqueue_sweep(limit: Optional[int] = None,

@@ -50,6 +50,10 @@ _ALL_FIXTURE_IDS = (
 EXISTING_MBID = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
 EXISTING_WIKI = 'https://en.wikipedia.org/wiki/Existing'
 
+# Song + recording used to exercise the song-scoped ingestion producer.
+SONG_ID = _NS.format(0x0a001)
+RECORDING_ID = _NS.format(0x0b001)
+
 
 def _cleanup(conn):
     placeholders = ", ".join(["%s"] * len(_ALL_FIXTURE_IDS))
@@ -488,3 +492,93 @@ class TestSweep:
         assert second['candidates'] == first['candidates']
         assert second['enqueued'] == 0
         assert second['skipped'] == second['candidates']
+
+
+# ---------------------------------------------------------------------------
+# Song-scoped producer (ingestion seam)
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def song_fixture(perf_fixture, db):
+    """A song with one recording crediting two of the fixture performers:
+    PERFORMER_MISSING_WIKI (a wiki candidate) and PERFORMER_HAS_BOTH (not).
+
+    PERFORMER_MISSING_BOTH is intentionally NOT linked to the song, so tests
+    can prove the producer is scoped to the song rather than the catalogue.
+    """
+    with db.cursor() as cur:
+        cur.execute("DELETE FROM recording_performers WHERE recording_id = %s",
+                    (RECORDING_ID,))
+        cur.execute("DELETE FROM recordings WHERE id = %s", (RECORDING_ID,))
+        cur.execute("DELETE FROM songs WHERE id = %s", (SONG_ID,))
+
+        cur.execute("INSERT INTO songs (id, title) VALUES (%s, %s)",
+                    (SONG_ID, "Scoped Test Song"))
+        cur.execute(
+            "INSERT INTO recordings (id, song_id, title) VALUES (%s, %s, %s)",
+            (RECORDING_ID, SONG_ID, "Scoped Test Recording"),
+        )
+        for performer_id in (PERFORMER_MISSING_WIKI, PERFORMER_HAS_BOTH):
+            cur.execute(
+                "INSERT INTO recording_performers (recording_id, performer_id) "
+                "VALUES (%s, %s)",
+                (RECORDING_ID, performer_id),
+            )
+    db.commit()
+    yield
+    with db.cursor() as cur:
+        cur.execute("DELETE FROM recording_performers WHERE recording_id = %s",
+                    (RECORDING_ID,))
+        cur.execute("DELETE FROM recordings WHERE id = %s", (RECORDING_ID,))
+        cur.execute("DELETE FROM songs WHERE id = %s", (SONG_ID,))
+    db.commit()
+
+
+class TestEnqueueForSong:
+    def test_finds_only_song_performers_missing_wiki(self, song_fixture):
+        ids = sweep_mod.find_song_performer_ids(SONG_ID, reftypes=['wikipedia'])
+        # Linked to the song and missing wiki -> candidate.
+        assert PERFORMER_MISSING_WIKI in ids
+        # Linked but already has wiki -> excluded.
+        assert PERFORMER_HAS_BOTH not in ids
+        # A wiki candidate, but not credited on this song -> out of scope.
+        assert PERFORMER_MISSING_BOTH not in ids
+
+    def test_enqueues_one_wiki_job_for_song(self, song_fixture, db):
+        result = sweep_mod.enqueue_for_song(SONG_ID, reftypes=['wikipedia'])
+        assert result['candidates'] == 1
+        assert result['enqueued'] == 1
+
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT payload FROM research_jobs "
+                "WHERE source='musicbrainz' "
+                "AND job_type='verify_performer_references' "
+                "AND target_id = %s",
+                (PERFORMER_MISSING_WIKI,),
+            )
+            payload = cur.fetchone()[0]
+        assert payload == {'reftypes': ['wikipedia']}
+
+        # The unlinked catalogue candidate must NOT have been enqueued.
+        with db.cursor() as cur:
+            cur.execute(
+                "SELECT COUNT(*) FROM research_jobs "
+                "WHERE job_type='verify_performer_references' "
+                "AND target_id = %s",
+                (PERFORMER_MISSING_BOTH,),
+            )
+            assert cur.fetchone()[0] == 0
+
+    def test_is_idempotent_for_song(self, song_fixture):
+        first = sweep_mod.enqueue_for_song(SONG_ID, reftypes=['wikipedia'])
+        second = sweep_mod.enqueue_for_song(SONG_ID, reftypes=['wikipedia'])
+
+        assert first['enqueued'] == 1
+        assert second['enqueued'] == 0
+        assert second['skipped'] == 1
+
+    def test_no_song_performers_returns_zero(self, perf_fixture):
+        # A song id with no recordings/performers yields nothing to enqueue.
+        result = sweep_mod.enqueue_for_song(SONG_ID, reftypes=['wikipedia'])
+        assert result == {'candidates': 0, 'enqueued': 0, 'skipped': 0}
