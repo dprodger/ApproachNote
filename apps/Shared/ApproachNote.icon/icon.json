@@ -4,10 +4,15 @@
   },
   "groups" : [
     {
+      "hidden" : false,
       "layers" : [
         {
-          "image-name" : "White on Blue.svg",
-          "name" : "White on Blue"
+          "image-name" : "foregrond-white.svg",
+          "name" : "foregrond-white"
+        },
+        {
+          "image-name" : "background-blue.svg",
+          "name" : "background-blue"
         }
       ],
       "shadow" : {

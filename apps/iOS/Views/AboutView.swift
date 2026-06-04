@@ -49,12 +49,7 @@ struct AboutView: View {
             VStack(spacing: ApproachNoteTheme.spacingLG) {
                 Spacer()
 
-                Text("ApproachNote")
-                    .font(ApproachNoteTheme.largeTitle(size: 48))
-                    .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.7), radius: 10, x: 0, y: 5)
-                    .minimumScaleFactor(0.7)
-                    .lineLimit(1)
+                Image("horizontal-white_1")
 
                 Text("Your comprehensive guide to jazz recordings")
                     .font(ApproachNoteTheme.title3())
