@@ -118,6 +118,20 @@ def get_additions_logger():
     return _additions_logger
 
 
+# MusicBrainz instrument relationships carry an `attributes` array that mixes
+# actual instrument names with credit/qualifier attributes. The qualifiers
+# below describe *how* an instrument was played (e.g. as a guest, a solo, an
+# additional part) rather than naming an instrument, so they must not be stored
+# as instruments. See https://musicbrainz.org/relationship-attributes
+# These are matched case-insensitively against the attribute name.
+INSTRUMENT_QUALIFIER_ATTRIBUTES = frozenset({
+    'additional',
+    'minor',
+    'solo',
+    'guest',
+})
+
+
 class PerformerImporter:
     """
     Handles importing performers and instruments from MusicBrainz data
@@ -1057,13 +1071,20 @@ class PerformerImporter:
             role = rel_type
 
             if rel_type == 'instrument':
-                # Extract instrument names from attributes
+                # Extract instrument names from attributes, skipping credit
+                # qualifiers like "guest"/"solo" that describe how an
+                # instrument was played rather than naming an instrument.
                 attributes = relation.get('attributes') or []
                 for attr in attributes:
                     if isinstance(attr, str):
-                        instruments.append(attr)
+                        attr_name = attr
                     elif isinstance(attr, dict) and 'name' in attr:
-                        instruments.append(attr['name'])
+                        attr_name = attr['name']
+                    else:
+                        continue
+                    if attr_name.strip().lower() in INSTRUMENT_QUALIFIER_ATTRIBUTES:
+                        continue
+                    instruments.append(attr_name)
             elif rel_type == 'vocal':
                 instruments.append('vocals')
             elif rel_type not in ['engineer', 'producer', 'mix', 'mastering']:
