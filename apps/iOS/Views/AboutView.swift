@@ -32,7 +32,7 @@ struct AboutView: View {
                 .resizable()
                 .scaledToFill()
                 .ignoresSafeArea()
-            
+
             // Vignette gradient overlay - darker at top and bottom for toolbar visibility
             LinearGradient(
                 gradient: Gradient(colors: [
@@ -49,7 +49,12 @@ struct AboutView: View {
             VStack(spacing: ApproachNoteTheme.spacingLG) {
                 Spacer()
 
-                Image("horizontal-white_1")
+                Image("stack")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: 220)
+                    .shadow(color: .black.opacity(0.7), radius: 5, x: 0, y: 2)
+                    .accessibilityLabel("Approach Note")
 
                 Text("Your comprehensive guide to jazz recordings")
                     .font(ApproachNoteTheme.title3())
