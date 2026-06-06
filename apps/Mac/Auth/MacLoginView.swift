@@ -120,6 +120,10 @@ struct MacLoginView: View {
             HStack {
                 Spacer()
                 Button("Forgot password?") {
+                    // Clear any prior confirmation state before opening so the
+                    // sheet starts on the request form (reset here, in the parent,
+                    // to avoid a reset racing the success flag on re-render).
+                    authManager.passwordResetEmailSent = false
                     viewModel.showingForgotPassword = true
                 }
                 .buttonStyle(.link)

@@ -12,11 +12,10 @@ struct MacForgotPasswordView: View {
     @Environment(\.dismiss) var dismiss
 
     @State private var email = ""
-    @State private var resetEmailSent = false
 
     var body: some View {
         VStack(spacing: ApproachNoteTheme.spacingLG) {
-            if resetEmailSent {
+            if authManager.passwordResetEmailSent {
                 // Success state
                 successView
             } else {
@@ -118,12 +117,11 @@ struct MacForgotPasswordView: View {
 
     private func sendResetLink() {
         Task {
-            let success = await authManager.requestPasswordReset(
+            // Success is driven by authManager.passwordResetEmailSent (@Published,
+            // set on the main actor), so the confirmation state survives re-renders.
+            _ = await authManager.requestPasswordReset(
                 email: email.trimmingCharacters(in: .whitespacesAndNewlines)
             )
-            if success {
-                resetEmailSent = true
-            }
         }
     }
 }
