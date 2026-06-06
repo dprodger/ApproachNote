@@ -36,7 +36,7 @@ struct ForgotPasswordView: View {
                                 .foregroundColor(.secondary)
                                 .multilineTextAlignment(.center)
                             
-                            Text(email)
+                            Text(authManager.passwordResetEmailAddress)
                                 .font(.subheadline)
                                 .fontWeight(.semibold)
                                 .foregroundColor(ApproachNoteTheme.textPrimary)

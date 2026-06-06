@@ -45,7 +45,7 @@ struct MacForgotPasswordView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
 
-            Text(email)
+            Text(authManager.passwordResetEmailAddress)
                 .font(ApproachNoteTheme.subheadline(weight: .semibold))
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 

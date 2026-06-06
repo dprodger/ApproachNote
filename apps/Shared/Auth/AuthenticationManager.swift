@@ -44,6 +44,10 @@ class AuthenticationManager: ObservableObject {
     /// confirmation UI survives the sheet's re-renders. Reset to false when
     /// the request screen appears.
     @Published var passwordResetEmailSent = false
+    /// The address the reset email was sent to. Stored here (not in view-local
+    /// @State, which gets reset during the sheet's re-renders) so the
+    /// confirmation screen can display it reliably.
+    @Published var passwordResetEmailAddress = ""
     
     // MARK: - Private Properties
 
@@ -391,6 +395,7 @@ class AuthenticationManager: ObservableObject {
             
             if httpResponse.statusCode == 200 {
                 Log.auth.info("Password reset email sent to: \(email, privacy: .private)")
+                passwordResetEmailAddress = email
                 passwordResetEmailSent = true
                 return true
             } else {
