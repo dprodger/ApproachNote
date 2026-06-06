@@ -86,6 +86,18 @@ def terms_page():
 def privacy_page():
     return render_template('privacy.html')
 
+# Account self-service pages. These must be plain https URLs (not the app's
+# custom URL scheme) so the links in auth emails are clickable in every mail
+# client and work on desktop. They POST to the existing /auth/* JSON API and
+# are served from any host (see ACCOUNT_PATHS in the host-routing hook).
+@app.route('/reset-password')
+def reset_password_page():
+    return render_template('reset_password.html')
+
+@app.route('/forgot-password')
+def forgot_password_page():
+    return render_template('forgot_password.html')
+
 # ============================================================================
 # HOST-BASED ROUTING
 # ============================================================================
@@ -97,6 +109,11 @@ WEB_HOSTS = ['approachnote.com', 'www.approachnote.com']
 
 # Routes that should only be served from the website (not API subdomain)
 WEB_ONLY_PATHS = ['/', '/terms', '/privacy']
+
+# Account self-service pages served from ANY host (API, web, or localhost).
+# Auth emails link to these on the API host (same origin as the /auth/* API,
+# so no CORS), but they should also work if reached via the web host.
+ACCOUNT_PATHS = ['/reset-password', '/forgot-password']
 
 # Routes that should only be served from the API subdomain
 # (everything except web-only paths and static files)
@@ -128,6 +145,10 @@ def enforce_host_routing():
 
     # Allow static files from any host
     if path.startswith('/static/'):
+        return None
+
+    # Allow account self-service pages (password reset/forgot) from any host
+    if path in ACCOUNT_PATHS:
         return None
 
     is_admin_host = host_normalized in ['admin.approachnote.com']

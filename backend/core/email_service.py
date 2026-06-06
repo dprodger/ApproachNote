@@ -162,7 +162,10 @@ def send_password_reset_email(email: str, token: str) -> bool:
     Returns:
         True if email sent successfully, False otherwise
     """
-    reset_url = f"{FRONTEND_URL}/reset-password?token={token}"
+    # Link to the https web page (not the app's custom scheme) so the button is
+    # clickable in every mail client and works on desktop. The page offers an
+    # "open in app" link for users who have the app installed.
+    reset_url = f"{API_BASE_URL}/reset-password?token={token}"
     
     html_content = f"""
     <!DOCTYPE html>
