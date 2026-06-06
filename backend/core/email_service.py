@@ -128,7 +128,7 @@ def send_verification_email(email: str, token: str) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                    <img src="{API_BASE_URL}/static/images/email-logo.png"
                          alt="ApproachNote"
                          width="260"
                          style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
@@ -187,7 +187,7 @@ def send_password_reset_email(email: str, token: str) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                    <img src="{API_BASE_URL}/static/images/email-logo.png"
                          alt="ApproachNote"
                          width="260"
                          style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
@@ -239,7 +239,7 @@ def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                    <img src="{API_BASE_URL}/static/images/email-logo.png"
                          alt="ApproachNote"
                          width="260"
                          style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
