@@ -40,26 +40,6 @@ enum RecordingGrouping {
         return recording.communityData?.consensus.isInstrumental
     }
 
-    /// The artist label that RecordingRowView (iOS) and RecordingCard (Mac)
-    /// show on the card: `artist_credit` if present, else the leader's
-    /// display name, else the first performer's name. Kept in sync with
-    /// both card views so the "More Recordings" section sorts in the same
-    /// order the user reads.
-    private static func displayArtistName(for recording: Recording) -> String {
-        if let credit = recording.artistCredit, !credit.isEmpty {
-            return credit
-        }
-        if let performers = recording.performers {
-            if let leader = performers.first(where: { $0.role?.lowercased() == "leader" }) {
-                return leader.name
-            }
-            if let first = performers.first {
-                return first.name
-            }
-        }
-        return "Unknown Artist"
-    }
-
     // MARK: - Available Instruments
 
     /// Distinct instrument families present across the given recordings,
@@ -126,9 +106,8 @@ enum RecordingGrouping {
 
     /// Group recordings according to the sort order.
     /// - `.year`: grouped by decade ("1960s", "1970s", …, "Unknown Year").
-    /// - `.name`: artists with ≥2 recordings each get their own group; single
-    ///   recordings consolidate into "More Recordings" sorted alphabetically
-    ///   by leader sort-name.
+    /// - `.name`: every leader artist gets its own group (including artists
+    ///   with a single recording), in the server's sort=name order.
     static func grouped(
         _ recordings: [Recording],
         sortOrder: RecordingSortOrder
@@ -137,7 +116,7 @@ enum RecordingGrouping {
         case .year:
             return groupByDecade(recordings)
         case .name:
-            return groupByArtistWithConsolidation(recordings)
+            return groupByArtist(recordings)
         }
     }
 
@@ -170,60 +149,30 @@ enum RecordingGrouping {
         }
     }
 
-    // MARK: - Artist Grouping with Consolidation (for Name sort)
+    // MARK: - Artist Grouping (for Name sort)
 
-    private static func groupByArtistWithConsolidation(
+    /// Group recordings by leader artist — one group per artist, including
+    /// artists with a single recording. Groups appear in the order their
+    /// first recording arrives, which follows the server's sort=name
+    /// (ORDER BY leader sort-name), so the whole list reads in one
+    /// consistent by-name order with no catch-all "More Recordings" bucket.
+    private static func groupByArtist(
         _ recordings: [Recording]
     ) -> [(groupKey: String, recordings: [Recording])] {
-        // First pass: count recordings per artist.
-        var artistCounts: [String: Int] = [:]
-        for recording in recordings {
-            let artist = recording.performers?.first { $0.role == "leader" }?.name ?? "Unknown"
-            artistCounts[artist, default: 0] += 1
-        }
-
-        // Second pass: separate featured artists (≥2 recordings) from singles.
-        var featuredOrder: [String] = []
-        var featuredGroups: [String: [Recording]] = [:]
-        var moreRecordings: [Recording] = []
+        var order: [String] = []
+        var groups: [String: [Recording]] = [:]
 
         for recording in recordings {
             let artist = recording.performers?.first { $0.role == "leader" }?.name ?? "Unknown"
-
-            if artistCounts[artist, default: 0] >= 2 {
-                if featuredGroups[artist] == nil {
-                    featuredOrder.append(artist)
-                }
-                featuredGroups[artist, default: []].append(recording)
-            } else {
-                moreRecordings.append(recording)
+            if groups[artist] == nil {
+                order.append(artist)
             }
+            groups[artist, default: []].append(recording)
         }
 
-        // Build result: featured artists first (in original order, which
-        // follows the server's sort=name ORDER BY leader sort-name), then
-        // a "More Recordings" group of singles sorted alphabetically by
-        // the same artist label the card displays.
-        var result: [(groupKey: String, recordings: [Recording])] = []
-
-        for artist in featuredOrder {
-            if let recs = featuredGroups[artist] {
-                result.append((groupKey: artist, recordings: recs))
-            }
+        return order.compactMap { key in
+            guard let recs = groups[key] else { return nil }
+            return (groupKey: key, recordings: recs)
         }
-
-        if !moreRecordings.isEmpty {
-            // Sort by the artist label the card actually shows — otherwise
-            // the user sees cards labeled "Nat King Cole" / "Tommy Dorsey"
-            // arranged in last-name order, which reads as unsorted (#93).
-            let sortedMore = moreRecordings.sorted { rec1, rec2 in
-                let key1 = displayArtistName(for: rec1)
-                let key2 = displayArtistName(for: rec2)
-                return key1.localizedCaseInsensitiveCompare(key2) == .orderedAscending
-            }
-            result.append((groupKey: "More Recordings", recordings: sortedMore))
-        }
-
-        return result
     }
 }
