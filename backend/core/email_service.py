@@ -135,7 +135,7 @@ def send_verification_email(email: str, token: str) -> bool:
                 </div>
                 <h2>Welcome to ApproachNote!!</h2>
                 <p>Please verify your email address by clicking the button below:</p>
-                <a href="{verify_url}" class="button">Verify Email Address</a>
+                <a href="{verify_url}" class="button" style="color: #ffffff; text-decoration: none;">Verify Email Address</a>
                 <p>Or copy and paste this link into your browser:</p>
                 <p style="word-break: break-all; color: #4F46E5;">{verify_url}</p>
                 <p class="footer">
@@ -197,7 +197,7 @@ def send_password_reset_email(email: str, token: str) -> bool:
                 </div>
                 <h2>Password Reset Request</h2>
                 <p>You requested to reset your password. Click the button below to proceed:</p>
-                <a href="{reset_url}" class="button">Reset Password</a>
+                <a href="{reset_url}" class="button" style="color: #ffffff; text-decoration: none;">Reset Password</a>
                 <p>Or copy and paste this link into your browser:</p>
                 <p style="word-break: break-all; color: #DC2626;">{reset_url}</p>
                 <p class="footer">
