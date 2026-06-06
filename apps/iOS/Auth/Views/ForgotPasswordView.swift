@@ -12,15 +12,14 @@ import PostHog
 struct ForgotPasswordView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @Environment(\.dismiss) var dismiss
-    
+
     @State private var email = ""
-    @State private var resetEmailSent = false
-    
+
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: ApproachNoteTheme.spacingXL) {
-                    if resetEmailSent {
+                    if authManager.passwordResetEmailSent {
                         // Success state
                         VStack(spacing: ApproachNoteTheme.spacingMD) {
                             Image(systemName: "envelope.circle.fill")
@@ -99,12 +98,12 @@ struct ForgotPasswordView: View {
                             isLoading: authManager.isLoading,
                             action: {
                                 Task {
-                                    let success = await authManager.requestPasswordReset(
+                                    // Success is driven by authManager.passwordResetEmailSent
+                                    // (@Published, set on the main actor), so the confirmation
+                                    // state survives the sheet's re-renders.
+                                    _ = await authManager.requestPasswordReset(
                                         email: email.trimmingCharacters(in: .whitespacesAndNewlines)
                                     )
-                                    if success {
-                                        resetEmailSent = true
-                                    }
                                 }
                             }
                         )

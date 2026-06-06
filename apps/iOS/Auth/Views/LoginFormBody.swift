@@ -92,6 +92,10 @@ struct LoginFormBody: View {
             HStack {
                 Spacer()
                 Button("Forgot password?") {
+                    // Clear any prior confirmation state before opening, so the
+                    // sheet starts on the request form (reset here, in the parent,
+                    // to avoid an onAppear/onDisappear reset racing the success flag).
+                    authManager.passwordResetEmailSent = false
                     viewModel.showingForgotPassword = true
                 }
                 .font(.subheadline)

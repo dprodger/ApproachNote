@@ -39,6 +39,11 @@ class AuthenticationManager: ObservableObject {
     }
     @Published var isLoading = false
     @Published var errorMessage: String?
+    /// Set true when a password-reset email has been successfully requested.
+    /// Driven from the @MainActor method (not view-local @State) so the
+    /// confirmation UI survives the sheet's re-renders. Reset to false when
+    /// the request screen appears.
+    @Published var passwordResetEmailSent = false
     
     // MARK: - Private Properties
 
@@ -365,6 +370,7 @@ class AuthenticationManager: ObservableObject {
     func requestPasswordReset(email: String) async -> Bool {
         isLoading = true
         errorMessage = nil
+        passwordResetEmailSent = false
         
         let url = URL.api(path: "/auth/forgot-password")
         var request = URLRequest(url: url)
@@ -385,6 +391,7 @@ class AuthenticationManager: ObservableObject {
             
             if httpResponse.statusCode == 200 {
                 Log.auth.info("Password reset email sent to: \(email, privacy: .private)")
+                passwordResetEmailSent = true
                 return true
             } else {
                 if let errorResponse = try? JSONDecoder().decode(AuthError.self, from: data) {
