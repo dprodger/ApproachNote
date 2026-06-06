@@ -111,7 +111,8 @@ def send_verification_email(email: str, token: str) -> bool:
             <style>
                 body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                 .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .button {{ 
+                .header {{ text-align: center; padding: 10px 0 20px; }}
+                .button {{
                     display: inline-block; 
                     padding: 12px 24px; 
                     background-color: #4F46E5; 
@@ -125,6 +126,12 @@ def send_verification_email(email: str, token: str) -> bool:
         </head>
         <body>
             <div class="container">
+                <div class="header">
+                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                         alt="ApproachNote"
+                         width="260"
+                         style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
+                </div>
                 <h2>Welcome to ApproachNote!!</h2>
                 <p>Please verify your email address by clicking the button below:</p>
                 <a href="{verify_url}" class="button">Verify Email Address</a>
@@ -163,7 +170,8 @@ def send_password_reset_email(email: str, token: str) -> bool:
             <style>
                 body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                 .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .button {{ 
+                .header {{ text-align: center; padding: 10px 0 20px; }}
+                .button {{
                     display: inline-block; 
                     padding: 12px 24px; 
                     background-color: #DC2626; 
@@ -177,6 +185,12 @@ def send_password_reset_email(email: str, token: str) -> bool:
         </head>
         <body>
             <div class="container">
+                <div class="header">
+                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                         alt="ApproachNote"
+                         width="260"
+                         style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
+                </div>
                 <h2>Password Reset Request</h2>
                 <p>You requested to reset your password. Click the button below to proceed:</p>
                 <a href="{reset_url}" class="button">Reset Password</a>
@@ -216,7 +230,7 @@ def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
             <style>
                 body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
                 .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
-                .header {{ background-color: #4F46E5; color: white; padding: 20px; border-radius: 6px; }}
+                .header {{ text-align: center; padding: 10px 0 20px; }}
                 .content {{ padding: 20px 0; }}
                 .footer {{ margin-top: 30px; font-size: 12px; color: #666; }}
             </style>
@@ -224,7 +238,10 @@ def send_welcome_email(email: str, display_name: Optional[str] = None) -> bool:
         <body>
             <div class="container">
                 <div class="header">
-                    <h1 style="margin: 0;">ApproachNote</h1>
+                    <img src="{API_BASE_URL}/static/images/email-wordmark.png"
+                         alt="ApproachNote"
+                         width="260"
+                         style="display: inline-block; width: 260px; max-width: 80%; height: auto; border: 0;" />
                 </div>
                 <div class="content">
                     <h2>{greeting}</h2>
