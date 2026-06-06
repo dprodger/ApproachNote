@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 # Configuration from environment variables
 SENDGRID_API_KEY = os.getenv('SENDGRID_API_KEY')
 FROM_EMAIL = os.getenv('FROM_EMAIL', 'noreply@approachnote.com')
+FROM_NAME = os.getenv('FROM_NAME', 'ApproachNote Support')
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'approachnote://auth')
 API_BASE_URL = os.getenv('API_BASE_URL', 'https://api.approachnote.com')
 
@@ -68,7 +69,7 @@ def send_email(to_email: str, subject: str, html_content: str) -> bool:
                     "subject": subject
                 }
             ],
-            "from": {"email": FROM_EMAIL},
+            "from": {"email": FROM_EMAIL, "name": FROM_NAME},
             "content": [
                 {
                     "type": "text/html",
