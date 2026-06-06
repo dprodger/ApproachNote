@@ -18,6 +18,7 @@ struct RegisterView: View {
     @State private var confirmPassword = ""
     @State private var displayName = ""
     @State private var agreedToTerms = false
+    @State private var revealPasswords = false
     
     var passwordsMatch: Bool {
         password == confirmPassword && !password.isEmpty
@@ -81,11 +82,8 @@ struct RegisterView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        SecureField("At least 8 characters", text: $password)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
+                        revealablePasswordField("At least 8 characters", text: $password)
+
                         if !password.isEmpty && password.count < 8 {
                             Text("Password must be at least 8 characters")
                                 .font(.caption)
@@ -99,11 +97,8 @@ struct RegisterView: View {
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
-                        SecureField("Re-enter password", text: $confirmPassword)
-                            .padding()
-                            .background(Color(.systemGray6))
-                            .cornerRadius(10)
-                        
+                        revealablePasswordField("Re-enter password", text: $confirmPassword)
+
                         if !confirmPassword.isEmpty && !passwordsMatch {
                             Text("Passwords do not match")
                                 .font(.caption)
@@ -163,6 +158,35 @@ struct RegisterView: View {
             }
         }
         .postHogMask()
+    }
+
+    /// Password entry that toggles between obscured (`SecureField`) and plain
+    /// (`TextField`) text. The eye button is shared state, so tapping it on
+    /// either field reveals both — handy for confirming the two entries match.
+    @ViewBuilder
+    private func revealablePasswordField(_ placeholder: String, text: Binding<String>) -> some View {
+        HStack {
+            Group {
+                if revealPasswords {
+                    TextField(placeholder, text: text)
+                } else {
+                    SecureField(placeholder, text: text)
+                }
+            }
+            .textInputAutocapitalization(.never)
+            .autocorrectionDisabled()
+
+            Button {
+                revealPasswords.toggle()
+            } label: {
+                Image(systemName: revealPasswords ? "eye.slash" : "eye")
+                    .foregroundColor(.secondary)
+            }
+            .accessibilityLabel(revealPasswords ? "Hide passwords" : "Show passwords")
+        }
+        .padding()
+        .background(Color(.systemGray6))
+        .cornerRadius(10)
     }
 }
 
