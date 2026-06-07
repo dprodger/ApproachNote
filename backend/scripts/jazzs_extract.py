@@ -21,6 +21,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 import requests
 from bs4 import BeautifulSoup
 
+# Load environment variables from the backend .env before importing db_utils,
+# which reads DB_* connection settings from the environment at import time.
+try:
+    from dotenv import load_dotenv
+    _env_path = Path(__file__).parent.parent / '.env'
+    if _env_path.exists():
+        load_dotenv(_env_path)
+except ImportError:
+    pass  # python-dotenv not installed, skip
+
 from db_utils import get_db_connection
 
 # Configure logging
