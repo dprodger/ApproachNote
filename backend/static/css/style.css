@@ -502,6 +502,22 @@ footer a:hover {
     }
 }
 
+@media (max-width: 520px) {
+    header .container {
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.75rem;
+    }
+
+    .logo-img {
+        height: 34px;
+    }
+
+    nav ul {
+        gap: 2rem;
+    }
+}
+
 /* Utilities */
 .text-center { text-align: center; }
 .mt-1 { margin-top: 0.5rem; }
