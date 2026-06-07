@@ -174,7 +174,7 @@ struct ArtistsListView: View {
         ScrollViewReader { proxy in
             List {
                 ForEach(groupedArtists, id: \.0) { letter, artists in
-                    Section(header: ArtistSectionHeaderView(letter: letter)) {
+                    Section(header: ArtistSectionHeaderView(letter: letter).listRowInsets(EdgeInsets())) {
                         ForEach(artists) { performer in
                             NavigationLink(destination: PerformerDetailView(performerId: performer.id)) {
                                 artistRowView(performer: performer)
@@ -268,7 +268,7 @@ struct ArtistSectionHeaderView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, ApproachNoteTheme.spacingXS)
             .padding(.horizontal)
-            .background(ApproachNoteTheme.background.opacity(0.8))
+            .background(ApproachNoteTheme.surfaceMuted)
     }
 }
 

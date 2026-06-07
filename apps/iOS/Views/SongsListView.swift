@@ -281,7 +281,7 @@ struct SongsListView: View {
         ScrollViewReader { proxy in
             List {
                 ForEach(groupedSongs, id: \.0) { letter, songs in
-                    Section(header: SectionHeaderView(letter: letter)) {
+                    Section(header: SectionHeaderView(letter: letter).listRowInsets(EdgeInsets())) {
                         ForEach(songs) { song in
                             NavigationLink(destination: SongDetailView(songId: song.id)
                                                 .environmentObject(repertoireManager)) {
@@ -534,7 +534,7 @@ struct SectionHeaderView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, ApproachNoteTheme.spacingXS)
             .padding(.horizontal)
-            .background(ApproachNoteTheme.background.opacity(0.8))
+            .background(ApproachNoteTheme.surfaceMuted)
     }
 }
 

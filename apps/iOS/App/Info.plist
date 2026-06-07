@@ -2,6 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- Opt out of the iOS 26 "Liquid Glass" redesign. The app is themed with
+         opaque brand-coloured navigation/tab bars; under Liquid Glass the bars
+         turn translucent and tint with the content scrolling behind them, which
+         the app's design doesn't want. Opting out keeps all bars opaque and
+         stable (no colour change on scroll). -->
+    <key>UIDesignRequiresCompatibility</key>
+    <true/>
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleExecutable</key>
