@@ -55,47 +55,52 @@
             <h2>ApproachNote in action</h2>
             <p class="explore-intro">Carefully curated, cross-referenced, and always linkable to the recording you'll want to hear next.</p>
 
-            <div class="explore-grid">
-                <div class="explore-row">
-                    <h3 class="explore-label">Curated Standards</h3>
-                    <p class="explore-text">A comprehensive library of jazz standards with composer credits, structural notes, and historical context — researched and continuously refined.</p>
-                    <div class="explore-media">
-                        <img src="/static/images/screenshots/iphone-songlist.png" alt="Browsing the alphabetical list of jazz standards in ApproachNote" loading="lazy">
+            <div class="explore-tabs">
+                <div class="explore-labels" role="tablist" aria-orientation="vertical" aria-label="ApproachNote features">
+                    <button type="button" role="tab" id="explore-tab-0" aria-controls="explore-panel-0" aria-selected="true" class="explore-label">Curated Standards</button>
+                    <button type="button" role="tab" id="explore-tab-1" aria-controls="explore-panel-1" aria-selected="false" tabindex="-1" class="explore-label">Canonical Recordings</button>
+                    <button type="button" role="tab" id="explore-tab-2" aria-controls="explore-panel-2" aria-selected="false" tabindex="-1" class="explore-label">Artist Profiles</button>
+                    <button type="button" role="tab" id="explore-tab-3" aria-controls="explore-panel-3" aria-selected="false" tabindex="-1" class="explore-label">Recording Details</button>
+                    <button type="button" role="tab" id="explore-tab-4" aria-controls="explore-panel-4" aria-selected="false" tabindex="-1" class="explore-label">Rich Context</button>
+                    <button type="button" role="tab" id="explore-tab-5" aria-controls="explore-panel-5" aria-selected="false" tabindex="-1" class="explore-label">Listen Instantly</button>
+                </div>
+
+                <div class="explore-panels">
+                    <div role="tabpanel" id="explore-panel-0" aria-labelledby="explore-tab-0" class="explore-panel is-active">
+                        <p class="explore-text">A comprehensive library of jazz standards with composer credits, structural notes, and historical context — researched and continuously refined.</p>
+                        <div class="explore-media">
+                            <img src="/static/images/screenshots/iphone-songlist.png" alt="Browsing the alphabetical list of jazz standards in ApproachNote" loading="lazy">
+                        </div>
                     </div>
-                </div>
 
-                <div class="explore-row">
-                    <h3 class="explore-label">Canonical Recordings</h3>
-                    <p class="explore-text">The definitive versions of every standard. From Miles to Coltrane to Monk — explore the takes that shaped the music, with full personnel.</p>
-                    <div class="explore-media">
-                        <img src="/static/images/screenshots/iphone-songdetails.png" alt="A song detail screen highlighting featured recordings" loading="lazy">
+                    <div role="tabpanel" id="explore-panel-1" aria-labelledby="explore-tab-1" class="explore-panel" hidden>
+                        <p class="explore-text">The definitive versions of every standard. From Miles to Coltrane to Monk — explore the takes that shaped the music, with full personnel.</p>
+                        <div class="explore-media">
+                            <img src="/static/images/screenshots/iphone-songdetails.png" alt="A song detail screen highlighting featured recordings" loading="lazy">
+                        </div>
                     </div>
-                </div>
 
-                <div class="explore-row">
-                    <h3 class="explore-label">Artist Profiles</h3>
-                    <p class="explore-text">Biographies, career highlights, and discographies for the players who defined the genre. Trace the connections between musicians and sessions.</p>
-                    <div class="explore-media">
-                        <img src="/static/images/screenshots/iphone-artist.png" alt="An artist profile with biography and discography" loading="lazy">
+                    <div role="tabpanel" id="explore-panel-2" aria-labelledby="explore-tab-2" class="explore-panel" hidden>
+                        <p class="explore-text">Biographies, career highlights, and discographies for the players who defined the genre. Trace the connections between musicians and sessions.</p>
+                        <div class="explore-media">
+                            <img src="/static/images/screenshots/iphone-artist.png" alt="An artist profile with biography and discography" loading="lazy">
+                        </div>
                     </div>
-                </div>
 
-                <div class="explore-row">
-                    <h3 class="explore-label">Recording Details</h3>
-                    <p class="explore-text">Complete personnel lineups, recording dates, session labels, and source releases — know exactly who played what on every track.</p>
-                    <div class="explore-media">
-                        <img src="/static/images/screenshots/iphone-recordings.png" alt="Recordings of a standard grouped by decade" loading="lazy">
+                    <div role="tabpanel" id="explore-panel-3" aria-labelledby="explore-tab-3" class="explore-panel" hidden>
+                        <p class="explore-text">Complete personnel lineups, recording dates, session labels, and source releases — know exactly who played what on every track.</p>
+                        <div class="explore-media">
+                            <img src="/static/images/screenshots/iphone-recordings.png" alt="Recordings of a standard grouped by decade" loading="lazy">
+                        </div>
                     </div>
-                </div>
 
-                <div class="explore-row explore-row--no-media">
-                    <h3 class="explore-label">Rich Context</h3>
-                    <p class="explore-text">Every entry links out to Wikipedia, MusicBrainz, and other authoritative jazz sources. Go as deep into a song's history as you want.</p>
-                </div>
+                    <div role="tabpanel" id="explore-panel-4" aria-labelledby="explore-tab-4" class="explore-panel explore-panel--no-media" hidden>
+                        <p class="explore-text">Every entry links out to Wikipedia, MusicBrainz, and other authoritative jazz sources. Go as deep into a song's history as you want.</p>
+                    </div>
 
-                <div class="explore-row explore-row--no-media">
-                    <h3 class="explore-label">Listen Instantly</h3>
-                    <p class="explore-text">Direct links to Spotify and Apple Music open the recording right where you left the page. Hear what you're reading about.</p>
+                    <div role="tabpanel" id="explore-panel-5" aria-labelledby="explore-tab-5" class="explore-panel explore-panel--no-media" hidden>
+                        <p class="explore-text">Direct links to Spotify and Apple Music open the recording right where you left the page. Hear what you're reading about.</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -113,5 +118,41 @@
             </p>
         </div>
     </footer>
+
+    <script>
+        (function () {
+            var tablist = document.querySelector('.explore-labels');
+            if (!tablist) return;
+            var tabs = Array.prototype.slice.call(tablist.querySelectorAll('[role="tab"]'));
+            var panels = tabs.map(function (tab) {
+                return document.getElementById(tab.getAttribute('aria-controls'));
+            });
+
+            function activate(index, setFocus) {
+                tabs.forEach(function (tab, i) {
+                    var selected = i === index;
+                    tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+                    tab.tabIndex = selected ? 0 : -1;
+                    if (panels[i]) {
+                        panels[i].classList.toggle('is-active', selected);
+                        panels[i].hidden = !selected;
+                    }
+                });
+                if (setFocus) tabs[index].focus();
+            }
+
+            tabs.forEach(function (tab, i) {
+                tab.addEventListener('click', function () { activate(i); });
+                tab.addEventListener('keydown', function (e) {
+                    var next = null;
+                    if (e.key === 'ArrowDown' || e.key === 'ArrowRight') next = (i + 1) % tabs.length;
+                    else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') next = (i - 1 + tabs.length) % tabs.length;
+                    else if (e.key === 'Home') next = 0;
+                    else if (e.key === 'End') next = tabs.length - 1;
+                    if (next !== null) { e.preventDefault(); activate(next, true); }
+                });
+            });
+        })();
+    </script>
 </body>
 </html>
