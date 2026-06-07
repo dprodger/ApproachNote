@@ -344,7 +344,7 @@ nav a:hover {
 
 .explore-panel {
     display: grid;
-    grid-template-columns: 1fr 200px;
+    grid-template-columns: 200px 1fr;
     gap: 2.5rem;
     align-items: center;
 }
