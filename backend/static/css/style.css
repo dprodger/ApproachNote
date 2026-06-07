@@ -277,6 +277,54 @@ nav a:hover {
     line-height: 1.6;
 }
 
+/* Screenshot showcase */
+.showcase {
+    padding: 6rem 0;
+    background: var(--background);
+    text-align: center;
+}
+
+.showcase h2 {
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+.showcase > .container > p {
+    text-align: center;
+    color: var(--text-secondary);
+    max-width: 560px;
+    margin: 0 auto 3.5rem;
+    font-size: 1.05rem;
+}
+
+.shot-row {
+    display: flex;
+    justify-content: center;
+    gap: 1.75rem;
+    flex-wrap: wrap;
+}
+
+.shot {
+    margin: 0;
+    width: 220px;
+}
+
+.shot img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 22px;
+    border: 1px solid var(--hairline);
+    box-shadow: var(--shadow-lg);
+}
+
+.shot figcaption {
+    margin-top: 1rem;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
 /* CTA */
 .cta {
     padding: 6rem 0;
