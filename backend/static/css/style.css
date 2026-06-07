@@ -178,6 +178,25 @@ nav a:hover {
     line-height: 1.55;
 }
 
+/* App Store badge — official Apple artwork, do not modify or recolor.
+ * Guidelines: developer.apple.com/app-store/marketing/guidelines/
+ * Min onscreen height 40px; clear space ≥ 1/4 of badge height. */
+.app-store-badge {
+    display: inline-block;
+    line-height: 0;
+    margin: 0.25rem 0;
+}
+
+.app-store-badge img {
+    height: 52px;
+    width: auto;
+    display: block;
+}
+
+.app-store-badge:hover {
+    opacity: 0.85;
+}
+
 .badge {
     display: inline-flex;
     align-items: center;
