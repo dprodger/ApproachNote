@@ -3,6 +3,34 @@
  * Source of truth: apps/Shared/Support/ThemePalette.swift (palette2Blue)
  */
 
+/* Colt — display typeface for hero headline (licensed for web use). */
+@font-face {
+    font-family: 'Colt';
+    src: url('/static/fonts/colt/Colt-Regular.woff2') format('woff2'),
+         url('/static/fonts/colt/Colt-Regular.woff') format('woff');
+    font-weight: 400;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Colt';
+    src: url('/static/fonts/colt/Colt-Bold.woff2') format('woff2'),
+         url('/static/fonts/colt/Colt-Bold.woff') format('woff');
+    font-weight: 700;
+    font-style: normal;
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Colt';
+    src: url('/static/fonts/colt/Colt-Black.woff2') format('woff2'),
+         url('/static/fonts/colt/Colt-Black.woff') format('woff');
+    font-weight: 900;
+    font-style: normal;
+    font-display: swap;
+}
+
 :root {
     /* Brand & accent */
     --brand: #363A87;
@@ -148,16 +176,18 @@ nav a:hover {
     width: 92px;
     height: 92px;
     border-radius: 22px;
-    margin: 0 auto 1.75rem;
+    margin: 0 0 1.75rem;
     display: block;
     box-shadow: var(--shadow-lg);
 }
 
 .hero h2 {
+    font-family: 'Colt', 'Libre Franklin', -apple-system, BlinkMacSystemFont, sans-serif;
     color: var(--text-primary);
-    font-size: 3.25rem;
+    /* Fluid: Colt is a wide all-caps face, so cap size to never overflow "ENCYCLOPEDIA". */
+    font-size: clamp(1.05rem, 5.3vw, 3.5rem);
     font-weight: 700;
-    letter-spacing: -0.025em;
+    letter-spacing: -0.02em;
     line-height: 1.05;
     margin-bottom: 1.25rem;
     max-width: 820px;
@@ -458,10 +488,6 @@ footer a:hover {
 
     .hero {
         padding: 4rem 0 3.5rem;
-    }
-
-    .hero h2 {
-        font-size: 2.25rem;
     }
 
     .hero p {
