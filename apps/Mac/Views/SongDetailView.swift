@@ -879,6 +879,12 @@ struct SongDetailView: View {
 
     // MARK: - Transcriptions Section
 
+    /// Videos flow across the section width, filling it with as many
+    /// columns as fit rather than stacking in a single narrow column.
+    private var videoColumns: [GridItem] {
+        [GridItem(.adaptive(minimum: 320), spacing: ApproachNoteTheme.spacingMD, alignment: .top)]
+    }
+
     @ViewBuilder
     private var transcriptionsSection: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
@@ -887,10 +893,13 @@ struct SongDetailView: View {
                 .bold()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            ForEach(transcriptions) { transcription in
-                TranscriptionRow(transcription: transcription)
+            LazyVGrid(columns: videoColumns, alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+                ForEach(transcriptions) { transcription in
+                    TranscriptionRow(transcription: transcription)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(ApproachNoteTheme.spacingMD)
         .background(ApproachNoteTheme.surface)
         .cornerRadius(12)
@@ -906,10 +915,13 @@ struct SongDetailView: View {
                 .bold()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            ForEach(backingTracks) { video in
-                BackingTrackRow(video: video)
+            LazyVGrid(columns: videoColumns, alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+                ForEach(backingTracks) { video in
+                    BackingTrackRow(video: video)
+                }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(ApproachNoteTheme.spacingMD)
         .background(ApproachNoteTheme.surface)
         .cornerRadius(12)

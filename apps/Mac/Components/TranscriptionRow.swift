@@ -16,14 +16,11 @@ struct TranscriptionRow: View {
     @State private var isHovering = false
     @Environment(\.openURL) private var openURL
 
-    /// Cap the thumbnail so cards stay a sensible size in a wide detail pane.
-    private let cardWidth: CGFloat = 360
-
     var body: some View {
         Button(action: openYouTube) {
             VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 // YouTube thumbnail
-                YouTubeThumbnailView(youtubeUrl: transcription.youtubeUrl, maxWidth: cardWidth)
+                YouTubeThumbnailView(youtubeUrl: transcription.youtubeUrl)
 
                 // Title and metadata below the thumbnail
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
@@ -43,7 +40,7 @@ struct TranscriptionRow: View {
                     }
                 }
             }
-            .frame(width: cardWidth, alignment: .leading)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contentShape(Rectangle())
             .opacity(isHovering ? 0.85 : 1.0)
         }
