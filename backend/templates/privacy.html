@@ -99,9 +99,34 @@
       color: var(--muted);
       font-size: 0.85rem;
     }
+    .site-header {
+      border-bottom: 1px solid var(--rule);
+      background: var(--bg);
+    }
+    .site-header .inner {
+      max-width: 740px;
+      margin: 0 auto;
+      padding: 1.1rem 1.5rem;
+    }
+    .site-header a {
+      display: inline-flex;
+      align-items: center;
+    }
+    .site-header img {
+      height: 36px;
+      width: auto;
+      display: block;
+    }
   </style>
 </head>
 <body>
+<header class="site-header">
+  <div class="inner">
+    <a href="/" aria-label="ApproachNote home">
+      <img src="/static/images/logo_horizontal.svg" alt="ApproachNote — The Essential Jazz Reference">
+    </a>
+  </div>
+</header>
 <main>
   <header class="doc-header">
     <h1>Privacy Policy</h1>
