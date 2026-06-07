@@ -2,7 +2,9 @@
 //  BackingTrackRow.swift
 //  Approach Note
 //
-//  Row view for a single backing-track video in Mac SongDetailView
+//  Card view for a single backing-track video in Mac SongDetailView.
+//  Shows a YouTube thumbnail with the title below; tapping opens the
+//  video in the YouTube app or website.
 //
 
 import SwiftUI
@@ -14,79 +16,39 @@ struct BackingTrackRow: View {
     @State private var isHovering = false
     @Environment(\.openURL) private var openURL
 
+    /// Cap the thumbnail so cards stay a sensible size in a wide detail pane.
+    private let cardWidth: CGFloat = 360
+
     var body: some View {
         Button(action: openYouTube) {
-            HStack(spacing: ApproachNoteTheme.spacingSM) {
-                // Play button thumbnail
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.accent.opacity(0.15))
-                        .frame(width: 80, height: 45)
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                // YouTube thumbnail
+                YouTubeThumbnailView(youtubeUrl: video.youtubeUrl, maxWidth: cardWidth)
 
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.accent)
-                }
-
-                // Video info
+                // Title and metadata below the thumbnail
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-                    Text(video.title ?? "Backing Track")
-                        .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                        .lineLimit(2)
+                    YouTubeTitleView(
+                        youtubeUrl: video.youtubeUrl,
+                        storedTitle: video.title,
+                        placeholder: "Backing Track"
+                    )
 
                     HStack(spacing: ApproachNoteTheme.spacingXS) {
                         if let duration = video.durationSeconds {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "clock")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(formatDuration(duration))
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
+                            metadataBadge(icon: "clock", text: formatDuration(duration))
                         }
-
                         if let tempo = video.tempo {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "metronome")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text("\(tempo) BPM")
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
+                            metadataBadge(icon: "metronome", text: "\(tempo) BPM")
                         }
-
                         if let key = video.keySignature {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "music.note")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(key)
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
+                            metadataBadge(icon: "music.note", text: key)
                         }
                     }
                 }
-
-                Spacer()
-
-                // YouTube icon indicator
-                if video.youtubeUrl != nil {
-                    Image(systemName: "play.rectangle.fill")
-                        .font(.title2)
-                        .foregroundColor(.red)
-                }
             }
-            .padding()
-            .background(isHovering ? ApproachNoteTheme.background : Color.white)
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isHovering ? ApproachNoteTheme.accent.opacity(0.5) : Color.clear, lineWidth: 2)
-            )
+            .frame(width: cardWidth, alignment: .leading)
+            .contentShape(Rectangle())
+            .opacity(isHovering ? 0.85 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -96,9 +58,19 @@ struct BackingTrackRow: View {
         .help(video.youtubeUrl != nil ? "Watch on YouTube" : "No video available")
     }
 
+    private func metadataBadge(icon: String, text: String) -> some View {
+        HStack(spacing: ApproachNoteTheme.spacingXXS) {
+            Image(systemName: icon)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .font(ApproachNoteTheme.caption())
+            Text(text)
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+        }
+    }
+
     private func openYouTube() {
-        guard let urlString = video.youtubeUrl,
-              let url = URL(string: urlString) else { return }
+        guard let url = YouTube.watchURL(from: video.youtubeUrl) else { return }
         openURL(url)
     }
 

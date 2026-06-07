@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24412" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.Storyboard.XIB" version="3.0" toolsVersion="24765" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" launchScreen="YES" useTraitCollections="YES" colorMatched="YES" initialViewController="01J-lp-oVM">
     <device id="retina6_12" orientation="portrait" appearance="light"/>
     <dependencies>
-        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24405"/>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="24743"/>
         <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
     </dependencies>
     <scenes>
@@ -21,23 +21,20 @@
                             <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="imageView">
                                 <rect key="frame" x="0.0" y="0.0" width="393" height="852"/>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="ApproachNote" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="productNameLabel">
-                                <rect key="frame" x="64" y="673.66666666666663" width="265" height="50.333333333333371"/>
-                                <fontDescription key="fontDescription" name="Futura-Medium" family="Futura" pointSize="37"/>
-                                <color key="textColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
-                                <nil key="highlightedColor"/>
-                                <color key="shadowColor" red="0.0" green="0.0" blue="0.0" alpha="0.69999999999999996" colorSpace="custom" customColorSpace="sRGB"/>
-                                <size key="shadowOffset" width="0.0" height="2"/>
-                            </label>
+                            <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFit" horizontalHuggingPriority="251" verticalHuggingPriority="251" image="stack" translatesAutoresizingMaskIntoConstraints="NO" id="stackLogo">
+                                <rect key="frame" x="126.5" y="525" width="140" height="154"/>
+                            </imageView>
                         </subviews>
                         <color key="backgroundColor" red="0.0" green="0.0" blue="0.0" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="imageView" firstAttribute="bottom" secondItem="Ze5-6b-2t3" secondAttribute="bottom" id="bottom"/>
                             <constraint firstItem="imageView" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" id="leading"/>
-                            <constraint firstItem="productNameLabel" firstAttribute="bottom" secondItem="6De-jV-Pqu" secondAttribute="top" constant="-60" id="nameBottom"/>
-                            <constraint firstItem="productNameLabel" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="nameCenterX"/>
                             <constraint firstItem="imageView" firstAttribute="top" secondItem="Ze5-6b-2t3" secondAttribute="top" id="top"/>
                             <constraint firstItem="imageView" firstAttribute="trailing" secondItem="Ze5-6b-2t3" secondAttribute="trailing" id="trailing"/>
+                            <constraint firstItem="stackLogo" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="logoCenterX"/>
+                            <constraint firstItem="stackLogo" firstAttribute="bottom" secondItem="6De-jV-Pqu" secondAttribute="top" constant="-60" id="logoBottom"/>
+                            <constraint firstItem="stackLogo" firstAttribute="width" constant="140" id="logoWidth"/>
+                            <constraint firstItem="stackLogo" firstAttribute="width" secondItem="stackLogo" secondAttribute="height" multiplier="1571:1729" id="logoAspect"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -48,5 +45,6 @@
     </scenes>
     <resources>
         <image name="LaunchImage" width="666.66668701171875" height="1000"/>
+        <image name="stack" width="523.66668701171875" height="576.33331298828125"/>
     </resources>
 </document>

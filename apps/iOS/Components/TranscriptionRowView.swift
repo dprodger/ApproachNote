@@ -1,78 +1,61 @@
 // TranscriptionRowView.swift
-// Tappable row component for displaying solo transcriptions
-// YouTube player is shown in a sheet for better performance
+// Tappable card showing a solo transcription as a YouTube thumbnail.
+// Tapping opens the video in the YouTube app or website (full screen
+// where supported).
 
 import SwiftUI
 
 // MARK: - Transcription Row View
 struct TranscriptionRowView: View {
     let transcription: SoloTranscription
-    let onTap: () -> Void
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
-        Button(action: onTap) {
-            HStack(spacing: ApproachNoteTheme.spacingSM) {
-                // Play button thumbnail
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.accent.opacity(0.15))
-                        .frame(width: 80, height: 45)
+        Button(action: openVideo) {
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                // YouTube thumbnail
+                YouTubeThumbnailView(youtubeUrl: transcription.youtubeUrl)
 
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.accent)
-                }
-
-                // Transcription info
+                // Title and metadata below the thumbnail
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-                    // Album/Recording title
-                    Text(transcription.albumTitle ?? "Solo Transcription")
-                        .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
+                    YouTubeTitleView(
+                        youtubeUrl: transcription.youtubeUrl,
+                        storedTitle: transcription.albumTitle,
+                        placeholder: "Solo Transcription"
+                    )
 
-                    // Recording details
                     HStack(spacing: ApproachNoteTheme.spacingSM) {
                         if let year = transcription.recordingYear {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "calendar")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(String(format: "%d", year))
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
+                            metadataBadge(icon: "calendar", text: String(format: "%d", year))
                         }
-
                         if let label = transcription.label {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "opticaldisc")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(label)
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .lineLimit(1)
-                            }
+                            metadataBadge(icon: "opticaldisc", text: label)
                         }
                     }
                 }
-
-                Spacer()
-
-                // Chevron indicator
-                Image(systemName: "chevron.right")
-                    .font(ApproachNoteTheme.subheadline())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
             }
-            .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(ApproachNoteTheme.surface)
-            .cornerRadius(10)
-            .padding(.horizontal)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    private func metadataBadge(icon: String, text: String) -> some View {
+        HStack(spacing: ApproachNoteTheme.spacingXXS) {
+            Image(systemName: icon)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .font(ApproachNoteTheme.caption())
+            Text(text)
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .lineLimit(1)
+        }
+    }
+
+    private func openVideo() {
+        if let url = YouTube.watchURL(from: transcription.youtubeUrl) {
+            openURL(url)
+        }
     }
 }
 
@@ -92,8 +75,7 @@ struct TranscriptionRowView: View {
                 recordingYear: 1959,
                 composer: "Joseph Kosma",
                 label: "Columbia"
-            ),
-            onTap: {}
+            )
         )
 
         TranscriptionRowView(
@@ -109,8 +91,7 @@ struct TranscriptionRowView: View {
                 recordingYear: nil,
                 composer: nil,
                 label: nil
-            ),
-            onTap: {}
+            )
         )
     }
 }

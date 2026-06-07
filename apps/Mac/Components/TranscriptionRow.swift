@@ -2,7 +2,9 @@
 //  TranscriptionRow.swift
 //  Approach Note
 //
-//  Row view for a single solo transcription in Mac SongDetailView
+//  Card view for a single solo transcription in Mac SongDetailView.
+//  Shows a YouTube thumbnail with the title below; tapping opens the
+//  video in the YouTube app or website.
 //
 
 import SwiftUI
@@ -14,69 +16,36 @@ struct TranscriptionRow: View {
     @State private var isHovering = false
     @Environment(\.openURL) private var openURL
 
+    /// Cap the thumbnail so cards stay a sensible size in a wide detail pane.
+    private let cardWidth: CGFloat = 360
+
     var body: some View {
         Button(action: openYouTube) {
-            HStack(spacing: ApproachNoteTheme.spacingSM) {
-                // Play button thumbnail
-                ZStack {
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(ApproachNoteTheme.accent.opacity(0.15))
-                        .frame(width: 80, height: 45)
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                // YouTube thumbnail
+                YouTubeThumbnailView(youtubeUrl: transcription.youtubeUrl, maxWidth: cardWidth)
 
-                    Image(systemName: "play.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(ApproachNoteTheme.accent)
-                }
-
-                // Transcription info
+                // Title and metadata below the thumbnail
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-                    Text(transcription.albumTitle ?? "Solo Transcription")
-                        .font(ApproachNoteTheme.headline())
-                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                        .lineLimit(2)
+                    YouTubeTitleView(
+                        youtubeUrl: transcription.youtubeUrl,
+                        storedTitle: transcription.albumTitle,
+                        placeholder: "Solo Transcription"
+                    )
 
                     HStack(spacing: ApproachNoteTheme.spacingSM) {
                         if let year = transcription.recordingYear {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "calendar")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(String(format: "%d", year))
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                            }
+                            metadataBadge(icon: "calendar", text: String(format: "%d", year))
                         }
-
                         if let label = transcription.label {
-                            HStack(spacing: ApproachNoteTheme.spacingXXS) {
-                                Image(systemName: "opticaldisc")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .font(ApproachNoteTheme.caption())
-                                Text(label)
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .lineLimit(1)
-                            }
+                            metadataBadge(icon: "opticaldisc", text: label)
                         }
                     }
                 }
-
-                Spacer()
-
-                // YouTube icon indicator
-                if transcription.youtubeUrl != nil {
-                    Image(systemName: "play.rectangle.fill")
-                        .font(.title2)
-                        .foregroundColor(.red)
-                }
             }
-            .padding()
-            .background(isHovering ? ApproachNoteTheme.background : Color.white)
-            .cornerRadius(10)
-            .overlay(
-                RoundedRectangle(cornerRadius: 10)
-                    .stroke(isHovering ? ApproachNoteTheme.accent.opacity(0.5) : Color.clear, lineWidth: 2)
-            )
+            .frame(width: cardWidth, alignment: .leading)
+            .contentShape(Rectangle())
+            .opacity(isHovering ? 0.85 : 1.0)
         }
         .buttonStyle(.plain)
         .onHover { hovering in
@@ -86,9 +55,20 @@ struct TranscriptionRow: View {
         .help(transcription.youtubeUrl != nil ? "Watch on YouTube" : "No video available")
     }
 
+    private func metadataBadge(icon: String, text: String) -> some View {
+        HStack(spacing: ApproachNoteTheme.spacingXXS) {
+            Image(systemName: icon)
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .font(ApproachNoteTheme.caption())
+            Text(text)
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .lineLimit(1)
+        }
+    }
+
     private func openYouTube() {
-        guard let urlString = transcription.youtubeUrl,
-              let url = URL(string: urlString) else { return }
+        guard let url = YouTube.watchURL(from: transcription.youtubeUrl) else { return }
         openURL(url)
     }
 }

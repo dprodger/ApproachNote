@@ -77,15 +77,8 @@
     </dict>
     <key>UIApplicationSupportsIndirectInputEvents</key>
     <true/>
-    <key>UILaunchScreen</key>
-    <dict>
-        <key>UIImageName</key>
-        <string>LaunchImage</string>
-        <key>UIImageRespectsSafeAreaInsets</key>
-        <false/>
-        <key>UILaunchScreenContentMode</key>
-        <string>scaleAspectFit</string>
-    </dict>
+    <key>UILaunchStoryboardName</key>
+    <string>LaunchScreen</string>
     <key>UISupportedInterfaceOrientations</key>
     <array>
         <string>UIInterfaceOrientationPortrait</string>
