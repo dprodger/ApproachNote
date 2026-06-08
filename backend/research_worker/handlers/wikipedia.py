@@ -117,11 +117,11 @@ def enrich_performer_from_wikipedia(payload: dict[str, Any], ctx) -> dict[str, A
 
     # Birth and death dates are only-new: we only fetch/write them when the DB
     # lacks them. Biography is refreshed from Wikipedia on every run
-    # (overwriting any existing blurb). Images are harvested in full on every
-    # run — we walk the page for every content photo and let URL dedup leave
-    # already-held images untouched. That means a wiki-URL performer is always
-    # worth a (cache-served) page fetch; there's no "already populated"
-    # short-circuit.
+    # (overwriting any existing blurb). Only the page's lead image is fetched
+    # on each run — body/infobox extras carry too many off-target shots to be
+    # worth keeping — and URL dedup leaves an already-held lead untouched. That
+    # means a wiki-URL performer is always worth a (cache-served) page fetch;
+    # there's no "already populated" short-circuit.
     want_birth = row['birth_date'] is None
     want_death = row['death_date'] is None
 

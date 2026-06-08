@@ -14,14 +14,15 @@ Two source paths feed the four fields:
     (fetched via WikipediaSearcher, honouring its 7-day disk cache), parsed
     out of the infobox and lead paragraphs.
 
-  - images: the page's lead image comes from the MediaWiki `pageimages` API
-    (the chosen lead image at full resolution), with an infobox-HTML scrape as
-    a fallback when the API returns no image. On top of that lead, we walk the
-    rendered article HTML for additional content photographs (body thumbnails,
-    extra infobox images), filtered to real raster photos and capped per page.
-    License/attribution metadata for every image is pulled from the
-    `imageinfo` API. The handler dedups by URL, so re-found images are left
-    untouched and only genuinely-new ones get linked.
+  - image: only the page's lead image is fetched, via the MediaWiki
+    `pageimages` API (the chosen lead image at full resolution), with an
+    infobox-HTML scrape as a fallback when the API returns no image. Body /
+    extra-infobox photos are intentionally not harvested — in practice they
+    carry too many off-target shots to be worth keeping. License/attribution
+    metadata is pulled from the `imageinfo` API. The handler dedups by URL, so
+    a re-found lead is left untouched and only a genuinely-new one gets linked.
+    (`fetch_all_images` still implements the full multi-image harvest for
+    callers that want it, e.g. the offline scripts.)
 
 The date and biography extraction is ported from the old
 scripts/load_artists_from_wikipedia.py; the image fetching is a streamlined
@@ -571,10 +572,11 @@ def fetch_performer_data(
     `searcher` is a WikipediaSearcher (page fetches honour its disk cache and
     rate limiting). Each `want_*` flag lets the caller skip work for fields
     already present in the DB — e.g. skip date parsing once both dates are
-    stored. `want_image` harvests every content photo on the page (lead first),
-    not just the lead, so additional images get picked up even for a performer
-    who already has a Wikipedia image. Returns a PerformerWikipediaData; fields
-    not requested (or not found) are left at their empty default.
+    stored. `want_image` fetches only the page's lead image (the first image);
+    additional body/infobox photos are deliberately not harvested, since in
+    practice they include enough off-target shots that we keep just the lead.
+    Returns a PerformerWikipediaData; fields not requested (or not found) are
+    left at their empty default.
     """
     data = PerformerWikipediaData()
 
@@ -589,6 +591,7 @@ def fetch_performer_data(
                 data.biography = extract_biography(soup)
 
     if want_image:
-        data.images = fetch_all_images(searcher, wikipedia_url)
+        lead = fetch_main_image(searcher, wikipedia_url)
+        data.images = [lead] if lead else []
 
     return data
