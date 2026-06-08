@@ -367,11 +367,18 @@ def compute_local_analysis(
     except Exception as e:
         logger.debug("phash unavailable: %s", e)
 
-    # sharpness
+    # sharpness — downscale very large images first so the float64 Laplacian
+    # can't balloon memory (a 24MP image would be ~190MB as CV_64F). Normal-
+    # sized photos are untouched, so gate behavior is unchanged.
     try:
         import numpy as np  # lazy
         import cv2  # lazy
-        gray = np.array(img.convert("L"))
+        g = img.convert("L")
+        long_edge = max(g.size)
+        if long_edge > 1600:
+            s = 1600.0 / long_edge
+            g = g.resize((max(1, int(g.size[0] * s)), max(1, int(g.size[1] * s))))
+        gray = np.array(g)
         out.sharpness = float(cv2.Laplacian(gray, cv2.CV_64F).var())
     except Exception as e:
         logger.debug("sharpness unavailable: %s", e)

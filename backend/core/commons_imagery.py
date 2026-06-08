@@ -106,6 +106,7 @@ class GatherConfig:
     orb_dup_matches: int = 40
     orb_dedup: bool = True
     rerank_cap: int = 50                  # max images sent to the vision model
+    max_candidates: int = 100             # cap images downloaded/analyzed (memory)
 
     def gate(self) -> "iq.GateConfig":
         return iq.GateConfig(
@@ -134,9 +135,9 @@ class ImageRecord:
     flagged_non_portrait: bool = False
     quality_score: Optional[float] = None
     analysis: Optional[Dict[str, Any]] = None
-    # NOTE: `_orb` (ORB descriptors) and `_img_bytes` are attached dynamically
-    # during analyze_and_rank(); they are deliberately NOT dataclass fields so
-    # asdict()/JSON emit never tries to serialize a numpy array.
+    # NOTE: `_orb` (ORB descriptors) is attached dynamically during
+    # analyze_and_rank(); deliberately NOT a dataclass field so asdict()/JSON
+    # emit never tries to serialize a numpy array.
 
     def db_fields(self) -> Dict[str, Any]:
         return {
@@ -552,6 +553,14 @@ def analyze_and_rank(
 
     gate = config.gate()
 
+    # Bound the number of images we download + decode per performer. A pathological
+    # Commons category (hundreds of files) would otherwise blow the worker's
+    # memory. Most performer categories are well under this.
+    if config.max_candidates and len(records) > config.max_candidates:
+        logger.info("Capping candidates %d -> %d (max_candidates)",
+                    len(records), config.max_candidates)
+        records = records[: config.max_candidates]
+
     # Identity reference embeddings
     ref_encs = []
     if config.identity and reference_urls:
@@ -560,7 +569,10 @@ def analyze_and_rank(
         logger.info("Identity reference: %d face embedding(s) from %d image(s)",
                     len(ref_encs), len(ref_bytes))
 
-    # Phase 1: download + local analysis + gate (no vision cost yet)
+    # Phase 1: download + local analysis + gate (no vision cost yet). Bytes are
+    # processed one at a time and NOT retained — holding every candidate's
+    # full-res bytes at once is what OOM'd the worker. The few images that get
+    # reranked are re-downloaded in phase 3.
     for r in records:
         img_bytes = download(session, r.url) or download(session, r.thumbnail_url)
         if not img_bytes:
@@ -570,7 +582,7 @@ def analyze_and_rank(
             r._orb = None
             continue
         local = iq.compute_local_analysis(img_bytes, ref_encs or None)
-        r._orb = iq.orb_signature(img_bytes)
+        r._orb = iq.orb_signature(img_bytes)  # ~25 KB; safe to keep
         if r.width and r.height:
             local.width, local.height = r.width, r.height
         passed, reasons = iq.evaluate_gate(local, gate)
@@ -579,7 +591,7 @@ def analyze_and_rank(
                                        score=score, local=local,
                                        vision=None).to_dict()
         r.quality_score = score
-        r._img_bytes = img_bytes  # transient, kept for the rerank phase
+        del img_bytes  # release immediately
 
     # Phase 2: gate filter
     if config.do_gate:
@@ -587,7 +599,7 @@ def analyze_and_rank(
         records = [r for r in records if (r.analysis or {}).get("passed_gate")]
         logger.info("Gate kept %d/%d", len(records), before)
 
-    # Phase 3: cost-bounded vision rerank of the top survivors
+    # Phase 3: cost-bounded vision rerank of the top survivors (re-download each)
     reranker = None
     if config.do_rerank:
         reranker = iq.get_reranker(config.reranker)
@@ -597,21 +609,16 @@ def analyze_and_rank(
         if to_rerank and rerank_budget is not None:
             rerank_budget(len(to_rerank))  # may raise (quota); propagates
         for r in to_rerank:
-            img_bytes = getattr(r, "_img_bytes", None)
+            img_bytes = download(session, r.url) or download(session, r.thumbnail_url)
             if not img_bytes:
                 continue
             vision = reranker.score(img_bytes, {"performer_name": performer_name})
+            del img_bytes
             if vision:
-                local = (r.analysis or {}).get("local")
-                local_obj = _local_from_dict(local)
+                local_obj = _local_from_dict((r.analysis or {}).get("local"))
                 r.quality_score = iq.aggregate_score(local_obj, vision)
                 r.analysis["vision"] = vision
                 r.analysis["score"] = round(r.quality_score, 1)
-
-    # free the transient bytes
-    for r in records:
-        if hasattr(r, "_img_bytes"):
-            delattr(r, "_img_bytes")
 
     # Phase 4: solo-first ranking, then de-dup (perceptual + ORB crop-dup)
     records.sort(key=lambda r: (1 if is_single_subject(r) else 0,
