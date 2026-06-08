@@ -234,10 +234,21 @@ def extract_biography(soup: BeautifulSoup) -> Optional[str]:
     if not paragraphs:
         return None
 
-    biography = '\n\n'.join(paragraphs)
-    biography = re.sub(r'\[\d+\]', '', biography)   # citation markers
-    biography = re.sub(r'\s+', ' ', biography).strip()
-    return biography or None
+    # Clean each paragraph independently — strip citation markers and collapse
+    # runaway intra-paragraph whitespace — but keep the paragraphs separated by
+    # a blank line so the stored blurb retains its source paragraph breaks. The
+    # app renders the '\n\n' separators as discrete paragraphs (ExpandableProse);
+    # a single re.sub(r'\s+', ' ') over the joined text would erase them.
+    cleaned: list[str] = []
+    for paragraph in paragraphs:
+        paragraph = re.sub(r'\[\d+\]', '', paragraph)     # citation markers
+        paragraph = re.sub(r'\s+', ' ', paragraph).strip()
+        if paragraph:
+            cleaned.append(paragraph)
+
+    if not cleaned:
+        return None
+    return '\n\n'.join(cleaned)
 
 
 # ---------------------------------------------------------------------------

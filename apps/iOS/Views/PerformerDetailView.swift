@@ -240,8 +240,8 @@ struct PerformerDetailView: View {
                         .bold()
                         .foregroundColor(ApproachNoteTheme.textPrimary)
 
-                    ExpandableBiography(
-                        biography: biography,
+                    ExpandableProse(
+                        text: biography,
                         maxCollapsedHeight: biographyCollapsedHeight
                     )
                 }
@@ -312,70 +312,6 @@ struct PerformerDetailView: View {
     private func instrumentList(_ instruments: [PerformerInstrument]) -> String {
         let sorted = instruments.sorted { ($0.isPrimary == true) && !($1.isPrimary == true) }
         return sorted.map(\.name).joined(separator: ", ")
-    }
-}
-
-// MARK: - Expandable Biography
-//
-// Shows the biography clamped to `maxCollapsedHeight` (~75% of the screen).
-// When the full text exceeds that height, a READ MORE button expands it
-// inline. A hidden full-height copy measures the real height so we only
-// offer READ MORE when the text actually overflows.
-private struct ExpandableBiography: View {
-    let biography: String
-    let maxCollapsedHeight: CGFloat
-
-    @State private var isExpanded = false
-    @State private var fullHeight: CGFloat = 0
-
-    private var paragraphs: [String] {
-        biography.components(separatedBy: "\n\n").filter { !$0.isEmpty }
-    }
-
-    private var isTruncatable: Bool {
-        fullHeight > maxCollapsedHeight + 1
-    }
-
-    @ViewBuilder
-    private var bioText: some View {
-        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-            ForEach(Array(paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                Text(paragraph)
-                    .font(ApproachNoteTheme.body())
-                    .bodyLineSpacing()
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-            bioText
-                .frame(maxHeight: isExpanded ? nil : maxCollapsedHeight, alignment: .top)
-                .clipped()
-                .background(
-                    // Hidden full-height copy; .fixedSize forces the ideal
-                    // height (ignoring the clamp above) so we can detect overflow.
-                    bioText
-                        .fixedSize(horizontal: false, vertical: true)
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear
-                                    .onAppear { fullHeight = proxy.size.height }
-                                    .onChange(of: proxy.size.height) { _, newValue in fullHeight = newValue }
-                            }
-                        )
-                        .hidden()
-                )
-
-            if isTruncatable && !isExpanded {
-                ApproachNoteButton("Read More", style: .secondary) {
-                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded = true }
-                }
-            }
-        }
     }
 }
 

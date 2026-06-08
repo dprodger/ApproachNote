@@ -218,16 +218,23 @@ struct SongDetailView: View {
     
     // MARK: - Summary Information Section
 
+    /// Collapsed-height cap for the Wikipedia intro (~5-6 lines) before the
+    /// in-app Read More reveals the rest.
+    private static let summaryCollapsedHeight: CGFloat = 160
+
     @ViewBuilder
     private func summaryInfoSection(for song: Song) -> some View {
         if let structure = song.structure, !structure.isEmpty {
-            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
-                Text(structure)
-                    .font(ApproachNoteTheme.body())
-                    .bodyLineSpacing()
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                    .lineLimit(5)
-                    .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                // The stored Wikipedia intro keeps its source paragraph breaks
+                // (newline-separated); ExpandableProse renders them as discrete
+                // paragraphs and caps the height with an in-app Read More so the
+                // intro opens up without the page running long.
+                ExpandableProse(
+                    text: structure,
+                    maxCollapsedHeight: Self.summaryCollapsedHeight,
+                    textColor: ApproachNoteTheme.textPrimary
+                )
 
                 if let wikiUrlString = song.wikipediaUrl,
                    let wikiUrl = URL(string: wikiUrlString) {
