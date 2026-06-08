@@ -52,6 +52,7 @@ CREATE TABLE performers (
     external_links JSONB,
     wikipedia_url VARCHAR(500),
     musicbrainz_id VARCHAR(255),
+    last_imagery_check TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     created_by VARCHAR(100),
@@ -619,6 +620,7 @@ CREATE INDEX idx_performers_name ON performers (name);
 CREATE INDEX idx_performers_sort_name ON performers (sort_name) WHERE sort_name IS NOT NULL;
 CREATE INDEX idx_performers_sort_order ON performers (COALESCE(sort_name, name));
 CREATE INDEX idx_performers_musicbrainz_id ON performers (musicbrainz_id) WHERE musicbrainz_id IS NOT NULL;
+CREATE INDEX idx_performers_last_imagery_check ON performers (last_imagery_check NULLS FIRST);
 CREATE INDEX idx_performers_wikipedia_url ON performers (wikipedia_url) WHERE wikipedia_url IS NOT NULL;
 CREATE INDEX idx_performers_external_links ON performers USING gin (external_links);
 

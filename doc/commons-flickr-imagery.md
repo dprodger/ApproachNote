@@ -206,7 +206,7 @@ Pieces:
 - Admin — `POST /admin/research/enqueue-commons-imagery` (`{stale_days, limit}`)
   triggers a sweep; watch progress on the dashboard with the `source=commons`
   filter.
-- Migration — `sql/migrations/add_commons_imagery_enrichment.sql` adds
+- Migration — `sql/migrations/020_commons_imagery_enrichment.sql` adds
   `performers.last_imagery_check` and seeds the `commons` daily quota row.
 
 Cost control: the Claude rerank is the only paid step. The handler reranks at
