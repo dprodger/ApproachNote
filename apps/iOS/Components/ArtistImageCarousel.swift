@@ -121,8 +121,9 @@ private struct ImageThumbnail: View {
     var body: some View {
         // Image only — source attribution lives in ImageDetailSheet (tap to open)
         // so no partner-branded watermark sits on top of the artwork. Keeps the
-        // image's aspect ratio (no top/bottom cropping) and centers it within
-        // the hero; landscape shots can still bleed edge-to-edge.
+        // image's aspect ratio (no top/bottom cropping) and pins it to the top
+        // of the hero, so a shorter image aligns with adjacent text (e.g. the
+        // artist name) rather than floating in a frame sized to taller pages.
         Group {
             if let uiImage = uiImage {
                 Image(uiImage: uiImage)
@@ -142,7 +143,7 @@ private struct ImageThumbnail: View {
                     )
             }
         }
-        .frame(height: height)
+        .frame(height: height, alignment: .top)
         .frame(maxWidth: .infinity)
         .clipped()
         .onAppear { loadImage() }

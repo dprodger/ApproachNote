@@ -165,27 +165,46 @@ struct PerformerDetailView: View {
             .padding(.bottom, ApproachNoteTheme.spacingMD)
         } else {
             VStack(alignment: .leading, spacing: 0) {
-                // Image hero — full-bleed, above the name, swipeable.
+                let hasImages = performer.images?.isEmpty == false
+
+                // Identity first (name, dates, instruments) — sits just below
+                // the brand header so the artist's name leads the screen.
+                performerIdentity(performer)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                    .padding(.top, ApproachNoteTheme.spacingMD)
+
+                // Image hero — full-bleed, below the name, swipeable.
                 if let images = performer.images, !images.isEmpty {
                     ArtistImageCarousel(
                         images: images,
                         availableWidth: viewportWidth,
                         maxHeight: viewportHeight
                     )
+                    .padding(.top, ApproachNoteTheme.spacingLG)
                 }
 
-                // Header + biography content (shares the 24pt screen gutter).
-                performerHeader(performer)
+                // Biography + Learn More (shares the 24pt screen gutter).
+                performerBioAndLinks(performer)
                     .padding(.horizontal, ApproachNoteTheme.spacingXL)
-                    .padding(.top, (performer.images?.isEmpty == false) ? ApproachNoteTheme.spacingLG : ApproachNoteTheme.spacingXL)
+                    .padding(.top, hasImages ? ApproachNoteTheme.spacingLG : ApproachNoteTheme.spacingMD)
                     .padding(.bottom, ApproachNoteTheme.spacingMD)
             }
         }
     }
 
-    /// Name, lifespan, instruments, biography, and external reference links.
+    /// Full header column (wide/iPad layout): identity, biography, and links
+    /// stacked in a single left-hand column beside the artist image.
     @ViewBuilder
     private func performerHeader(_ performer: PerformerDetail) -> some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+            performerIdentity(performer)
+            performerBioAndLinks(performer)
+        }
+    }
+
+    /// Artist name, lifespan, and instrument line.
+    @ViewBuilder
+    private func performerIdentity(_ performer: PerformerDetail) -> some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Artist Name
             Text(performer.name)
@@ -206,7 +225,13 @@ struct PerformerDetailView: View {
                     .font(ApproachNoteTheme.body())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
+        }
+    }
 
+    /// Biography block and external reference ("Learn More") links.
+    @ViewBuilder
+    private func performerBioAndLinks(_ performer: PerformerDetail) -> some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             // Biography
             if let biography = performer.biography, !biography.isEmpty {
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
@@ -217,7 +242,7 @@ struct PerformerDetailView: View {
 
                     ExpandableBiography(
                         biography: biography,
-                        maxCollapsedHeight: viewportHeight > 0 ? viewportHeight * 0.5625 : .greatestFiniteMagnitude
+                        maxCollapsedHeight: biographyCollapsedHeight
                     )
                 }
                 .padding(.top, ApproachNoteTheme.spacingXS)
@@ -235,6 +260,14 @@ struct PerformerDetailView: View {
             )
             .padding(.top, ApproachNoteTheme.spacingXS)
         }
+    }
+
+    /// Collapsed biography height cap. iPhone shows ~10 lines; the roomier iPad
+    /// column shows ~15 before READ MORE. Unbounded until the viewport is
+    /// measured.
+    private var biographyCollapsedHeight: CGFloat {
+        guard viewportHeight > 0 else { return .greatestFiniteMagnitude }
+        return viewportHeight * (isWideLayout ? 0.28 : 0.375)
     }
 
     // MARK: - Formatting Helpers
