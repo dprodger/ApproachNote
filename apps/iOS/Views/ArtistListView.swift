@@ -12,9 +12,9 @@ import SwiftUI
 struct ArtistsListView: View {
     @StateObject private var performerService = PerformerService()
     @State private var searchText = ""
-    @State private var isSearchActive = false
     @State private var searchTask: Task<Void, Never>?
     @State private var hasPerformedInitialLoad = false
+    @FocusState private var searchFieldFocused: Bool
 
     // Helper to get the effective sort name for a performer
     private func effectiveSortName(for performer: Performer) -> String {
@@ -93,8 +93,15 @@ struct ArtistsListView: View {
         NavigationStack {
             contentView
                 .background(ApproachNoteTheme.background)
-                .jazzNavigationBar(title: "Artists (\(totalArtistsCount.formatted()))")
-                .searchable(text: $searchText, isPresented: $isSearchActive, prompt: "Search artists")
+                .toolbar(.hidden, for: .navigationBar)
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    ListHeaderBar(
+                        title: "Artists (\(totalArtistsCount.formatted()))",
+                        searchText: $searchText,
+                        prompt: "Search artists",
+                        focused: $searchFieldFocused
+                    )
+                }
                 .onChange(of: searchText) { oldValue, newValue in
                     searchTask?.cancel()
                     searchTask = Task {
@@ -183,11 +190,17 @@ struct ArtistsListView: View {
                         }
                     }
                     .id(letter) // Anchor for scrolling
+                    // Hide the plain-list section-header top separator so there's no
+                    // white sliver between the brand header and the first bar.
+                    .listSectionSeparator(.hidden, edges: .top)
                 }
             }
             .listStyle(.plain)
             .scrollContentBackground(.hidden)
             .background(ApproachNoteTheme.background)
+            // Remove the plain-list top inset so the first section bar sits flush
+            // under the brand header (no cream strip showing through).
+            .contentMargins(.top, 0, for: .scrollContent)
             .overlay(alignment: .trailing) {
                 // Custom alphabet index overlay
                 AlphabetIndexView(
@@ -200,13 +213,13 @@ struct ArtistsListView: View {
                         }
                     },
                     onSearch: {
-                        // Jump to the top of the list, then reveal + focus the search field.
+                        // Jump to the top of the list, then focus the header's search field.
                         if let first = allSectionLetters.first {
                             withAnimation(.easeOut(duration: 0.2)) {
                                 proxy.scrollTo(first, anchor: .top)
                             }
                         }
-                        isSearchActive = true
+                        searchFieldFocused = true
                     }
                 )
                 .padding(.trailing, ApproachNoteTheme.spacingXXS)
