@@ -372,6 +372,39 @@ def enqueue():
     return jsonify({'job_id': job_id}), 201
 
 
+@admin_research_bp.route('/enqueue-commons-imagery', methods=['POST'])
+def enqueue_commons_imagery():
+    """Enqueue Commons-imagery enrichment jobs for performers due a (re)check.
+
+    Body (JSON, all optional):
+        stale_days (int, default 90) — re-check performers not checked in this
+            many days. Performers never checked (last_imagery_check IS NULL)
+            are always included.
+        limit (int) — cap the number of performers enqueued.
+
+    The worker (source='commons') drains the jobs; watch progress on the
+    dashboard with the source=commons filter. Dedup-index collapses against
+    in-flight jobs are reported as 'skipped'.
+    """
+    from core.performer_commons_imagery import DEFAULT_STALE_DAYS, enqueue_sweep
+
+    body = request.get_json(silent=True) or {}
+    try:
+        stale_days = int(body.get('stale_days', DEFAULT_STALE_DAYS))
+        limit = int(body['limit']) if body.get('limit') else None
+    except (TypeError, ValueError):
+        return jsonify({'error': 'stale_days and limit must be integers'}), 400
+    if limit is not None and limit <= 0:
+        return jsonify({'error': 'limit must be > 0'}), 400
+
+    stats = enqueue_sweep(stale_days=stale_days, limit=limit)
+    logger.info("admin: enqueue-commons-imagery stale_days=%s limit=%s "
+                "candidates=%s enqueued=%s skipped=%s",
+                stale_days, limit, stats['candidates'], stats['enqueued'],
+                stats['skipped'])
+    return jsonify({'success': True, **stats}), 202
+
+
 @admin_research_bp.route('/queue-all-songs', methods=['POST'])
 def queue_all_songs_for_research():
     """Bulk-enqueue songs into the in-process research queue.

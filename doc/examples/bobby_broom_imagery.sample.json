@@ -1,0 +1,8 @@
+{
+  "_note": "Real proof-of-concept outcome for a less-documented living artist. A Commons search for 'Bobby Broom' returns no category and only unrelated 'broom' files; under the PD/CC0-only policy the run yields zero images. The script handles this gracefully (no rows emitted). Enabling Flickr Commons (FLICKR_API_KEY) or widening --licenses is the path to coverage for artists like this.",
+  "performer_id": "REPLACE-WITH-REAL-PERFORMER-UUID",
+  "performer_name": "Bobby Broom",
+  "license_policy": "public_domain + cc0",
+  "count": 0,
+  "images": []
+}

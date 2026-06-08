@@ -129,3 +129,14 @@ services:
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
+      # Commons imagery enrichment (commons source). ANTHROPIC_API_KEY powers
+      # the Claude vision rerank; without it the rerank is skipped and images
+      # are ranked on local signals only. FLICKR_API_KEY is optional (adds the
+      # Flickr Commons source). Face-detection ONNX models cache on the
+      # persistent disk so they survive deploys.
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FLICKR_API_KEY
+        sync: false
+      - key: IMAGE_MODEL_DIR
+        value: /data/face_models

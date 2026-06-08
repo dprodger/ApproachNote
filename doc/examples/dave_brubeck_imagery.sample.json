@@ -1,0 +1,37 @@
+{
+  "_note": "ILLUSTRATIVE FORMAT ONLY. Shows the exact shape emitted by fetch_commons_images.py --emit-json. The Commons file-page references are real, but license_type / attribution / dimensions / full-res url must be populated by an actual run against the Wikimedia API (the scaffolding environment had no outbound access to Commons/Flickr). Do NOT ingest as-is.",
+  "performer_id": "REPLACE-WITH-REAL-PERFORMER-UUID",
+  "performer_name": "Dave Brubeck",
+  "license_policy": "public_domain + cc0",
+  "count": 2,
+  "images": [
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/<path>/Dave_Brubeck_<file>.jpg",
+      "source": "wikimedia_commons",
+      "source_identifier": "<commons_pageid>",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:Dave_Brubeck_1954.jpg",
+      "license_type": "public_domain",
+      "license_url": null,
+      "attribution": "<author from extmetadata Artist/Credit>",
+      "thumbnail_url": "https://upload.wikimedia.org/.../400px-Dave_Brubeck_<file>.jpg",
+      "width": null,
+      "height": null,
+      "title": "Dave Brubeck, 1954",
+      "flagged_non_portrait": false
+    },
+    {
+      "url": "https://upload.wikimedia.org/wikipedia/commons/<path>/DaveBrubeck18.JPG",
+      "source": "wikimedia_commons",
+      "source_identifier": "<commons_pageid>",
+      "source_page_url": "https://commons.wikimedia.org/wiki/File:DaveBrubeck18.JPG",
+      "license_type": "cc0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "attribution": "<author from extmetadata Artist/Credit>",
+      "thumbnail_url": "https://upload.wikimedia.org/.../400px-DaveBrubeck18.JPG",
+      "width": null,
+      "height": null,
+      "title": "Dave Brubeck in performance",
+      "flagged_non_portrait": false
+    }
+  ]
+}

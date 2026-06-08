@@ -31,3 +31,22 @@ google-auth==2.27.0
 # Apple Music Feed (bulk catalog data)
 pyarrow>=15.0.0  # For reading parquet files
 duckdb>=1.4.3  # For memory-efficient parquet queries (MotherDuck requires 1.4+)
+
+# Imagery visual analysis (scripts/fetch_commons_images.py --visual)
+#   Tier 2 local heuristics: resolution, blur, face detection + identity, dedup
+#   Tier 3 rerank: Claude vision (default). See doc/commons-flickr-imagery.md.
+Pillow>=10.2.0
+numpy>=1.26.0
+imagehash>=4.3.1
+opencv-python-headless>=4.9.0    # sharpness + face detection (YuNet/Haar) + identity (SFace)
+anthropic>=0.40.0                # Claude vision reranker
+#   Face detection + identity use OpenCV's YuNet + SFace ONNX models, which the
+#   script auto-downloads on first run (no dlib build required). No extra pip
+#   deps needed beyond opencv above.
+# Optional alternative face backend (used only if importable). Builds dlib via
+# cmake and FAILS on recent macOS/Apple-Clang toolchains -- left out on purpose:
+# face_recognition>=1.3.0
+# Optional CLIP reranker backend (--reranker clip). Heavy (~GBs); install only
+# if you want a no-API local rerank. Left commented to keep deploys slim:
+# torch>=2.2.0
+# open_clip_torch>=2.24.0

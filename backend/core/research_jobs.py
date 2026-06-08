@@ -29,6 +29,7 @@ SOURCE_SPOTIFY = 'spotify'
 SOURCE_APPLE = 'apple'
 SOURCE_MUSICBRAINZ = 'musicbrainz'
 SOURCE_WIKIPEDIA = 'wikipedia'
+SOURCE_COMMONS = 'commons'
 
 # Target types. These are the kinds of rows a job operates on.
 TARGET_SONG = 'song'
