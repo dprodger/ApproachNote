@@ -50,12 +50,26 @@ struct RecordingsSection: View {
     // scannable list of decades / artist names before drilling in.
     @State private var expandedGroups: Set<String> = []
 
+    // On iPad (regular width) the filter controls are capped to a comfortable
+    // width and hugged to the leading edge, so Filter/Sort stay paired, the
+    // Playable switch sits near its label, and the Performance Type pill doesn't
+    // stretch across the whole screen. Compact width keeps the full-width stack.
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+    private var isWideLayout: Bool { horizontalSizeClass == .regular }
+    private static let wideControlsMaxWidth: CGFloat = 640
+    private static let widePerformancePickerMaxWidth: CGFloat = 420
+
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
             sectionHeader
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
             controlsBar
+                // iPad: cap the controls block and pin it to the leading edge
+                // so it reads as a compact toolbar rather than spanning the
+                // full window. iPhone keeps the full-width stack.
+                .frame(maxWidth: isWideLayout ? Self.wideControlsMaxWidth : .infinity, alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
             LazyVStack(alignment: .leading, spacing: 0) {
@@ -255,7 +269,9 @@ struct RecordingsSection: View {
         }
         .padding(.horizontal, ApproachNoteTheme.spacingXXS)
         .padding(.vertical, ApproachNoteTheme.spacingXXS)
-        .frame(maxWidth: .infinity)
+        // iPad: hug the three options at a sensible width instead of stretching
+        // the segmented control across the whole screen. iPhone fills the row.
+        .frame(maxWidth: isWideLayout ? Self.widePerformancePickerMaxWidth : .infinity, alignment: .leading)
         .overlay(
             Capsule().stroke(ApproachNoteTheme.brand, lineWidth: 1.5)
         )

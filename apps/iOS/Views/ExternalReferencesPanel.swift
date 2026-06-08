@@ -22,6 +22,17 @@ struct ExternalReferencesPanel: View {
     @State private var showingSubmissionAlert = false
     @State private var submissionAlertMessage = ""
     @Environment(\.openURL) var openURL
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    // On iPad (regular width) the song page's Learn More links sit inline on a
+    // single capped row. Scoped to songs so the performer page's two-column
+    // layout, where the panel already lives in a narrow column, is unaffected.
+    private var usesInlineLinks: Bool {
+        horizontalSizeClass == .regular && entityType == "song"
+    }
+    // Comfortable width for the inline row; songs surface at most two links
+    // (Jazz Standards + MusicBrainz), so this keeps them button-sized.
+    private static let inlineLinksMaxWidth: CGFloat = 520
     
     struct ReportingInfo: Identifiable {
         let id = UUID()
@@ -134,6 +145,41 @@ struct ExternalReferencesPanel: View {
         }
     }
     
+    // The present external-link buttons, in display order. Shared by the inline
+    // (iPad) and stacked (iPhone / performer) layouts.
+    @ViewBuilder
+    private var linkButtons: some View {
+        if let wikipediaURL = wikipediaURL {
+            ExternalLinkButton(
+                label: "Wikipedia",
+                url: wikipediaURL,
+                onLongPress: {
+                    reportingInfo = ReportingInfo(source: "Wikipedia", url: wikipediaURL)
+                }
+            )
+        }
+
+        if let jazzStandardsURL = jazzStandardsURL {
+            ExternalLinkButton(
+                label: "Jazz Standards",
+                url: jazzStandardsURL,
+                onLongPress: {
+                    reportingInfo = ReportingInfo(source: "JazzStandards.com", url: jazzStandardsURL)
+                }
+            )
+        }
+
+        if let musicbrainzURL = musicbrainzURL {
+            ExternalLinkButton(
+                label: "MusicBrainz",
+                url: musicbrainzURL,
+                onLongPress: {
+                    reportingInfo = ReportingInfo(source: "MusicBrainz", url: musicbrainzURL)
+                }
+            )
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             Text("Learn More:")
@@ -141,38 +187,17 @@ struct ExternalReferencesPanel: View {
                 .bodyLineSpacing()
                 .foregroundColor(ApproachNoteTheme.textPrimary)
             
-            VStack(spacing: ApproachNoteTheme.spacingXS) {
-                // Wikipedia
-                if let wikipediaURL = wikipediaURL {
-                    ExternalLinkButton(
-                        label: "Wikipedia",
-                        url: wikipediaURL,
-                        onLongPress: {
-                            reportingInfo = ReportingInfo(source: "Wikipedia", url: wikipediaURL)
-                        }
-                    )
+            // iPad (regular width) on the song page lays the links out on a
+            // single, width-capped row so they read as buttons rather than
+            // full-bleed bars. Everywhere else keeps the full-width stack.
+            if usesInlineLinks {
+                HStack(spacing: ApproachNoteTheme.spacingXS) {
+                    linkButtons
                 }
-
-                // Jazz Standards
-                if let jazzStandardsURL = jazzStandardsURL {
-                    ExternalLinkButton(
-                        label: "Jazz Standards",
-                        url: jazzStandardsURL,
-                        onLongPress: {
-                            reportingInfo = ReportingInfo(source: "JazzStandards.com", url: jazzStandardsURL)
-                        }
-                    )
-                }
-
-                // MusicBrainz
-                if let musicbrainzURL = musicbrainzURL {
-                    ExternalLinkButton(
-                        label: "MusicBrainz",
-                        url: musicbrainzURL,
-                        onLongPress: {
-                            reportingInfo = ReportingInfo(source: "MusicBrainz", url: musicbrainzURL)
-                        }
-                    )
+                .frame(maxWidth: Self.inlineLinksMaxWidth, alignment: .leading)
+            } else {
+                VStack(spacing: ApproachNoteTheme.spacingXS) {
+                    linkButtons
                 }
             }
         }
