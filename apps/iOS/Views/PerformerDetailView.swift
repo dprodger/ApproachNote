@@ -26,6 +26,10 @@ struct PerformerDetailView: View {
     @State private var viewportHeight: CGFloat = 0
     @State private var viewportWidth: CGFloat = 0
 
+    // The carousel image currently on screen, so the license line beneath it
+    // tracks swipes between images.
+    @State private var currentArtistImage: ArtistImage?
+
     // Two-phase loading: summary loads first (fast), then recordings load in background
     @State private var isRecordingsLoading: Bool = true
 
@@ -151,13 +155,21 @@ struct PerformerDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                 if let images = performer.images, !images.isEmpty {
-                    ArtistImageCarousel(
-                        images: images,
-                        availableWidth: Self.wideArtworkMaxWidth,
-                        maxHeight: viewportHeight
-                    )
-                    .frame(maxWidth: Self.wideArtworkMaxWidth)
-                    .cornerRadius(12)
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+                        ArtistImageCarousel(
+                            images: images,
+                            availableWidth: Self.wideArtworkMaxWidth,
+                            maxHeight: viewportHeight,
+                            currentImage: $currentArtistImage
+                        )
+                        .frame(maxWidth: Self.wideArtworkMaxWidth)
+                        .cornerRadius(12)
+
+                        if let current = currentArtistImage {
+                            ArtistImageCreditLine(image: current)
+                                .frame(maxWidth: Self.wideArtworkMaxWidth, alignment: .leading)
+                        }
+                    }
                 }
             }
             .padding(.horizontal, ApproachNoteTheme.spacingXL)
@@ -178,9 +190,20 @@ struct PerformerDetailView: View {
                     ArtistImageCarousel(
                         images: images,
                         availableWidth: viewportWidth,
-                        maxHeight: viewportHeight
+                        maxHeight: viewportHeight,
+                        currentImage: $currentArtistImage
                     )
                     .padding(.top, ApproachNoteTheme.spacingLG)
+
+                    // License/attribution for the on-screen image. Indented to
+                    // the screen gutter so it aligns with the name and bio
+                    // (the image itself is full-bleed).
+                    if let current = currentArtistImage {
+                        ArtistImageCreditLine(image: current)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                            .padding(.top, ApproachNoteTheme.spacingXS)
+                    }
                 }
 
                 // Biography + Learn More (shares the 24pt screen gutter).

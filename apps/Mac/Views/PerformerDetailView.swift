@@ -35,6 +35,10 @@ struct PerformerDetailView: View {
     // On-screen height of the scroll viewport; caps the collapsed biography.
     @State private var viewportHeight: CGFloat = 0
 
+    // The carousel image currently on screen, so the license line beneath it
+    // tracks paging between images.
+    @State private var currentArtistImage: ArtistImage?
+
     @StateObject private var performerService = PerformerService()
     @Environment(\.openURL) private var openURL
 
@@ -103,7 +107,18 @@ struct PerformerDetailView: View {
     private func performerHeader(_ performer: PerformerDetail) -> some View {
         HStack(alignment: .top, spacing: ApproachNoteTheme.spacingXL) {
             // Artist image(s) — pages through all images when there are several.
-            PerformerImageCarousel(images: performer.images ?? [])
+            // License/attribution for the on-screen image sits just beneath it.
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+                PerformerImageCarousel(
+                    images: performer.images ?? [],
+                    currentImage: $currentArtistImage
+                )
+
+                if let current = currentArtistImage {
+                    ArtistImageCreditLine(image: current)
+                        .frame(maxWidth: 320, alignment: .leading)
+                }
+            }
 
             VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 Text(performer.name)
@@ -590,6 +605,14 @@ struct PerformerDetailView: View {
 // share one scroll-position binding so swipe and clicks stay in sync.
 private struct PerformerImageCarousel: View {
     let images: [ArtistImage]
+    /// Reports the image currently on screen so the host can render a matching
+    /// license/attribution line beneath it.
+    @Binding var currentImage: ArtistImage?
+
+    init(images: [ArtistImage], currentImage: Binding<ArtistImage?> = .constant(nil)) {
+        self.images = images
+        self._currentImage = currentImage
+    }
 
     private let size: CGFloat = 320
     @State private var scrolledImageID: String?
@@ -599,6 +622,12 @@ private struct PerformerImageCarousel: View {
         guard let id = scrolledImageID,
               let idx = images.firstIndex(where: { $0.id == id }) else { return 0 }
         return idx
+    }
+
+    /// Keeps the `currentImage` binding in step with whichever page is shown.
+    /// Covers the single-image branch (no scroll position) too.
+    private func syncCurrentImage() {
+        currentImage = images.indices.contains(currentIndex) ? images[currentIndex] : images.first
     }
 
     var body: some View {
@@ -645,6 +674,9 @@ private struct PerformerImageCarousel: View {
         .frame(width: size, height: size)
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .onHover { isHovering = $0 }
+        .onAppear { syncCurrentImage() }
+        .onChange(of: scrolledImageID) { _, _ in syncCurrentImage() }
+        .onChange(of: images.map(\.id)) { _, _ in syncCurrentImage() }
     }
 
     private func step(_ delta: Int) {

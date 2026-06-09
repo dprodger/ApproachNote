@@ -12,16 +12,21 @@ import os
 ///   Log.auth.debug("Login for \(email, privacy: .private)")
 ///   Log.network.debug("GET \(endpoint, privacy: .public)")
 enum Log {
-    private static let subsystem = Bundle.main.bundleIdentifier ?? "com.approachnote"
+    private nonisolated static let subsystem = Bundle.main.bundleIdentifier ?? "com.approachnote"
+
+    // `Logger` is Sendable and thread-safe, so the loggers are `nonisolated`:
+    // under the project's MainActor-by-default isolation they'd otherwise be
+    // inferred main-actor-isolated and couldn't be used from background actors
+    // (e.g. the oEmbed `TitleCache` actor in YouTube.swift).
 
     /// API calls, HTTP responses, request timing
-    static let network  = Logger(subsystem: subsystem, category: "network")
+    nonisolated static let network  = Logger(subsystem: subsystem, category: "network")
     /// Authentication, token refresh, keychain
-    static let auth     = Logger(subsystem: subsystem, category: "auth")
+    nonisolated static let auth     = Logger(subsystem: subsystem, category: "auth")
     /// View state, navigation, user interactions
-    static let ui       = Logger(subsystem: subsystem, category: "ui")
+    nonisolated static let ui       = Logger(subsystem: subsystem, category: "ui")
     /// Data import, persistence, repertoires, favorites
-    static let data     = Logger(subsystem: subsystem, category: "data")
+    nonisolated static let data     = Logger(subsystem: subsystem, category: "data")
     /// Research queue, background enrichment
-    static let research = Logger(subsystem: subsystem, category: "research")
+    nonisolated static let research = Logger(subsystem: subsystem, category: "research")
 }

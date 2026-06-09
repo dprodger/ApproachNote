@@ -19,6 +19,22 @@ struct ArtistImageCarousel: View {
     var availableWidth: CGFloat = 0
     /// Upper bound for the hero height — keeps tall portraits within the window.
     var maxHeight: CGFloat = 0
+    /// Reports the image currently centered in the carousel so the host can
+    /// render a matching license/attribution line beneath it. Defaults to a
+    /// no-op binding for call sites (and previews) that don't need it.
+    @Binding var currentImage: ArtistImage?
+
+    init(
+        images: [ArtistImage],
+        availableWidth: CGFloat = 0,
+        maxHeight: CGFloat = 0,
+        currentImage: Binding<ArtistImage?> = .constant(nil)
+    ) {
+        self.images = images
+        self.availableWidth = availableWidth
+        self.maxHeight = maxHeight
+        self._currentImage = currentImage
+    }
 
     @State private var selectedImage: ArtistImage?
 
@@ -76,6 +92,12 @@ struct ArtistImageCarousel: View {
             .scrollPosition(id: $scrolledImageID)
             .sheet(item: $selectedImage) { image in
                 ImageDetailSheet(image: image)
+            }
+            .onAppear {
+                if currentImage == nil { currentImage = images.first }
+            }
+            .onChange(of: scrolledImageID) { _, id in
+                currentImage = images.first(where: { $0.id == id }) ?? images.first
             }
         }
     }
@@ -203,39 +225,38 @@ private struct ImageDetailSheet: View {
                     // Image info
                     VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
                         InfoRow(title: "Source", value: sourceName)
-                        
+
                         if let license = image.licenseType {
                             InfoRow(title: "License", value: licenseName(license))
                         }
-                        
+
                         if let attribution = image.attribution {
-                            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-                                Text("Attribution")
-                                    .font(ApproachNoteTheme.caption())
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                Text(cleanHTML(attribution))
-                                    .font(ApproachNoteTheme.subheadline())
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
+                            let cleaned = cleanHTML(attribution)
+                            if !cleaned.isEmpty {
+                                InfoRow(title: "Attribution", value: cleaned)
                             }
                         }
-                        
+
                         if let width = image.width, let height = image.height {
                             InfoRow(title: "Dimensions", value: "\(width) × \(height) pixels")
                         }
-                        
+
                         if let sourcePageUrl = image.sourcePageUrl,
                            let url = URL(string: sourcePageUrl) {
+                            Divider()
+                                .padding(.vertical, ApproachNoteTheme.spacingXXS)
                             Link(destination: url) {
-                                HStack {
+                                HStack(spacing: ApproachNoteTheme.spacingXS) {
                                     Text("View on \(sourceName)")
                                         .font(ApproachNoteTheme.subheadline())
                                     Image(systemName: "arrow.up.forward.square")
                                         .font(ApproachNoteTheme.caption())
                                 }
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
+                                .foregroundColor(ApproachNoteTheme.accent)
                             }
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(12)
@@ -250,7 +271,8 @@ private struct ImageDetailSheet: View {
                     Button("Done") {
                         dismiss()
                     }
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
                 }
             }
         }
@@ -264,7 +286,7 @@ private struct ImageDetailSheet: View {
         case "cc0": return "CC0 (Public Domain)"
         case "public-domain", "pd": return "Public Domain"
         case "fair-use": return "Fair Use"
-        default: return license
+        default: return license.capitalized
         }
     }
     
@@ -294,8 +316,9 @@ private struct InfoRow: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-            Text(title)
-                .font(ApproachNoteTheme.caption())
+            Text(title.uppercased())
+                .font(ApproachNoteTheme.caption2())
+                .tracking(0.5)
                 .foregroundColor(ApproachNoteTheme.textSecondary)
             Text(value)
                 .font(ApproachNoteTheme.subheadline())

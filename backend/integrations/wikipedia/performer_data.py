@@ -304,19 +304,34 @@ def _image_filename(url: Optional[str]) -> Optional[str]:
     return unquote(url.split('/')[-1].split('?')[0])
 
 
-def _normalize_license(license_str: Optional[str]) -> str:
-    if not license_str or license_str == 'unknown':
+def _normalize_license(license_str: Optional[str],
+                       short_name: Optional[str] = None) -> str:
+    """Map Commons license metadata to our license_type.
+
+    Reads the machine `License` value first, then the human `LicenseShortName`
+    as a fallback — Commons often leaves `License` as a bare code (e.g. "pd",
+    "PD-US-no notice", "cc-by-sa-3.0") while the short name carries the readable
+    label ("Public domain"). Public-domain markers come in many shapes, so we
+    match the "pd"/"pd-*" codes explicitly rather than only the spelled-out
+    "public domain" phrase.
+    """
+    raw = (license_str or '').strip().lower()
+    short = (short_name or '').strip().lower()
+    if not raw and not short:
         return 'unknown'
-    s = license_str.lower()
-    if 'public domain' in s:
-        return 'public_domain'
-    if 'cc0' in s:
+
+    combined = f"{raw} {short}"
+    if 'cc0' in combined or 'cc-zero' in combined:
         return 'cc0'
-    if 'cc-by-sa' in s or 'cc by-sa' in s:
+    if (raw == 'pd' or raw.startswith('pd-')
+            or 'public domain' in combined or 'public-domain' in combined
+            or 'no known copyright' in short or 'no restrictions' in short):
+        return 'public_domain'
+    if 'by-sa' in combined or 'cc by-sa' in combined:
         return 'cc_by_sa'
-    if 'cc-by' in s or 'cc by' in s:
+    if 'cc-by' in combined or 'cc by' in combined:
         return 'cc_by'
-    if 'fair use' in s:
+    if 'fair use' in combined:
         return 'fair_use'
     return 'other'
 
@@ -331,6 +346,7 @@ def _fetch_image_license(searcher, image_url: str) -> dict:
     out = {
         'license_type': 'unknown', 'license_url': None, 'attribution': None,
         'width': None, 'height': None, 'url': image_url,
+        'source_page_url': None,
     }
     image_filename = image_url.split('/')[-1]
     try:
@@ -348,9 +364,15 @@ def _fetch_image_license(searcher, image_url: str) -> dict:
         info = (file_page.get('imageinfo') or [{}])[0]
         if info.get('url'):
             out['url'] = info['url']
+        # The File: description page (on Commons for shared files) is where the
+        # license and authorship actually live — far more useful than the
+        # article URL we'd otherwise fall back to.
+        out['source_page_url'] = info.get('descriptionurl') or info.get('descriptionshorturl')
         meta = info.get('extmetadata', {})
-        if 'License' in meta:
-            out['license_type'] = _normalize_license(meta['License'].get('value'))
+        raw_license = meta.get('License', {}).get('value')
+        short_license = meta.get('LicenseShortName', {}).get('value')
+        if raw_license or short_license:
+            out['license_type'] = _normalize_license(raw_license, short_license)
         if 'LicenseUrl' in meta:
             out['license_url'] = meta['LicenseUrl'].get('value')
         if 'Artist' in meta:
@@ -388,7 +410,7 @@ def _scrape_infobox_image(searcher, page_title: str, page_url: str) -> Optional[
         url=lic['url'],
         thumbnail_url=img_src,
         source_identifier=page_title,
-        source_page_url=page_url,
+        source_page_url=lic.get('source_page_url') or page_url,
         license_type=lic['license_type'],
         license_url=lic['license_url'],
         attribution=lic['attribution'],
@@ -439,7 +461,7 @@ def fetch_main_image(searcher, wikipedia_url: str) -> Optional[WikipediaImage]:
         url=lic['url'] or image_url,
         thumbnail_url=thumbnail_url,
         source_identifier=page_title,
-        source_page_url=page_url,
+        source_page_url=lic.get('source_page_url') or page_url,
         license_type=lic['license_type'],
         license_url=lic['license_url'],
         attribution=lic['attribution'],
@@ -555,7 +577,7 @@ def fetch_all_images(
             url=lic['url'] or cand['full_url'],
             thumbnail_url=cand['thumb_url'],
             source_identifier=page_title or None,
-            source_page_url=wikipedia_url,
+            source_page_url=lic.get('source_page_url') or wikipedia_url,
             license_type=lic['license_type'],
             license_url=lic['license_url'],
             attribution=lic['attribution'],
