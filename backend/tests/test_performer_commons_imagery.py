@@ -34,8 +34,9 @@ _NS = "00000000-0000-4000-8000-5000000{:05x}"
 PERFORMER_NEVER = _NS.format(0x00001)   # last_imagery_check NULL -> due
 PERFORMER_STALE = _NS.format(0x00002)   # checked 100 days ago    -> due (>90d)
 PERFORMER_FRESH = _NS.format(0x00003)   # checked 10 days ago      -> not due
+PERFORMER_NOWIKI = _NS.format(0x00004)  # never checked but no Wikipedia URL -> skipped
 
-_ALL_FIXTURE_IDS = (PERFORMER_NEVER, PERFORMER_STALE, PERFORMER_FRESH)
+_ALL_FIXTURE_IDS = (PERFORMER_NEVER, PERFORMER_STALE, PERFORMER_FRESH, PERFORMER_NOWIKI)
 
 
 def _cleanup(conn):
@@ -58,19 +59,29 @@ def perf_fixture(db):
     _cleanup(db)
     with db.cursor() as cur:
         cur.execute(
+            "INSERT INTO performers (id, name, wikipedia_url, last_imagery_check) "
+            "VALUES (%s, %s, %s, NULL)",
+            (PERFORMER_NEVER, "Never Checked",
+             "https://en.wikipedia.org/wiki/Never_Checked"),
+        )
+        cur.execute(
+            "INSERT INTO performers (id, name, wikipedia_url, last_imagery_check) "
+            "VALUES (%s, %s, %s, now() - make_interval(days => 100))",
+            (PERFORMER_STALE, "Stale Checked",
+             "https://en.wikipedia.org/wiki/Stale_Checked"),
+        )
+        cur.execute(
+            "INSERT INTO performers (id, name, wikipedia_url, last_imagery_check) "
+            "VALUES (%s, %s, %s, now() - make_interval(days => 10))",
+            (PERFORMER_FRESH, "Fresh Checked",
+             "https://en.wikipedia.org/wiki/Fresh_Checked"),
+        )
+        # Due (never checked) but has no Wikipedia URL: the sweep must skip it,
+        # since the Commons resolver only trusts a validated Wikipedia article.
+        cur.execute(
             "INSERT INTO performers (id, name, last_imagery_check) "
             "VALUES (%s, %s, NULL)",
-            (PERFORMER_NEVER, "Never Checked"),
-        )
-        cur.execute(
-            "INSERT INTO performers (id, name, last_imagery_check) "
-            "VALUES (%s, %s, now() - make_interval(days => 100))",
-            (PERFORMER_STALE, "Stale Checked"),
-        )
-        cur.execute(
-            "INSERT INTO performers (id, name, last_imagery_check) "
-            "VALUES (%s, %s, now() - make_interval(days => 10))",
-            (PERFORMER_FRESH, "Fresh Checked"),
+            (PERFORMER_NOWIKI, "No Wiki"),
         )
     db.commit()
     yield
@@ -115,6 +126,11 @@ class TestSweep:
         assert PERFORMER_NEVER in candidates
         assert PERFORMER_STALE in candidates
         assert PERFORMER_FRESH not in candidates
+
+    def test_find_candidates_excludes_performers_without_wikipedia(self, perf_fixture):
+        # Due by staleness, but no Wikipedia URL -> not a candidate.
+        candidates = sweep_mod.find_candidate_performer_ids()
+        assert PERFORMER_NOWIKI not in candidates
 
     def test_stale_days_window_excludes_within_window(self, perf_fixture):
         # With a 200-day window, the 100-day-stale row is no longer due;

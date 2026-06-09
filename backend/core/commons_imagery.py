@@ -204,71 +204,86 @@ def _to_int(v) -> Optional[int]:
 # Category resolution
 # ---------------------------------------------------------------------------
 
+def _wikidata_claims(session: requests.Session,
+                     qids: List[str]) -> Dict[str, dict]:
+    """Fetch claims for one or more Wikidata QIDs (single batched request)."""
+    if not qids:
+        return {}
+    try:
+        r = session.get(WIKIDATA_API, params={
+            "action": "wbgetentities", "ids": "|".join(qids),
+            "format": "json", "props": "claims",
+        }, timeout=15)
+        return r.json().get("entities", {})
+    except Exception as e:
+        logger.debug("Wikidata claims lookup failed: %s", e)
+        return {}
+
+
+def _commons_category_from_claims(claims: Dict[str, Any]) -> Optional[str]:
+    """Return the entity's Commons category (P373) as a Category:<…> title."""
+    p373 = claims.get("P373")
+    if not p373:
+        return None
+    try:
+        return f"Category:{p373[0]['mainsnak']['datavalue']['value']}"
+    except (KeyError, TypeError):
+        return None
+
+
 def resolve_commons_category(session: requests.Session, artist_name: str,
                              wikipedia_url: Optional[str] = None) -> Optional[str]:
-    """Find the performer's Wikimedia Commons category via Wikidata P373,
-    falling back to a verified "Category:<Name>" guess."""
-    qid = None
-    if wikipedia_url:
-        m = re.search(r"/wiki/(.+)$", wikipedia_url)
-        if m:
-            title = requests.utils.unquote(m.group(1))
-            try:
-                r = session.get(WIKIPEDIA_API, params={
-                    "action": "query", "format": "json", "titles": title,
-                    "prop": "pageprops", "ppprop": "wikibase_item",
-                }, timeout=15)
-                pages = r.json().get("query", {}).get("pages", {})
-                page = next(iter(pages.values()), {})
-                qid = page.get("pageprops", {}).get("wikibase_item")
-            except Exception as e:
-                logger.debug("Wikipedia->QID lookup failed: %s", e)
+    """Resolve the performer's Commons category via their Wikipedia article.
 
-    if not qid:
-        try:
-            r = session.get(WIKIDATA_API, params={
-                "action": "wbsearchentities", "search": artist_name,
-                "language": "en", "format": "json", "type": "item", "limit": 5,
-            }, timeout=15)
-            hits = r.json().get("search", [])
-            qid = hits[0]["id"] if hits else None
-        except Exception as e:
-            logger.debug("Wikidata search failed: %s", e)
+    We deliberately resolve imagery ONLY for performers that have a Wikipedia
+    URL. The app already does significant work to attach the *correct* Wikipedia
+    article to a performer, so it is a trusted identity anchor: its canonical
+    Wikidata item gives us the right Commons category (P373).
 
-    if qid:
-        try:
-            r = session.get(WIKIDATA_API, params={
-                "action": "wbgetentities", "ids": qid, "format": "json",
-                "props": "claims",
-            }, timeout=15)
-            claims = r.json().get("entities", {}).get(qid, {}).get("claims", {})
-            p373 = claims.get("P373")
-            if p373:
-                cat = p373[0]["mainsnak"]["datavalue"]["value"]
-                logger.info("Resolved Commons category via Wikidata %s: %s", qid, cat)
-                return f"Category:{cat}"
-        except Exception as e:
-            logger.debug("Wikidata P373 lookup failed: %s", e)
+    There is NO name-based fallback. Searching Wikidata by a bare name is
+    unreliable for common names — "Andrew Williams" matches an archaeologist
+    whose Commons category is full of catalogued coin photos, not a jazz
+    musician — and a same-name match (even a verified human) silently feeds
+    unrelated images into the ranking pipeline. A performer without a Wikipedia
+    link simply gets no Commons imagery; no imagery beats the wrong imagery.
+    """
+    if not wikipedia_url:
+        logger.info("No Wikipedia URL for %r; skipping Commons imagery", artist_name)
+        return None
 
-    guess = f"Category:{artist_name}"
-    if _category_exists(session, guess):
-        logger.info("Using guessed Commons category: %s", guess)
-        return guess
+    m = re.search(r"/wiki/(.+)$", wikipedia_url)
+    if not m:
+        logger.warning("Unparseable Wikipedia URL %r for %r; skipping imagery",
+                       wikipedia_url, artist_name)
+        return None
 
-    logger.warning("Could not resolve a Commons category for %r", artist_name)
-    return None
-
-
-def _category_exists(session: requests.Session, category: str) -> bool:
+    title = requests.utils.unquote(m.group(1))
     try:
-        r = session.get(COMMONS_API, params={
-            "action": "query", "format": "json", "titles": category,
-            "prop": "info",
+        r = session.get(WIKIPEDIA_API, params={
+            "action": "query", "format": "json", "titles": title,
+            "prop": "pageprops", "ppprop": "wikibase_item",
         }, timeout=15)
         pages = r.json().get("query", {}).get("pages", {})
-        return all(int(pid) > 0 for pid in pages)
-    except Exception:
-        return False
+        page = next(iter(pages.values()), {})
+        qid = page.get("pageprops", {}).get("wikibase_item")
+    except Exception as e:
+        logger.debug("Wikipedia->QID lookup failed: %s", e)
+        return None
+
+    if not qid:
+        logger.info("Wikipedia article for %r has no Wikidata item; "
+                    "skipping imagery", artist_name)
+        return None
+
+    claims = _wikidata_claims(session, [qid]).get(qid, {}).get("claims", {})
+    cat = _commons_category_from_claims(claims)
+    if cat:
+        logger.info("Resolved Commons category via Wikidata %s: %s", qid, cat)
+        return cat
+
+    logger.info("Wikidata %s for %r has no Commons category (P373); "
+                "skipping imagery", qid, artist_name)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -573,7 +588,13 @@ def analyze_and_rank(
     # processed one at a time and NOT retained — holding every candidate's
     # full-res bytes at once is what OOM'd the worker. The few images that get
     # reranked are re-downloaded in phase 3.
-    for r in records:
+    #
+    # This loop is the slowest silent stretch (a download + decode + analysis
+    # per candidate, up to max_candidates), so emit periodic progress to make
+    # it obvious the worker is alive rather than hung.
+    total = len(records)
+    logger.info("Phase 1: downloading + gating %d candidate(s)", total)
+    for i, r in enumerate(records, 1):
         img_bytes = download(session, r.url) or download(session, r.thumbnail_url)
         if not img_bytes:
             r.analysis = {"passed_gate": False, "reasons": ["download failed"],
@@ -592,6 +613,8 @@ def analyze_and_rank(
                                        vision=None).to_dict()
         r.quality_score = score
         del img_bytes  # release immediately
+        if i % 20 == 0 or i == total:
+            logger.info("Phase 1: analyzed %d/%d candidate(s)", i, total)
 
     # Phase 2: gate filter
     if config.do_gate:
