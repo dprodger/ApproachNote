@@ -106,11 +106,36 @@ def local_capabilities() -> Dict[str, bool]:
     return caps
 
 
-def _load_pil(image_bytes: bytes):
+# Decode budget. A pathological Commons file (e.g. a 169-megapixel scan) would
+# otherwise be fully decoded by PIL — ~0.5GB of RGB for that example — and OOM
+# the worker. PIL only *warns* on its decompression-bomb limit (~89MP) and still
+# decodes, so we enforce our own cap here: JPEGs are downsampled during decode
+# via Image.draft (cheap, decoder-level), and formats that can't be downsampled
+# cheaply are refused so the caller drops the candidate instead of crashing.
+_MAX_DECODE_PIXELS = int(os.environ.get("IMAGE_MAX_DECODE_PIXELS", 24_000_000))
+
+
+def _load_pil(image_bytes: bytes, max_pixels: int = _MAX_DECODE_PIXELS):
     from PIL import Image  # lazy
     import io
-    img = Image.open(io.BytesIO(image_bytes))
+    img = Image.open(io.BytesIO(image_bytes))  # lazy: header only, no decode yet
+    w, h = img.size
+    if max_pixels and w * h > max_pixels:
+        if (img.format or "").upper() in ("JPEG", "MPO"):
+            scale = (max_pixels / (w * h)) ** 0.5
+            # draft downsamples in 1/2,1/4,1/8 steps; it picks the largest step
+            # still >= the requested size, so the post-load resize below enforces
+            # the budget exactly.
+            img.draft("RGB", (max(1, round(w * scale)), max(1, round(h * scale))))
+        else:
+            raise ValueError(
+                f"image too large to decode safely: {w}x{h} "
+                f"({w * h} px > {max_pixels} px cap)")
     img.load()
+    if max_pixels and img.size[0] * img.size[1] > max_pixels:
+        scale = (max_pixels / (img.size[0] * img.size[1])) ** 0.5
+        img = img.resize((max(1, int(img.size[0] * scale)),
+                          max(1, int(img.size[1] * scale))))
     return img
 
 
@@ -631,9 +656,8 @@ class ClaudeReranker(VisionReranker):
     def _downscaled_b64(self, image_bytes: bytes) -> Tuple[str, str]:
         """Return (media_type, base64) of a downscaled JPEG to keep tokens low."""
         import io
-        from PIL import Image  # lazy
         import base64
-        img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+        img = _load_pil(image_bytes).convert("RGB")  # decode is memory-bounded
         img.thumbnail((self.max_edge, self.max_edge))
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=85)
@@ -701,9 +725,7 @@ class ClipReranker(VisionReranker):
         if not self._ensure():
             return {}
         try:
-            import io
             import torch
-            from PIL import Image
             performer = context.get("performer_name", "a person")
             prompts = [
                 f"a clear, high-quality photograph of {performer}",
@@ -711,7 +733,7 @@ class ClipReranker(VisionReranker):
                 "an album cover, poster, or artwork",
                 "a photo of a crowd or group of people",
             ]
-            img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+            img = _load_pil(image_bytes).convert("RGB")  # decode is memory-bounded
             image = self._preprocess(img).unsqueeze(0)
             text = self._tokenizer(prompts)
             with torch.no_grad():
