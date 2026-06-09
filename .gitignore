@@ -30,6 +30,18 @@ spotify_duration_rejections.csv
 spotify_album_context_audit.csv
 spotify_orphaned_tracks.csv
 
+# Commons imagery audit artifacts (regenerate via scripts/audit_commons_imagery.py
+# + scripts/build_commons_audit_viewer.py). Transient worklists, not source.
+commons_imagery_audit_*.csv
+commons_imagery_audit_*.html
+
+# Performer->Wikipedia ground-truth pipeline. The verification *queue* and the
+# generated viewer HTML are regenerable scratch; the human-verified ground-truth
+# export (performer_wikipedia_groundtruth*.json) is NOT ignored and should be
+# committed — it's the authoritative manual dataset.
+data/ground_truth/wikipedia_queue_*.json
+data/ground_truth/*.html
+
 # Claude Code local state (agent memory, worktrees, per-user settings)
 .claude/
 

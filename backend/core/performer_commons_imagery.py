@@ -38,13 +38,24 @@ DEFAULT_STALE_DAYS = 90
 def find_candidate_performer_ids(stale_days: int = DEFAULT_STALE_DAYS,
                                  limit: Optional[int] = None) -> list[str]:
     """UUIDs of performers due for an imagery (re)check: never checked, or
-    last checked more than `stale_days` ago. Newest performers first."""
+    last checked more than `stale_days` ago. Newest performers first.
+
+    Restricted to performers that have a Wikipedia URL (column or
+    external_links.wikipedia). The Commons resolver only trusts a performer's
+    validated Wikipedia article as an identity anchor — name-based matching is
+    unreliable for common names — so performers without one would be a guaranteed
+    no-op. Skipping them here avoids spending worker cycles and vision quota on
+    jobs that can never add imagery."""
     limit_clause = "LIMIT %s" if limit is not None else ""
     sql = f"""
         SELECT id
         FROM performers
-        WHERE last_imagery_check IS NULL
-           OR last_imagery_check < now() - make_interval(days => %s)
+        WHERE (last_imagery_check IS NULL
+               OR last_imagery_check < now() - make_interval(days => %s))
+          AND (
+                btrim(COALESCE(wikipedia_url, '')) <> ''
+             OR btrim(COALESCE(external_links->>'wikipedia', '')) <> ''
+          )
         ORDER BY created_at DESC
         {limit_clause}
     """
