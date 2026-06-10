@@ -216,6 +216,8 @@ nav a:hover {
     height: auto;
     aspect-ratio: 1 / 1;
     object-fit: cover;
+    /* Rounded corners to echo the app-icon logo and App Store badge. */
+    border-radius: 20px;
     /* Blue placeholder fills the reserved box before the duotone JPEG paints,
        so the hero shows brand blue from the first frame instead of flashing
        the page background. Matches the images' duotone shadow tone. */
