@@ -250,16 +250,18 @@ struct SongDetailView: View {
     @ViewBuilder
     private func authoritativeRecordingsSection(for song: Song) -> some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-            // Header
-            Text("FEATURED RECORDINGS")
-                .font(ApproachNoteTheme.title2())
-                .bold()
-                .foregroundColor(ApproachNoteTheme.textPrimary)
+            // Header + intro, grouped tightly so the explanation sits just under
+            // the title; the outer spacing keeps the carousel further down.
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
+                Text("FEATURED RECORDINGS")
+                    .font(ApproachNoteTheme.title2())
+                    .bold()
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
 
-            // Introductory text
-            Text("Take a look at these important recordings for this song.")
-                .font(ApproachNoteTheme.subheadline())
-                .foregroundColor(ApproachNoteTheme.textSecondary)
+                Text("Take a look at these important recordings for this song.")
+                    .font(ApproachNoteTheme.subheadline())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            }
 
             // Horizontal scrolling carousel - use featuredRecordings from summary
             let featured = song.featuredRecordings ?? []
