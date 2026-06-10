@@ -146,7 +146,7 @@ struct RecordingsSection: View {
     @ViewBuilder
     private var controlsBar: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-            // Filter + Sort row: Filter on the left, Sort right-justified.
+            // Filter + Sort row: Filter and Sort paired on the left.
             HStack(spacing: ApproachNoteTheme.spacingXS) {
                 Button(action: { showFilterSheet = true }) {
                     HStack(spacing: ApproachNoteTheme.spacingXS) {
@@ -166,8 +166,6 @@ struct RecordingsSection: View {
                     )
                 }
                 .buttonStyle(.plain)
-
-                Spacer()
 
                 Menu {
                     ForEach(RecordingSortOrder.allCases) { sortOrder in
@@ -207,6 +205,8 @@ struct RecordingsSection: View {
                             .stroke(ApproachNoteTheme.textSecondary.opacity(0.5), lineWidth: 1)
                     )
                 }
+
+                Spacer()
             }
 
             // Playable Only toggle
