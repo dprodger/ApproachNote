@@ -12,6 +12,13 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap">
 
+    <!-- Preload the Colt display weight used by both headlines so it's ready at
+         first paint — otherwise the headline renders in the fallback font, then
+         reflows taller when Colt swaps in, jolting the hero (whose image height
+         tracks the copy height). crossorigin is required even same-origin or the
+         preload isn't reused for the CORS-mode font fetch. -->
+    <link rel="preload" href="/static/fonts/colt/Colt-Bold.woff2" as="font" type="font/woff2" crossorigin>
+
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="icon" type="image/svg+xml" href="/static/images/app_icon.svg?v=2">
     <link rel="apple-touch-icon" href="/static/images/app_icon.svg?v=2">
