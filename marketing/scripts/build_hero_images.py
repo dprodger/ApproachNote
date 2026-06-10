@@ -4,8 +4,9 @@
 For each source photo this:
   1. trims the film-scan frame/rebate with a hand-tuned per-image inset,
   2. center-crops to a square, and
-  3. resizes to an identical 1200x1200 px so the hero never shifts the page
-     layout when the template rotates between them on reload.
+  3. resizes to an identical 1100x1100 px so the hero never shifts the page
+     layout when the template rotates between them on reload. The hero box
+     renders at most ~524px wide, so 1100px keeps >2x for retina with margin.
 
 Output lands in backend/static/images/hero_NNN.jpg. The crop insets were chosen
 by eye per scan (some have thick dark frames, some only a thin bright rebate);
@@ -21,7 +22,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 SRC_DIR = os.path.join(REPO, "marketing", "photos", "blue-treatment")
 OUT_DIR = os.path.join(REPO, "backend", "static", "images")
-SIZE = 1200
+SIZE = 1100
 
 # hero id -> (source basename, (left, top, right, bottom) frame insets as fractions)
 HEROES = {
