@@ -201,6 +201,10 @@ nav a:hover {
     max-width: 520px;
     height: 100%;
     object-fit: cover;
+    /* Blue placeholder fills the reserved box before the duotone JPEG paints,
+       so the hero shows brand blue from the first frame instead of flashing
+       the page background. Matches the images' duotone shadow tone. */
+    background-color: var(--brand-deep);
 }
 
 .hero h2 {
@@ -292,7 +296,7 @@ nav a:hover {
 .explore h2 {
     font-family: 'Colt', 'Libre Franklin', -apple-system, BlinkMacSystemFont, sans-serif;
     text-align: center;
-    font-size: clamp(1.75rem, 4.2vw, 2.75rem);
+    font-size: clamp(1.3rem, 4.2vw, 2.4rem);
     letter-spacing: -0.01em;
     line-height: 1.05;
     margin-bottom: 3rem;
