@@ -4,8 +4,8 @@
 //
 //  Recordings section for PerformerDetailView. Mirrors the song
 //  RecordingsSection: a typography-only header with an inline count, a
-//  controls bar (search + sort + role segmented), and per-group +/-
-//  accordions whose carousels bleed to the screen edges.
+//  controls bar (search + sort + role segmented), and per-group white card
+//  accordions (chevron toggle) whose carousels bleed to the card edge.
 //
 
 import SwiftUI
@@ -24,9 +24,14 @@ struct PerformerRecordingsSection: View {
     @State private var searchText: String = ""
 
     // Per-group expansion state. Groups not in the set are collapsed.
-    // Default empty: every shelf starts collapsed so users scan a list of
-    // decades / song letters before drilling in (mirrors RecordingsSection).
+    // Default empty; the first shelf auto-opens on first appearance (see
+    // autoExpandFirstIfNeeded) so the page lands with content already showing
+    // (mirrors RecordingsSection).
     @State private var expandedGroups: Set<String> = []
+
+    // Guards the one-time auto-expansion of the first shelf so it doesn't
+    // re-fire when filters/sort later clear the expansion set.
+    @State private var didAutoExpand = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
@@ -36,7 +41,7 @@ struct PerformerRecordingsSection: View {
             controlsBar
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
-            LazyVStack(alignment: .leading, spacing: 0) {
+            LazyVStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 if !filteredRecordings.isEmpty {
                     ForEach(groupedRecordings, id: \.groupKey) { group in
                         groupAccordion(group: group)
@@ -76,8 +81,18 @@ struct PerformerRecordingsSection: View {
             }
             .opacity(isReloading ? 0.5 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: isReloading)
+            .onAppear { autoExpandFirstIfNeeded() }
+            .onChange(of: groupedRecordings.first?.groupKey) { _, _ in autoExpandFirstIfNeeded() }
         }
         .background(ApproachNoteTheme.background)
+    }
+
+    /// Expands the first shelf once, the first time grouped recordings are
+    /// available, so the page opens with content already showing.
+    private func autoExpandFirstIfNeeded() {
+        guard !didAutoExpand, let first = groupedRecordings.first else { return }
+        didAutoExpand = true
+        expandedGroups.insert(first.groupKey)
     }
 
     // MARK: - Section Header
@@ -236,12 +251,10 @@ struct PerformerRecordingsSection: View {
     private func groupAccordion(group: (groupKey: String, recordings: [PerformerRecording])) -> some View {
         let isExpanded = expandedGroups.contains(group.groupKey)
 
-        // De-carded shelf: a divider separator, a plain header with a +/-
-        // toggle, and a full-bleed carousel. No surface card (mirrors
-        // RecordingsSection).
+        // Carded shelf: a pure-white surface card with a light border sitting on
+        // the cream page, a header with a chevron toggle, and a carousel that
+        // bleeds to the card's trailing edge (mirrors RecordingsSection).
         VStack(alignment: .leading, spacing: 0) {
-            Divider()
-
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.2)) {
                     if isExpanded {
@@ -256,10 +269,11 @@ struct PerformerRecordingsSection: View {
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                     Spacer()
-                    Image(systemName: isExpanded ? "minus" : "plus")
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
+                .padding(.horizontal, ApproachNoteTheme.spacingMD)
                 .padding(.vertical, ApproachNoteTheme.spacingSM)
                 .contentShape(Rectangle())
             }
@@ -275,16 +289,19 @@ struct PerformerRecordingsSection: View {
                             .buttonStyle(.plain)
                         }
                     }
-                    // Leading inset aligns the first card with the gutter;
-                    // cards bleed past the edges as you scroll.
-                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
+                    // Leading inset aligns the first card with the header text;
+                    // cards bleed off the card's trailing edge as you scroll.
+                    .padding(.leading, ApproachNoteTheme.spacingMD)
                 }
-                // Cancel the section's 24pt gutter so the carousel spans
-                // full width.
-                .padding(.horizontal, -ApproachNoteTheme.spacingXL)
-                .padding(.bottom, ApproachNoteTheme.spacingSM)
+                .padding(.bottom, ApproachNoteTheme.spacingMD)
             }
         }
+        .background(ApproachNoteTheme.surface)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(ApproachNoteTheme.surfaceMuted, lineWidth: 1)
+        )
     }
 
     // MARK: - Filtered Recordings
