@@ -9,10 +9,10 @@
 //  both render with real paragraph breaks instead of one dense block.
 //
 //  The block is clamped to `maxCollapsedHeight`; when the full text overflows
-//  that cap, a bold "Read more" / "Read less" text link toggles it inline. A
-//  hidden full-height copy measures the real height so the toggle only appears
-//  when the text actually overflows. (Generalized from the performer biography
-//  block.)
+//  that cap, the last lines fade into the background and a bold "Read more" /
+//  "Read less" text link toggles it inline. A hidden full-height copy measures
+//  the real height so the fade and toggle only appear when the text actually
+//  overflows. (Generalized from the performer biography block.)
 //
 
 import SwiftUI
@@ -39,6 +39,37 @@ struct ExpandableProse: View {
         fullHeight > maxCollapsedHeight + 1
     }
 
+    /// When collapsed and overflowing, the last lines fade into the background
+    /// so the text visibly "runs out" right above the Read more link.
+    private var showsFade: Bool {
+        isTruncatable && !isExpanded
+    }
+
+    /// Height of that bottom fade, in points (~2 lines).
+    private static let fadeHeight: CGFloat = 44
+
+    /// Gradient stop where the fade begins, as a fraction of the collapsed
+    /// height. Falls back to no fade when the cap isn't a usable finite value.
+    private var fadeStartLocation: CGFloat {
+        guard maxCollapsedHeight.isFinite, maxCollapsedHeight > Self.fadeHeight else { return 1 }
+        return (maxCollapsedHeight - Self.fadeHeight) / maxCollapsedHeight
+    }
+
+    /// Mask for the collapsed prose: fully opaque normally, fading out over the
+    /// last `fadeHeight` points while collapsed. Always present so toggling the
+    /// fade doesn't change view identity.
+    private var collapseMask: LinearGradient {
+        LinearGradient(
+            stops: [
+                .init(color: .black, location: 0),
+                .init(color: .black, location: showsFade ? fadeStartLocation : 1),
+                .init(color: showsFade ? .clear : .black, location: 1)
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+    }
+
     @ViewBuilder
     private var proseText: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
@@ -54,10 +85,11 @@ struct ExpandableProse: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             proseText
                 .frame(maxHeight: isExpanded ? nil : maxCollapsedHeight, alignment: .top)
                 .clipped()
+                .mask(collapseMask)
                 .background(
                     // Hidden full-height copy; .fixedSize forces the ideal
                     // height (ignoring the clamp above) so we can detect overflow.
