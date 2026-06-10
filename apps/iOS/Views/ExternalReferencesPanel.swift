@@ -30,9 +30,9 @@ struct ExternalReferencesPanel: View {
     private var usesInlineLinks: Bool {
         horizontalSizeClass == .regular && entityType == "song"
     }
-    // Comfortable width for the inline row; songs surface at most two links
-    // (Jazz Standards + MusicBrainz), so this keeps them button-sized.
-    private static let inlineLinksMaxWidth: CGFloat = 520
+    // Comfortable width for the inline row; songs surface up to three links
+    // (Wikipedia + Jazz Standards + MusicBrainz), so this keeps them button-sized.
+    private static let inlineLinksMaxWidth: CGFloat = 700
     
     struct ReportingInfo: Identifiable {
         let id = UUID()

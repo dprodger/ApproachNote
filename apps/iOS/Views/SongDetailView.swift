@@ -111,9 +111,11 @@ struct SongDetailView: View {
         viewModel.hasAuthoritativeRecordings(for: song)
     }
 
-    /// Whether the song has at least one non-Wikipedia external link worth surfacing.
+    /// Whether the song has at least one external link worth surfacing in the
+    /// Learn More panel (Wikipedia, Jazz Standards, or MusicBrainz).
     private func hasLearnMoreLinks(for song: Song) -> Bool {
-        return song.musicbrainzId != nil
+        return song.wikipediaUrl != nil
+            || song.musicbrainzId != nil
             || song.externalReferences?["jazzstandards"] != nil
     }
 
@@ -171,7 +173,7 @@ struct SongDetailView: View {
                 // MARK: - Learn More (JazzStandards.com / MusicBrainz)
                 if hasLearnMoreLinks(for: song) {
                     ExternalReferencesPanel(
-                        wikipediaUrl: nil,
+                        wikipediaUrl: song.wikipediaUrl,
                         musicbrainzId: song.musicbrainzId,
                         externalReferences: song.externalReferences,
                         entityId: song.id,
@@ -219,7 +221,7 @@ struct SongDetailView: View {
     // MARK: - Summary Information Section
 
     /// Collapsed-height cap for the Wikipedia intro (~5-6 lines) before the
-    /// in-app Read More reveals the rest.
+    /// in-app "Read more" toggle reveals the rest.
     private static let summaryCollapsedHeight: CGFloat = 160
 
     @ViewBuilder
@@ -228,21 +230,15 @@ struct SongDetailView: View {
             VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 // The stored Wikipedia intro keeps its source paragraph breaks
                 // (newline-separated); ExpandableProse renders them as discrete
-                // paragraphs and caps the height with an in-app Read More so the
-                // intro opens up without the page running long.
+                // paragraphs and caps the height with an in-app "Read more"
+                // toggle so the intro opens up without the page running long.
                 ExpandableProse(
                     text: structure,
                     maxCollapsedHeight: Self.summaryCollapsedHeight,
                     textColor: ApproachNoteTheme.textPrimary
                 )
-
-                if let wikiUrlString = song.wikipediaUrl,
-                   let wikiUrl = URL(string: wikiUrlString) {
-                    Link("Read more on Wikipedia", destination: wikiUrl)
-                        .font(ApproachNoteTheme.body())
-                        .bodyLineSpacing()
-                        .foregroundColor(ApproachNoteTheme.brand)
-                }
+                // The Wikipedia link now lives in the Learn More panel below as
+                // a peer to the Jazz Standards and MusicBrainz buttons.
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, ApproachNoteTheme.spacingXXS)

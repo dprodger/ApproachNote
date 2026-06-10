@@ -9,9 +9,10 @@
 //  both render with real paragraph breaks instead of one dense block.
 //
 //  The block is clamped to `maxCollapsedHeight`; when the full text overflows
-//  that cap, a READ MORE button expands it inline. A hidden full-height copy
-//  measures the real height so READ MORE only appears when the text actually
-//  overflows. (Generalized from the performer biography block.)
+//  that cap, a bold "Read more" / "Read less" text link toggles it inline. A
+//  hidden full-height copy measures the real height so the toggle only appears
+//  when the text actually overflows. (Generalized from the performer biography
+//  block.)
 //
 
 import SwiftUI
@@ -72,10 +73,16 @@ struct ExpandableProse: View {
                         .hidden()
                 )
 
-            if isTruncatable && !isExpanded {
-                ApproachNoteButton("Read More", style: .secondary) {
-                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded = true }
+            if isTruncatable {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isExpanded.toggle() }
+                } label: {
+                    Text(isExpanded ? "Read less" : "Read more")
+                        .font(ApproachNoteTheme.body(weight: .bold))
+                        .bodyLineSpacing()
+                        .foregroundColor(ApproachNoteTheme.brand)
                 }
+                .buttonStyle(.plain)
             }
         }
     }
