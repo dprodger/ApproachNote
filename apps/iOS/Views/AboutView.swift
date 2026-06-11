@@ -27,16 +27,18 @@ struct AboutView: View {
     
     var body: some View {
         ZStack {
-            // Background image
-            Image("LaunchImage")
+            // Background image — the ApproachNote logo is baked into the top of
+            // this PNG, so we don't overlay a separate logo view.
+            Image("AboutImage")
                 .resizable()
                 .scaledToFill()
                 .ignoresSafeArea()
+                .accessibilityLabel("Approach Note")
 
             // Vignette gradient overlay - darker at top and bottom for toolbar visibility
             LinearGradient(
                 gradient: Gradient(colors: [
-                    Color.black.opacity(0.75),  // Darker at top for navigation bar
+                    Color.black.opacity(0.25),  // Light at top so the baked-in logo stays crisp
                     Color.black.opacity(0.3),   // Lighter in middle
                     Color.black.opacity(0.85)   // Darkest at bottom for tab bar
                 ]),
@@ -47,14 +49,10 @@ struct AboutView: View {
             
             // Content
             VStack(spacing: ApproachNoteTheme.spacingLG) {
-                Spacer()
-
-                Image("stack")
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: 220)
-                    .shadow(color: .black.opacity(0.7), radius: 5, x: 0, y: 2)
-                    .accessibilityLabel("Approach Note")
+                // Fixed top gap clears the ApproachNote logo baked into the top
+                // of AboutImage so the tagline starts below it (hand-tuned for
+                // the fixed image rather than the flexible top spacer).
+                Color.clear.frame(height: 180)
 
                 Text("Your comprehensive guide to jazz recordings")
                     .font(ApproachNoteTheme.title3())
@@ -87,14 +85,39 @@ struct AboutView: View {
                 
                 Spacer()
                 
-                // View Tutorial Button
+                // View Tutorial Button. Cap the width so it stays inset on
+                // wider devices instead of stretching toward the screen edges.
                 ApproachNoteButton("View Tutorial", leadingSystemImage: "book.fill") {
                     showingOnboarding = true
                 }
+                .frame(maxWidth: 320)
                 .padding(.horizontal, 40)
-                
+
+                // App info: version, author, legal links — a tight stack sitting
+                // directly under the tutorial button.
+                VStack(spacing: ApproachNoteTheme.spacingXXS) {
+                    Text(appVersion)
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(.white.opacity(0.8))
+
+                    Text("Written by Dave Rodger")
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(.white.opacity(0.8))
+
+                    HStack(spacing: ApproachNoteTheme.spacingXS) {
+                        Link("Terms", destination: URL(string: "https://approachnote.com/terms")!)
+                        Text("·")
+                        Link("Privacy", destination: URL(string: "https://approachnote.com/privacy")!)
+                        Text("·")
+                        Link("approachnote.com", destination: URL(string: "https://www.approachnote.com")!)
+                    }
+                    .font(ApproachNoteTheme.caption())
+                    .foregroundColor(.white.opacity(0.8))
+                    .tint(.white.opacity(0.8))
+                }
+
                 Spacer()
-                
+
                 // Research Queue Status
                 VStack(spacing: ApproachNoteTheme.spacingXS) {
                     if isLoadingQueue && !isRefreshing {
@@ -186,29 +209,10 @@ struct AboutView: View {
                         await refreshQueueStatus()
                     }
                 }
-                
+
+                // Trailing spacer keeps the queue box off the tab bar instead of
+                // pinning it to the very bottom edge.
                 Spacer()
-                
-                Text(appVersion)
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(.white.opacity(0.8))
-
-                Text("Written by Dave Rodger")
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(.white.opacity(0.8))
-                    .padding(.bottom, ApproachNoteTheme.spacingXS)
-
-                HStack(spacing: ApproachNoteTheme.spacingXS) {
-                    Link("Terms", destination: URL(string: "https://approachnote.com/terms")!)
-                    Text("·")
-                    Link("Privacy", destination: URL(string: "https://approachnote.com/privacy")!)
-                    Text("·")
-                    Link("approachnote.com", destination: URL(string: "https://www.approachnote.com")!)
-                }
-                .font(ApproachNoteTheme.caption())
-                .foregroundColor(.white.opacity(0.8))
-                .tint(.white.opacity(0.8))
-                .padding(.bottom, 40)
             }
             .dynamicTypeSize(...DynamicTypeSize.large)
         }
