@@ -14,6 +14,16 @@
       "filename" : "Image@3x.png",
       "idiom" : "universal",
       "scale" : "3x"
+    },
+    {
+      "filename" : "AboutImage~ipad.png",
+      "idiom" : "ipad",
+      "scale" : "1x"
+    },
+    {
+      "filename" : "AboutImage@2x~ipad.png",
+      "idiom" : "ipad",
+      "scale" : "2x"
     }
   ],
   "info" : {
