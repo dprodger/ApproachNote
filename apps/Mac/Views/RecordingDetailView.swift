@@ -354,13 +354,7 @@ struct RecordingDetailView: View {
     }
 
     private var albumArtPlaceholder: some View {
-        Rectangle()
-            .fill(ApproachNoteTheme.surface)
-            .overlay {
-                Image(systemName: "music.note")
-                    .font(.system(size: 50))
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-            }
+        NoAlbumArtPlaceholder(cornerRadius: 8)
     }
 
     /// Get Spotify URL - uses selected release if available, otherwise falls back to streaming links or legacy field

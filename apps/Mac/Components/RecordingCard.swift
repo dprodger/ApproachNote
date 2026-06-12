@@ -70,25 +70,13 @@ struct RecordingCard: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                         case .failure:
-                            Rectangle()
-                                .fill(ApproachNoteTheme.surface)
-                                .overlay {
-                                    Image(systemName: "music.note")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
+                            NoAlbumArtPlaceholder(cornerRadius: 10)
                         @unknown default:
                             EmptyView()
                         }
                     }
                 } else {
-                    Rectangle()
-                        .fill(ApproachNoteTheme.surface)
-                        .overlay {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
+                    NoAlbumArtPlaceholder(cornerRadius: 10)
                 }
             }
             .frame(width: artworkSize, height: artworkSize)

@@ -3,15 +3,16 @@
 //  Approach Note
 //
 //  The single, standard placeholder for the no-album-art case: a plain
-//  outlined card with a centered two-line label. Used everywhere a
-//  recording is missing cover art (shelf cards, hero artwork) so the
-//  treatment stays consistent instead of a mix of disc/note glyphs.
+//  outlined card with a centered two-line label. Shared by iOS and Mac,
+//  used everywhere a recording is missing cover art (shelf cards, hero
+//  artwork) so the treatment stays consistent instead of a mix of
+//  disc/note glyphs.
 //
 
 import SwiftUI
 
 /// Outlined "Album art / not available" placeholder. Fills its container,
-/// so each call site sets the size (150pt shelf card vs. hero artwork) and
+/// so each call site sets the size (shelf card vs. hero artwork) and
 /// passes the corner radius that matches the real artwork it stands in for.
 struct NoAlbumArtPlaceholder: View {
     var cornerRadius: CGFloat = 12

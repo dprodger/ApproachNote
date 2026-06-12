@@ -55,25 +55,13 @@ struct FeaturedRecordingCard: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                         case .failure:
-                            Rectangle()
-                                .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
-                                .overlay {
-                                    Image(systemName: "music.note")
-                                        .font(.system(size: 40))
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
+                            NoAlbumArtPlaceholder(cornerRadius: 12)
                         @unknown default:
                             EmptyView()
                         }
                     }
                 } else {
-                    Rectangle()
-                        .fill(ApproachNoteTheme.textSecondary.opacity(0.2))
-                        .overlay {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
+                    NoAlbumArtPlaceholder(cornerRadius: 12)
                 }
             }
             .frame(width: artworkSize, height: artworkSize)

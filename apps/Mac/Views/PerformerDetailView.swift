@@ -900,13 +900,7 @@ struct PerformerRecordingCard: View {
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
-                    Rectangle()
-                        .fill(ApproachNoteTheme.surface)
-                        .overlay {
-                            Image(systemName: "music.note")
-                                .font(.system(size: 40))
-                                .foregroundColor(ApproachNoteTheme.textSecondary)
-                        }
+                    NoAlbumArtPlaceholder(cornerRadius: 8)
                 }
                 .frame(width: artworkSize, height: artworkSize)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
