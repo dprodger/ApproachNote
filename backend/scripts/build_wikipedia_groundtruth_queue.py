@@ -264,6 +264,84 @@ def _load_subset() -> list[dict]:
     return [grouped[pid] for pid in order]
 
 
+MAX_INSTRUMENTS = 6
+MAX_SAMPLE_RECORDINGS = 5
+
+
+def _empty_context() -> dict:
+    return {"instruments": [], "recording_count": 0, "year_min": None,
+            "year_max": None, "sample_recordings": [], "artist_type": None,
+            "disambiguation": None, "birth_date": None, "death_date": None,
+            "biography": None}
+
+
+def _load_system_context(performer_ids: list[str]) -> dict[str, dict]:
+    """What our own DB knows about each performer — instrument(s), recording
+    history, and bio fields. This is often the decisive disambiguator: the
+    Commons photos can be wrong (old guess path), but "guitarist, 3 recordings
+    in the 1990s" unambiguously points at the right Wikipedia article."""
+    if not performer_ids:
+        return {}
+    ctx = {pid: _empty_context() for pid in performer_ids}
+    with get_db_connection() as conn, conn.cursor() as cur:
+        cur.execute("""
+            SELECT id, artist_type, disambiguation, birth_date, death_date,
+                   LEFT(COALESCE(biography, ''), 280) AS bio
+            FROM performers WHERE id = ANY(%s)
+        """, (performer_ids,))
+        for r in cur.fetchall():
+            c = ctx[str(r["id"])]
+            c["artist_type"] = r["artist_type"]
+            c["disambiguation"] = r["disambiguation"]
+            c["birth_date"] = str(r["birth_date"]) if r["birth_date"] else None
+            c["death_date"] = str(r["death_date"]) if r["death_date"] else None
+            c["biography"] = (r["bio"] or "").strip() or None
+
+        cur.execute("""
+            SELECT rp.performer_id AS pid, i.name AS name, COUNT(*) AS n
+            FROM recording_performers rp
+            JOIN instruments i ON i.id = rp.instrument_id
+            WHERE rp.performer_id = ANY(%s)
+            GROUP BY rp.performer_id, i.name
+            ORDER BY rp.performer_id, n DESC
+        """, (performer_ids,))
+        for r in cur.fetchall():
+            insts = ctx[str(r["pid"])]["instruments"]
+            if len(insts) < MAX_INSTRUMENTS:
+                insts.append(r["name"])
+
+        cur.execute("""
+            SELECT rp.performer_id AS pid, COUNT(DISTINCT r.id) AS n,
+                   MIN(r.recording_year) AS ymin, MAX(r.recording_year) AS ymax
+            FROM recording_performers rp
+            JOIN recordings r ON r.id = rp.recording_id
+            WHERE rp.performer_id = ANY(%s)
+            GROUP BY rp.performer_id
+        """, (performer_ids,))
+        for r in cur.fetchall():
+            c = ctx[str(r["pid"])]
+            c["recording_count"] = r["n"]
+            c["year_min"], c["year_max"] = r["ymin"], r["ymax"]
+
+        cur.execute("""
+            SELECT pid, year, title FROM (
+                SELECT rp.performer_id AS pid, r.recording_year AS year,
+                       COALESCE(NULLIF(r.title, ''), s.title) AS title,
+                       ROW_NUMBER() OVER (PARTITION BY rp.performer_id
+                           ORDER BY r.recording_year NULLS LAST, r.id) AS rn
+                FROM recording_performers rp
+                JOIN recordings r ON r.id = rp.recording_id
+                JOIN songs s ON s.id = r.song_id
+                WHERE rp.performer_id = ANY(%s)
+            ) t WHERE rn <= %s
+            ORDER BY pid, year NULLS LAST
+        """, (performer_ids, MAX_SAMPLE_RECORDINGS))
+        for r in cur.fetchall():
+            ctx[str(r["pid"])]["sample_recordings"].append(
+                {"year": r["year"], "title": r["title"]})
+    return ctx
+
+
 def main() -> None:
     p = argparse.ArgumentParser(
         description="Build the performer->Wikipedia verification queue JSON.",
@@ -275,7 +353,23 @@ def main() -> None:
     p.add_argument("-o", "--output", default=None,
                    help="Output queue JSON path (default: "
                         "data/ground_truth/wikipedia_queue_<ts>.json)")
+    p.add_argument("--backfill-context", metavar="QUEUE_JSON", default=None,
+                   help="Augment an EXISTING queue JSON in place with system_context "
+                        "(DB-only, no Wikimedia calls). Keeps the same filename so the "
+                        "viewer's saved decisions are preserved. Then re-run the viewer.")
     args = p.parse_args()
+
+    if args.backfill_context:
+        path = Path(args.backfill_context)
+        data = json.loads(path.read_text(encoding="utf-8"))
+        ids = [r["performer_id"] for r in data.get("records", [])]
+        ctx = _load_system_context(ids)
+        for r in data["records"]:
+            r["system_context"] = ctx.get(r["performer_id"], _empty_context())
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        logger.info("Backfilled system_context into %s (%d performer(s))", path, len(ids))
+        print(path)
+        return
 
     subset = _load_subset()
     logger.info("Subset: %d performer(s) with Commons imagery and no Wikipedia link",
@@ -283,6 +377,8 @@ def main() -> None:
     if args.limit:
         subset = subset[: args.limit]
         logger.info("Capped to %d performer(s)", len(subset))
+
+    system_ctx = _load_system_context([p["performer_id"] for p in subset])
 
     wm = WM(ci.make_session(), delay=args.delay)
     records = []
@@ -303,6 +399,7 @@ def main() -> None:
         records.append({
             "performer_id": perf["performer_id"],
             "name": perf["name"],
+            "system_context": system_ctx.get(perf["performer_id"], _empty_context()),
             "evidence_images": evidence,
             "candidates": candidates,
         })

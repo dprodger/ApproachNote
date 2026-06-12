@@ -78,6 +78,15 @@ _HTML = r"""<!DOCTYPE html>
   .alt label { display:flex; gap:6px; align-items:center; cursor:pointer; color:var(--muted); font-size:13px; }
   .alt.selno { border-color:var(--no); } .alt.selcustom { border-color:var(--ok); }
   .nocand { color:var(--warn); font-size:13px; margin-bottom:7px; }
+  .sysctx { margin-top:12px; padding:10px; border:1px solid var(--line); border-radius:8px; background:#0f1620; }
+  .sysctx h3 { margin:0 0 6px; }
+  .sysctx .chips { display:flex; flex-wrap:wrap; gap:5px; margin-bottom:6px; }
+  .sysctx .chip { font-size:11px; padding:2px 8px; border-radius:10px; border:1px solid #24405a; color:#8ad; }
+  .sysctx .line { font-size:12.5px; color:var(--txt); margin:3px 0; }
+  .sysctx .muted { color:var(--muted); }
+  .sysctx ul { margin:5px 0 0; padding-left:16px; }
+  .sysctx li { font-size:12px; color:var(--muted); }
+  .sysctx .bio { font-size:12px; color:var(--muted); margin-top:6px; font-style:italic; }
   .hidden { display:none !important; }
   a.searchlink { color:var(--accent); font-size:12px; text-decoration:none; }
 </style>
@@ -113,6 +122,31 @@ const esc = s => (s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;
 
 const main = document.getElementById("main");
 
+function sysContextHTML(c){
+  if(!c) return "";
+  const parts = [];
+  if((c.instruments||[]).length)
+    parts.push(`<div class="chips">${c.instruments.map(i=>`<span class="chip">${esc(i)}</span>`).join("")}</div>`);
+  if(c.recording_count){
+    let era = "";
+    if(c.year_min && c.year_max) era = c.year_min===c.year_max ? ` · ${c.year_min}` : ` · ${c.year_min}–${c.year_max}`;
+    parts.push(`<div class="line"><b>${c.recording_count}</b> recording(s) in our DB<span class="muted">${era}</span></div>`);
+  }
+  const idbits = [];
+  if(c.artist_type) idbits.push(esc(c.artist_type));
+  if(c.disambiguation) idbits.push(esc(c.disambiguation));
+  const dates = (c.birth_date||c.death_date) ? `${c.birth_date||"?"} – ${c.death_date||""}`.trim() : "";
+  if(idbits.length) parts.push(`<div class="line muted">${idbits.join(" · ")}</div>`);
+  if(dates) parts.push(`<div class="line muted">${esc(dates)}</div>`);
+  const seenT = new Set();
+  const samples = (c.sample_recordings||[]).filter(s=>{ const k=(s.title||"").toLowerCase(); if(seenT.has(k)) return false; seenT.add(k); return true; });
+  if(samples.length)
+    parts.push(`<ul>${samples.map(s=>`<li>${s.year?esc(String(s.year))+" — ":""}${esc(s.title||"")}</li>`).join("")}</ul>`);
+  if(c.biography) parts.push(`<div class="bio">${esc(c.biography)}${c.biography.length>=280?"…":""}</div>`);
+  if(!parts.length) parts.push(`<div class="line muted">No recording/instrument data in our DB.</div>`);
+  return `<div class="sysctx"><h3>What our DB knows</h3>${parts.join("")}</div>`;
+}
+
 function decide(pid, d){ if(d) decisions[pid]=Object.assign({at:new Date().toISOString()},d); else delete decisions[pid]; persist(); render(); }
 
 function statusOf(pid){ const d=decisions[pid]; if(!d) return "undecided"; return d.choice==="no_match"?"no_match":"verified"; }
@@ -143,7 +177,7 @@ function render(){
         ${statusPill}
       </div>
       <div class="body">
-        <div class="evidence"><h3>Our Commons photos</h3><div class="egrid"></div></div>
+        <div class="evidence"><h3>Our Commons photos</h3><div class="egrid"></div><div class="sysbox"></div></div>
         <div class="cands"><h3>Candidate Wikipedia article</h3><div class="clist"></div></div>
       </div>`;
     const eg=sec.querySelector(".egrid");
@@ -153,6 +187,7 @@ function render(){
       a.querySelector("img").addEventListener("error",e=>e.target.style.opacity=.15);
       eg.appendChild(a);
     }
+    sec.querySelector(".sysbox").innerHTML = sysContextHTML(r.system_context);
     const cl=sec.querySelector(".clist");
     if(!r.candidates.length){
       const sr=`https://en.wikipedia.org/w/index.php?search=${encodeURIComponent(r.name)}`;
