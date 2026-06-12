@@ -83,11 +83,8 @@ struct RecordingRowView: View {
                         }
                     )
                 } else {
-                    Image(systemName: "opticaldisc")
-                        .font(ApproachNoteTheme.largeTitle())
-                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                    NoAlbumArtPlaceholder(cornerRadius: 8)
                         .frame(width: 150, height: 150)
-                        .background(ApproachNoteTheme.surface)
                 }
             }
             .cornerRadius(8)

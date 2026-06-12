@@ -732,16 +732,9 @@ struct RecordingDetailView: View {
     // MARK: - Album Art Placeholder
 
     private var albumArtPlaceholder: some View {
-        Rectangle()
-            .fill(ApproachNoteTheme.surface)
+        NoAlbumArtPlaceholder(cornerRadius: 12)
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
-            .cornerRadius(12)
-            .overlay(
-                Image(systemName: "music.note")
-                    .font(.system(size: 80))
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
-            )
     }
     
     // MARK: - Recording Metadata Block (surfaced on main page)
