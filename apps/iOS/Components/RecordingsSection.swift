@@ -92,10 +92,12 @@ struct RecordingsSection: View {
                             .multilineTextAlignment(.center)
                     }
                     .frame(maxWidth: .infinity)
+                    .padding(.horizontal, ApproachNoteTheme.spacingXL)
                     .padding(.vertical, 40)
                 }
             }
-            .padding(.horizontal, ApproachNoteTheme.spacingXL)
+            // No horizontal padding here: the accordion shelves bleed to the
+            // device edges (their inner content carries its own leading inset).
             .padding(.top, ApproachNoteTheme.spacingXS)
             .overlay(alignment: .top) {
                 if isReloading {
@@ -228,6 +230,10 @@ struct RecordingsSection: View {
                 }
             }
             .tint(ApproachNoteTheme.brand)
+            // iPad: cap the toggle row so the switch aligns with the right edge
+            // of the Performance Type picker below instead of floating out at the
+            // full controls width. iPhone keeps the full-width row.
+            .frame(maxWidth: isWideLayout ? Self.widePerformancePickerMaxWidth : .infinity, alignment: .leading)
 
             // Performance Type segmented
             VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
@@ -290,9 +296,11 @@ struct RecordingsSection: View {
     private func groupAccordion(group: (groupKey: String, recordings: [Recording])) -> some View {
         let isExpanded = expandedGroups.contains(group.groupKey)
 
-        // Carded shelf: a pure-white surface card with a light border sitting on
-        // the cream page, a header with a chevron toggle, and a carousel that
-        // bleeds to the card's trailing edge (clipped by the rounded corners).
+        // Full-bleed shelf: a white band spanning edge to edge on the cream page,
+        // with hairline borders on the top and bottom only (no side borders), so
+        // the carousel inside can scroll right up to the device edges. The header
+        // text and the first card keep a leading inset to align with the section
+        // header above.
         VStack(alignment: .leading, spacing: 0) {
             Button(action: {
                 withAnimation(.easeInOut(duration: 0.2)) {
@@ -312,7 +320,7 @@ struct RecordingsSection: View {
                         .font(ApproachNoteTheme.headline())
                         .foregroundColor(ApproachNoteTheme.brand)
                 }
-                .padding(.horizontal, ApproachNoteTheme.spacingMD)
+                .padding(.horizontal, ApproachNoteTheme.spacingXL)
                 .padding(.vertical, ApproachNoteTheme.spacingSM)
                 .contentShape(Rectangle())
             }
@@ -340,18 +348,25 @@ struct RecordingsSection: View {
                         }
                     }
                     // Leading inset aligns the first card with the header text;
-                    // cards bleed off the card's trailing edge as you scroll.
-                    .padding(.leading, ApproachNoteTheme.spacingMD)
+                    // cards bleed off the device's trailing edge as you scroll.
+                    .padding(.leading, ApproachNoteTheme.spacingXL)
                 }
                 .padding(.bottom, ApproachNoteTheme.spacingMD)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(ApproachNoteTheme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(ApproachNoteTheme.surfaceMuted, lineWidth: 1)
-        )
+        // Top + bottom hairlines only; the band runs full width to the edges.
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(ApproachNoteTheme.surfaceMuted)
+                .frame(height: 1)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(ApproachNoteTheme.surfaceMuted)
+                .frame(height: 1)
+        }
     }
 
     /// Expands the first shelf once, the first time grouped recordings are
