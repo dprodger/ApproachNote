@@ -28,12 +28,21 @@ struct AboutView: View {
     var body: some View {
         ZStack {
             // Background image — the ApproachNote logo is baked into the top of
-            // this PNG, so we don't overlay a separate logo view.
-            Image("AboutImage")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-                .accessibilityLabel("Approach Note")
+            // this PNG, so we don't overlay a separate logo view. Clamp the image
+            // to the container and clip it: an unclipped scaledToFill image
+            // overflows its bounds, and inside the iPad TabView content region
+            // that overflow resolves off-center, pushing the baked-in logo to the
+            // right. Pinning to the GeometryReader's own size + .clipped() forces a
+            // symmetric, center crop on every device.
+            GeometryReader { geo in
+                Image("AboutImage")
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+            }
+            .ignoresSafeArea()
+            .accessibilityLabel("Approach Note")
 
             // Vignette gradient overlay - darker at top and bottom for toolbar visibility
             LinearGradient(
