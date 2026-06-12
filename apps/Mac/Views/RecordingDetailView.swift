@@ -19,6 +19,10 @@ struct RecordingDetailView: View {
     @State private var showingStreamingLinkSheet = false
     @State private var streamingLinkReleaseId: String?
     @State private var streamingLinkReleaseTitle: String?
+    /// Click-to-flip state for the album art: false shows the front cover,
+    /// true shows the back cover. Reset to front when the selected release
+    /// changes (a different release may have no back cover).
+    @State private var showingBackCover = false
     @Environment(\.dismiss) private var dismiss
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var favoritesManager: FavoritesManager
@@ -45,6 +49,24 @@ struct RecordingDetailView: View {
             return release.coverArtLarge ?? release.coverArtMedium
         }
         return recording?.bestAlbumArtLarge ?? recording?.bestAlbumArtMedium
+    }
+
+    /// Back cover art URL — selected release if the user picked one,
+    /// otherwise the recording's default back cover.
+    private var displayBackCoverArtLarge: String? {
+        if let release = selectedRelease {
+            return release.backCoverArtLarge ?? release.backCoverArtMedium
+        }
+        return recording?.backCoverArtLarge ?? recording?.backCoverArtMedium
+    }
+
+    /// Whether a back cover is available to flip to (selected release or
+    /// recording). Gates the click-to-flip gesture on the album art.
+    private var canFlipToBackCover: Bool {
+        if let release = selectedRelease {
+            return release.canFlipToBackCover
+        }
+        return recording?.canFlipToBackCover ?? false
     }
 
     /// Release year for the currently selected (or default) release.
@@ -220,30 +242,44 @@ struct RecordingDetailView: View {
     @ViewBuilder
     private func recordingHeader(_ recording: Recording) -> some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingMD) {
-            // Full-width album art
-            Group {
-                if let frontUrl = displayAlbumArtLarge {
-                    AsyncImage(url: URL(string: frontUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        Rectangle()
-                            .fill(ApproachNoteTheme.surface)
+            // Full-width album art with click-to-flip. When a back cover is
+            // available, clicking the art rotates the card 180° on its Y axis
+            // to reveal the back; clicking again flips it home.
+            ZStack {
+                // Front cover (or placeholder); fades out as the card passes 90°.
+                Group {
+                    if let frontUrl = displayAlbumArtLarge {
+                        coverImage(url: frontUrl)
+                    } else {
+                        albumArtPlaceholder
                             .aspectRatio(1, contentMode: .fit)
-                            .overlay {
-                                ProgressView()
-                                    .tint(ApproachNoteTheme.textSecondary)
-                            }
                     }
-                } else {
-                    albumArtPlaceholder
-                        .aspectRatio(1, contentMode: .fit)
+                }
+                .opacity(showingBackCover ? 0 : 1)
+
+                // Back cover, pre-rotated so it reads correctly once flipped in.
+                if let backUrl = displayBackCoverArtLarge {
+                    coverImage(url: backUrl)
+                        .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                        .opacity(showingBackCover ? 1 : 0)
                 }
             }
             .frame(maxWidth: .infinity)
             .cornerRadius(8)
+            .rotation3DEffect(.degrees(showingBackCover ? 180 : 0), axis: (x: 0, y: 1, z: 0))
             .shadow(radius: 4)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                guard canFlipToBackCover else { return }
+                withAnimation(.easeInOut(duration: 0.4)) {
+                    showingBackCover.toggle()
+                }
+            }
+            // A different release may have no back cover (or a different one),
+            // so always return to the front when the selection changes.
+            .onChange(of: selectedReleaseId) { _, _ in
+                showingBackCover = false
+            }
             .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
 
             // Song title, album title, and artist below the image
@@ -355,6 +391,24 @@ struct RecordingDetailView: View {
 
     private var albumArtPlaceholder: some View {
         NoAlbumArtPlaceholder(cornerRadius: 8)
+    }
+
+    /// One face of the flip card: a fitted cover image with a spinner
+    /// placeholder while it loads. Shared by the front and back covers.
+    private func coverImage(url: String) -> some View {
+        AsyncImage(url: URL(string: url)) { image in
+            image
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } placeholder: {
+            Rectangle()
+                .fill(ApproachNoteTheme.surface)
+                .aspectRatio(1, contentMode: .fit)
+                .overlay {
+                    ProgressView()
+                        .tint(ApproachNoteTheme.textSecondary)
+                }
+        }
     }
 
     /// Get Spotify URL - uses selected release if available, otherwise falls back to streaming links or legacy field
