@@ -352,6 +352,14 @@ struct RecordingsSection: View {
                     .padding(.leading, ApproachNoteTheme.spacingXL)
                 }
                 .padding(.bottom, ApproachNoteTheme.spacingMD)
+                // Hydrate the whole shelf the moment it opens. Per-card
+                // .onAppear (RecordingRowView.onVisible) is unreliable for
+                // cards revealed by a horizontal swipe — the lazy row often
+                // doesn't fire onAppear — so deep shelves like "1980s" (past
+                // the eager-hydration window) showed the no-art placeholder
+                // until the view was rebuilt. Requesting the whole group up
+                // front is bounded to one decade and deduped by the view model.
+                .onAppear { hydrateShelf(group.recordings) }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -366,6 +374,18 @@ struct RecordingsSection: View {
             Rectangle()
                 .fill(ApproachNoteTheme.surfaceMuted)
                 .frame(height: 1)
+        }
+    }
+
+    /// Request hydration for every recording in a shelf. Called when a
+    /// shelf expands so cover art is on its way before the user swipes,
+    /// rather than relying on each card's horizontal-swipe .onAppear.
+    /// `onRequestHydration` is nil for callers that pass fully-loaded
+    /// recordings, in which case this is a no-op.
+    private func hydrateShelf(_ recordings: [Recording]) {
+        guard let onRequestHydration else { return }
+        for recording in recordings {
+            onRequestHydration(recording.id)
         }
     }
 

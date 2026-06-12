@@ -723,7 +723,24 @@ struct SongDetailView: View {
                     .padding(.vertical, ApproachNoteTheme.spacingXXS)
                 }
                 .padding(.bottom, ApproachNoteTheme.spacingXS)
+                // Hydrate the whole shelf when it opens, matching iOS. This
+                // shelf uses a non-lazy HStack, so every card's onVisible
+                // already fires on expand — but requesting the group up front
+                // keeps the two platforms consistent and guards the day this
+                // becomes a LazyHStack (where horizontal-swipe onAppear is
+                // unreliable). Bounded to one decade and deduped by the VM.
+                .onAppear { hydrateShelf(group.recordings) }
             }
+        }
+    }
+
+    /// Request hydration for every recording in a shelf as it expands, so
+    /// cover art arrives before the user swipes rather than relying on each
+    /// card's onVisible. Deduped by SongDetailViewModel against rows it has
+    /// already hydrated or queued.
+    private func hydrateShelf(_ recordings: [Recording]) {
+        for recording in recordings {
+            viewModel.requestHydration(for: recording.id)
         }
     }
 
