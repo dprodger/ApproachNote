@@ -376,10 +376,6 @@ nav a:hover {
     display: none;
 }
 
-.explore-panel--no-media {
-    display: block;
-}
-
 .explore-text {
     margin: 0;
     color: var(--text-secondary);
