@@ -48,6 +48,7 @@ from db_utils import (
 
 # Import Wikipedia utilities with caching
 from integrations.wikipedia.utils import WikipediaSearcher
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -83,11 +84,8 @@ class ImageFetcher:
         self.dry_run = dry_run
         self.debug = debug
         self.force_refresh = force_refresh
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
-        
+        self.session = make_session(accept_json=False)
+
         # Initialize Wikipedia searcher with caching
         self.wiki_searcher = WikipediaSearcher(
             cache_days=7,

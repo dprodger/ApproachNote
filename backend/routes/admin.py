@@ -22,6 +22,7 @@ from datetime import datetime
 from pathlib import Path
 
 from core.auth_utils import hash_password
+from core.http_client import make_session
 from db_utils import get_db_connection
 from integrations.musicbrainz.release_importer import MBReleaseImporter
 from integrations.musicbrainz.parsing import parse_release_data
@@ -1307,10 +1308,7 @@ def diagnose_mb_recording(song_id):
                         diagnosis['recommendation']['id'] = str(rec['id'])
 
                 # ===== CHECK 1: Fetch from MusicBrainz =====
-                mb_session = requests.Session()
-                mb_session.headers.update({
-                    'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-                })
+                mb_session = make_session(accept_json=False)
 
                 # Fetch recording with work-rels and releases
                 mb_response = mb_session.get(

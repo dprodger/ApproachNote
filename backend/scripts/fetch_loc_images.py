@@ -32,6 +32,7 @@ from db_utils import (
     normalize_apostrophes,
     get_performer_images
 )
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -68,11 +69,7 @@ class LOCImageFetcher:
         """
         self.dry_run = dry_run
         self.debug = debug
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-            'Accept': 'application/json'
-        })
+        self.session = make_session()
         
         if debug:
             logger.setLevel(logging.DEBUG)

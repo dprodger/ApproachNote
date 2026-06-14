@@ -24,6 +24,7 @@ from db_utils import (
     find_performer_by_id,
     get_performer_images
 )
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -39,10 +40,7 @@ class WikipediaImageProcessor:
     def __init__(self, dry_run: bool = False, debug: bool = False):
         self.dry_run = dry_run
         self.debug = debug
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
+        self.session = make_session(accept_json=False)
         
         if debug:
             logger.setLevel(logging.DEBUG)

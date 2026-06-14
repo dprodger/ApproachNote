@@ -16,6 +16,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 
 from core.cache_utils import get_cache_dir
+from core.http_client import make_session
 
 logger = logging.getLogger(__name__)
 
@@ -51,11 +52,7 @@ class WikipediaSearcher:
             cache_days: Number of days before cache is considered stale
             force_refresh: If True, always fetch fresh data ignoring cache
         """
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-            'Accept': 'application/json'
-        })
+        self.session = make_session()
         
         # Rate limiting
         self.last_request_time = 0

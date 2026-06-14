@@ -15,6 +15,7 @@ from datetime import datetime
 import requests
 
 from db_utils import get_db_connection
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -41,11 +42,7 @@ class LeaderFixer:
         """
         self.dry_run = dry_run
         self.request_delay = request_delay
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-            'Accept': 'application/json'
-        })
+        self.session = make_session()
         self.stats = {
             'recordings_checked': 0,
             'recordings_no_leader': 0,

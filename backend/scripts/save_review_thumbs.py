@@ -13,11 +13,17 @@ Usage:
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 
 import requests
 
-UA = {"User-Agent": "ApproachNote/1.0 (+support@approachnote.com)"}
+# This is an otherwise standalone utility; put backend/ on the path so the
+# shared outbound User-Agent can be imported rather than re-hardcoded.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from core.http_client import HTTP_USER_AGENT
+
+UA = {"User-Agent": HTTP_USER_AGENT}
 
 
 def slug(s: str, n: int = 40) -> str:
