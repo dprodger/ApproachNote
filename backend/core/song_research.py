@@ -23,6 +23,7 @@ from typing import Dict, Any
 from integrations.musicbrainz.release_importer import MBReleaseImporter
 from db_utils import get_db_connection, execute_query
 from integrations.musicbrainz.utils import MusicBrainzSearcher, update_song_composer, update_song_wikipedia_url, update_song_composed_year
+from integrations.wikipedia.song_intro import update_song_wikipedia_intro
 from core import research_queue, research_jobs
 from core import performer_reference_verification
 logger = logging.getLogger(__name__)
@@ -216,6 +217,14 @@ def research_song(song_id: str, song_name: str, force_refresh: bool = True) -> D
         composed_year_updated = update_song_composed_year(str(song_id))
         if not composed_year_updated:
             logger.debug("Composed year not updated (already set or not found)")
+
+        # Step 1.8: Pull the Wikipedia intro into songs.structure. Runs after
+        # Step 1.6 so it can consume the wikipedia_url just resolved off the
+        # MB work. Idempotent unless force_refresh — see update_song_wikipedia_intro.
+        logger.info("Checking for Wikipedia intro update...")
+        intro_updated = update_song_wikipedia_intro(str(song_id), force_refresh=force_refresh)
+        if not intro_updated:
+            logger.debug("Wikipedia intro not updated (already set, no URL, or not found)")
 
         # Spotify, Apple Music, and YouTube matching all run on the
         # durable research queue (research_worker/handlers/*). Their
