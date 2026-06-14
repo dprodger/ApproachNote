@@ -21,10 +21,10 @@ from urllib.parse import unquote, urlparse
 
 import requests
 
+from core.http_client import make_session
+
 logger = logging.getLogger(__name__)
 
-# MediaWiki asks API clients to send a descriptive User-Agent.
-USER_AGENT = "ApproachNote/1.0 (+support@approachnote.com)"
 DEFAULT_SENTENCES = 4
 REQUEST_TIMEOUT = 15
 
@@ -58,7 +58,7 @@ def fetch_wikipedia_intro(page_title: str, api_url: str,
     request fails. Raises nothing for HTTP-level non-200s (logs + returns
     None); network exceptions propagate to the caller.
     """
-    sess = session or requests.Session()
+    sess = session or make_session()
     params = {
         'action': 'query',
         'format': 'json',
@@ -69,8 +69,7 @@ def fetch_wikipedia_intro(page_title: str, api_url: str,
         'explaintext': 1,
         'exsentences': sentences,
     }
-    headers = {'User-Agent': USER_AGENT, 'Accept': 'application/json'}
-    resp = sess.get(api_url, params=params, headers=headers, timeout=REQUEST_TIMEOUT)
+    resp = sess.get(api_url, params=params, timeout=REQUEST_TIMEOUT)
     if resp.status_code != 200:
         logger.warning("Wikipedia returned status %s for %s", resp.status_code, page_title)
         return None
