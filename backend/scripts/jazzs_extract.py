@@ -32,6 +32,7 @@ except ImportError:
     pass  # python-dotenv not installed, skip
 
 from db_utils import get_db_connection
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -76,10 +77,7 @@ class JazzStandardsRecommendationExtractor:
         ITUNES_CACHE_DIR.mkdir(parents=True, exist_ok=True)
         
         # Setup session for HTTP requests
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
+        self.session = make_session(accept_json=False)
     
     def get_cache_path(self, url: str) -> Path:
         """Generate cache file path for a URL"""

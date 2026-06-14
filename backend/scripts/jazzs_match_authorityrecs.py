@@ -42,6 +42,7 @@ except ImportError:
     pass  # python-dotenv not installed, skip
 
 from db_utils import get_db_connection
+from core.http_client import make_session
 from rapidfuzz import fuzz
 
 # Ensure log directory exists BEFORE logging configuration
@@ -91,10 +92,7 @@ class AuthorityRecommendationMatcher:
         }
 
         # Setup HTTP session for iTunes API calls
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
+        self.session = make_session(accept_json=False)
         
         # Matching thresholds
         self.thresholds = {

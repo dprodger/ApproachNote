@@ -22,6 +22,7 @@ from typing import Optional, Dict, List, Any
 import requests
 
 from core.cache_utils import get_cache_dir
+from core.http_client import make_session
 
 logger = logging.getLogger(__name__)
 
@@ -66,11 +67,7 @@ class CoverArtArchiveClient:
             cache_days: Number of days before cache is considered stale
             force_refresh: If True, bypass cache and fetch fresh data
         """
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-            'Accept': 'application/json'
-        })
+        self.session = make_session()
         
         # Rate limiting (CAA has no limit, but be courteous)
         self.last_request_time = 0

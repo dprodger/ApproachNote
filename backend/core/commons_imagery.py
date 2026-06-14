@@ -45,10 +45,10 @@ import requests
 
 from db_utils import get_db_connection
 from core import image_quality as iq
+from core.http_client import make_session
 
 logger = logging.getLogger("commons_imagery")
 
-USER_AGENT = "ApproachNote/1.0 (+support@approachnote.com)"
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 WIKIDATA_API = "https://www.wikidata.org/w/api.php"
 WIKIPEDIA_API = "https://en.wikipedia.org/w/api.php"
@@ -157,12 +157,7 @@ class ImageRecord:
 # ---------------------------------------------------------------------------
 # HTTP helpers
 # ---------------------------------------------------------------------------
-
-def make_session() -> requests.Session:
-    s = requests.Session()
-    s.headers.update({"User-Agent": USER_AGENT, "Accept": "application/json"})
-    return s
-
+# Session construction lives in core.http_client.make_session (imported above).
 
 def download(session: requests.Session, url: Optional[str],
              max_bytes: int = 15_000_000, timeout: int = 30) -> Optional[bytes]:

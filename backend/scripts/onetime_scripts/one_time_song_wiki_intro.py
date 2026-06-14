@@ -32,6 +32,7 @@ except ImportError:
     pass
 
 from db_utils import get_db_connection  # noqa: E402
+from core.http_client import make_session  # noqa: E402
 
 LOG_DIR = Path(__file__).resolve().parent.parent / 'log'
 LOG_DIR.mkdir(exist_ok=True)
@@ -46,7 +47,6 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-USER_AGENT = "ApproachNote/1.0 (+support@approachnote.com)"
 RATE_LIMIT_SECONDS = 1.0
 
 
@@ -165,8 +165,7 @@ Examples:
     )
     logger.info("")
 
-    session = requests.Session()
-    session.headers.update({'User-Agent': USER_AGENT, 'Accept': 'application/json'})
+    session = make_session()
 
     stats = {'processed': 0, 'updated': 0, 'no_intro': 0, 'bad_url': 0, 'errors': 0}
     last_request = 0.0

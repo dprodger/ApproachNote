@@ -27,6 +27,7 @@ from urllib.parse import urlencode
 import requests
 
 from core.cache_utils import get_cache_dir
+from core.http_client import make_session
 
 logger = logging.getLogger(__name__)
 
@@ -99,10 +100,7 @@ class YouTubeClient:
         self.search_cache_dir.mkdir(parents=True, exist_ok=True)
         self.videos_cache_dir.mkdir(parents=True, exist_ok=True)
 
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-        })
+        self.session = make_session(accept_json=False)
 
         # Stats — mirrors what the other matchers expose so a CLI can print
         # a consistent summary. `quota_units` is the YouTube-specific one.

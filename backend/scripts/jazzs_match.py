@@ -31,6 +31,7 @@ except ImportError:
     pass  # python-dotenv not installed, skip
 
 from db_utils import get_db_connection
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -67,10 +68,7 @@ class JazzStandardsMatcher:
         self.unmatched_songs = []
         
         # Setup session for HTTP requests
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
+        self.session = make_session(accept_json=False)
     
     def normalize_title(self, title: str, strip_parentheses: bool = False) -> str:
         """

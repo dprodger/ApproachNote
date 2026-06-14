@@ -25,6 +25,7 @@ from urllib.parse import quote_plus
 import requests
 
 from core.cache_utils import get_cache_dir
+from core.http_client import make_session
 
 logger = logging.getLogger(__name__)
 
@@ -97,10 +98,7 @@ class AppleMusicClient:
         self.track_cache_dir.mkdir(parents=True, exist_ok=True)
 
         # HTTP session for connection reuse
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)'
-        })
+        self.session = make_session(accept_json=False)
 
         # Stats tracking
         self.stats = {

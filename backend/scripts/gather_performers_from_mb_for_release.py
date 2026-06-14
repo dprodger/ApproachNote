@@ -17,6 +17,7 @@ import requests
 sys.path.insert(0, '/mnt/project/scripts')
 from db_utils import get_db_connection
 from integrations.musicbrainz.performer_importer import PerformerImporter
+from core.http_client import make_session
 
 # Configure logging
 logging.basicConfig(
@@ -32,11 +33,7 @@ logger = logging.getLogger(__name__)
 class SingleRecordingImporter:
     def __init__(self, dry_run=False):
         self.dry_run = dry_run
-        self.session = requests.Session()
-        self.session.headers.update({
-            'User-Agent': 'ApproachNote/1.0 (+support@approachnote.com)',
-            'Accept': 'application/json'
-        })
+        self.session = make_session()
         self.performer_importer = PerformerImporter(dry_run=dry_run)
         self.stats = {
             'recordings_created': 0,
