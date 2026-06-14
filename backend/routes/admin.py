@@ -4434,6 +4434,136 @@ def songs_browse_detail(song_id):
     )
 
 
+def _is_uuid(value):
+    """True if `value` parses as a UUID (MB work IDs are UUIDs)."""
+    import uuid as _uuid
+    try:
+        _uuid.UUID(str(value))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+@admin_bp.route('/musicbrainz/work/<work_id>/lookup', methods=['GET'])
+def musicbrainz_work_lookup(work_id):
+    """Look up a MusicBrainz work by ID and return its title + creators.
+
+    Backs the inline MB Work ID editor on the song detail page: the admin
+    types an ID, we fetch the work from MusicBrainz (cached via
+    MusicBrainzSearcher) and echo back the canonical title and composer/
+    writer/lyricist credits so the change can be eyeballed before saving.
+    """
+    work_id = (work_id or '').strip()
+    if not _is_uuid(work_id):
+        return jsonify({'error': 'Not a valid MusicBrainz work ID (expected a UUID).'}), 400
+
+    try:
+        work_data = MusicBrainzSearcher().get_work_recordings(work_id)
+    except Exception as e:
+        logger.error("MB work lookup failed for %s: %s", work_id, e)
+        return jsonify({'error': 'MusicBrainz lookup failed. Try again.'}), 502
+
+    if not work_data:
+        return jsonify({'error': 'No MusicBrainz work found for that ID.'}), 404
+
+    # Pull composer/writer/lyricist credits off the artist relations, in the
+    # same way song_updates.update_song_composer does, preserving order and
+    # de-duplicating by name.
+    creators = []
+    seen = set()
+    for relation in work_data.get('relations', []):
+        rel_type = relation.get('type')
+        if rel_type in ('composer', 'writer', 'lyricist'):
+            name = (relation.get('artist') or {}).get('name')
+            if name and name not in seen:
+                seen.add(name)
+                creators.append({'name': name, 'type': rel_type})
+
+    return jsonify({
+        'id': work_data.get('id') or work_id,
+        'title': work_data.get('title'),
+        'composers': creators,
+    })
+
+
+@admin_bp.route('/songs/<song_id>/mb-id', methods=['POST'])
+def songs_update_mb_id(song_id):
+    """Set or clear a song's primary or secondary MusicBrainz work ID.
+
+    Body (JSON):
+        slot:  'primary' | 'second' (required)
+        mb_id: UUID string, or '' / null to clear the slot.
+    """
+    body = request.get_json(silent=True) or {}
+    slot = (body.get('slot') or '').strip()
+    column = {'primary': 'musicbrainz_id', 'second': 'second_mb_id'}.get(slot)
+    if not column:
+        return jsonify({'error': "slot must be 'primary' or 'second'"}), 400
+
+    raw = body.get('mb_id')
+    mb_id = (raw or '').strip() or None
+    if mb_id is not None and not _is_uuid(mb_id):
+        return jsonify({'error': 'Not a valid MusicBrainz work ID (expected a UUID).'}), 400
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"UPDATE songs SET {column} = %s, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s RETURNING id",
+                (mb_id, song_id),
+            )
+            if cur.fetchone() is None:
+                conn.rollback()
+                return jsonify({'error': 'Song not found'}), 404
+        conn.commit()
+
+    logger.info("admin set %s=%s on song %s", column, mb_id, song_id)
+    return jsonify({'success': True, 'slot': slot, 'mb_id': mb_id})
+
+
+@admin_bp.route('/songs/<song_id>/alt-titles', methods=['POST'])
+def songs_update_alt_titles(song_id):
+    """Replace a song's alternate-title list (songs.alt_titles TEXT[]).
+
+    Body (JSON): { alt_titles: ["...", ...] }. Entries are trimmed, blanks
+    dropped, duplicates removed (case-insensitive, first spelling wins). An
+    empty list clears the column to NULL.
+    """
+    body = request.get_json(silent=True) or {}
+    raw = body.get('alt_titles')
+    if not isinstance(raw, list):
+        return jsonify({'error': 'alt_titles must be a list of strings'}), 400
+
+    cleaned = []
+    seen = set()
+    for item in raw:
+        title = (item or '').strip() if isinstance(item, str) else ''
+        if not title:
+            continue
+        key = title.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        cleaned.append(title)
+
+    stored = cleaned or None  # empty list -> NULL
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE songs SET alt_titles = %s, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s RETURNING id",
+                (stored, song_id),
+            )
+            if cur.fetchone() is None:
+                conn.rollback()
+                return jsonify({'error': 'Song not found'}), 404
+        conn.commit()
+
+    logger.info("admin set alt_titles=%s on song %s", cleaned, song_id)
+    return jsonify({'success': True, 'alt_titles': cleaned})
+
+
 @admin_bp.route('/releases/<release_id>')
 def releases_browse_detail(release_id):
     """Release detail.

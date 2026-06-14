@@ -163,6 +163,51 @@
             margin-left: 4px;
         }
         .empty { color: #888; padding: 24px; text-align: center; background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; }
+
+        /* Inline editors (MB IDs + alt titles) */
+        .link-btn {
+            background: none; border: none; color: #0066cc; cursor: pointer;
+            font-size: 12px; padding: 0; margin-left: 8px; font-family: inherit;
+        }
+        .link-btn:hover { text-decoration: underline; }
+        .btn {
+            font-size: 12px; padding: 4px 10px; border-radius: 6px;
+            border: 1px solid #d0d0d0; background: #fff; cursor: pointer; font-family: inherit;
+        }
+        .btn:hover { background: #f5f5f7; }
+        .btn-primary { background: #0066cc; border-color: #0066cc; color: #fff; }
+        .btn-primary:hover { background: #0052a3; }
+        .btn-primary:disabled { background: #b0c4de; border-color: #b0c4de; cursor: not-allowed; }
+        .btn-danger { color: #cc0000; border-color: #e0b4b4; }
+        .btn-danger:hover { background: #fdf2f2; }
+        .mb-input, .alt-input {
+            font-family: 'SF Mono', Monaco, monospace; font-size: 12px;
+            padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px;
+            width: 340px; max-width: 100%;
+        }
+        .alt-input { font-family: inherit; }
+        .mb-editor { margin-top: 8px; }
+        .editor-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .mb-result { margin-top: 8px; font-size: 12px; min-height: 1px; }
+        .mb-result .ok { color: #1a7f37; font-weight: 600; }
+        .mb-result .err { color: #cc0000; }
+        .mb-result dl { display: grid; grid-template-columns: max-content 1fr; gap: 2px 10px; margin-top: 4px; }
+        .mb-result dt { color: #888; }
+        .editor-actions { display: flex; gap: 8px; margin-top: 10px; align-items: center; }
+
+        .alt-titles { margin: 2px 0 12px; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .alt-label { color: #888; font-size: 12px; }
+        .alt-chip {
+            display: inline-flex; align-items: center; gap: 4px;
+            background: #eef1f4; border-radius: 12px; padding: 3px 4px 3px 10px;
+            font-size: 12px; color: #333;
+        }
+        .alt-chip button {
+            background: none; border: none; cursor: pointer; color: #999;
+            font-size: 15px; line-height: 1; padding: 0 4px; font-family: inherit;
+        }
+        .alt-chip button:hover { color: #cc0000; }
+        [hidden] { display: none !important; }
     </style>
 </head>
 <body>
@@ -174,37 +219,72 @@
             Song
         </div>
 
-        <div class="summary">
+        <div class="summary" data-song-id="{{ song.id }}">
             <h1>{{ song.title }}</h1>
             {% if song.composer %}
               <div class="composer">{{ song.composer }}</div>
             {% endif %}
+
+            {# Alternate titles, editable. JS owns the chip rendering from the
+               initial array below so display and editor stay in sync. #}
+            <div class="alt-titles" id="alt-titles-view">
+                <span class="alt-label">Alt titles:</span>
+                <span id="alt-titles-chips-view"></span>
+                <button type="button" class="link-btn" id="alt-titles-edit-btn">Edit</button>
+            </div>
+            <div class="alt-titles-editor mb-editor" id="alt-titles-editor" hidden>
+                <div id="alt-titles-chips-edit" class="alt-titles" style="margin:0 0 8px;"></div>
+                <div class="editor-row">
+                    <input type="text" class="alt-input" id="alt-title-input"
+                           placeholder="Add an alternate title, then press Enter or Add" />
+                    <button type="button" class="btn" id="alt-title-add-btn">Add</button>
+                </div>
+                <div class="editor-actions">
+                    <button type="button" class="btn btn-primary" id="alt-titles-save-btn">Save alt titles</button>
+                    <button type="button" class="btn" id="alt-titles-cancel-btn">Cancel</button>
+                    <span id="alt-titles-status" style="font-size:12px;"></span>
+                </div>
+            </div>
+
             <dl>
                 <dt>Song ID</dt>
                 <dd class="mono">{{ song.id }}</dd>
 
-                <dt>MB Work ID</dt>
+                {# Primary + secondary MB work IDs, each with an inline,
+                   verify-before-save editor (see JS at the bottom). #}
+                {% for slot, label, value in [
+                    ('primary', 'MB Work ID', song.musicbrainz_id),
+                    ('second', 'Secondary MB Work ID', song.second_mb_id)
+                ] %}
+                <dt>{{ label }}</dt>
                 <dd>
-                  {% if song.musicbrainz_id %}
-                    <a class="mono" href="https://musicbrainz.org/work/{{ song.musicbrainz_id }}" target="_blank" rel="noopener">{{ song.musicbrainz_id }}</a>
-                  {% else %}<span class="muted">—</span>{% endif %}
+                    <span class="mb-view" data-slot="{{ slot }}">
+                        {% if value %}
+                          <a class="mono" href="https://musicbrainz.org/work/{{ value }}" target="_blank" rel="noopener">{{ value }}</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                        <button type="button" class="link-btn mb-edit-btn" data-slot="{{ slot }}">{{ 'Edit' if value else 'Add' }}</button>
+                    </span>
+                    <div class="mb-editor" data-slot="{{ slot }}" hidden>
+                        <div class="editor-row">
+                            <input type="text" class="mb-input" value="{{ value or '' }}"
+                                   placeholder="MusicBrainz work UUID" />
+                            <button type="button" class="btn mb-lookup-btn">Look up</button>
+                        </div>
+                        <div class="mb-result"></div>
+                        <div class="editor-actions">
+                            <button type="button" class="btn btn-primary mb-save-btn" disabled>Save</button>
+                            {% if value %}
+                            <button type="button" class="btn btn-danger mb-clear-btn">Clear</button>
+                            {% endif %}
+                            <button type="button" class="btn mb-cancel-btn">Cancel</button>
+                        </div>
+                    </div>
                 </dd>
-
-                {% if song.second_mb_id %}
-                <dt>Secondary MB Work ID</dt>
-                <dd>
-                    <a class="mono" href="https://musicbrainz.org/work/{{ song.second_mb_id }}" target="_blank" rel="noopener">{{ song.second_mb_id }}</a>
-                </dd>
-                {% endif %}
+                {% endfor %}
 
                 {% if song.composed_year or song.composed_key %}
                 <dt>Composed</dt>
                 <dd>{{ song.composed_year or '' }}{% if song.composed_key %} · key {{ song.composed_key }}{% endif %}</dd>
-                {% endif %}
-
-                {% if song.alt_titles %}
-                <dt>Alt Titles</dt>
-                <dd>{{ song.alt_titles | join(' · ') }}</dd>
                 {% endif %}
 
                 {% if song.wikipedia_url %}
@@ -213,6 +293,8 @@
                 {% endif %}
             </dl>
         </div>
+
+        <script id="alt-titles-data" type="application/json">{{ (song.alt_titles or []) | tojson }}</script>
 
         <div class="section-header">
             <h2>Recordings ({{ recordings | length }})</h2>
@@ -336,6 +418,203 @@
                 rows.forEach(r => tbody.appendChild(r));
             });
         });
+    })();
+    </script>
+
+    <script>
+    // Inline editors for the MusicBrainz work IDs and the alternate-title
+    // list. State-changing fetches to /admin/* are CSRF-stamped automatically
+    // by static/js/admin.js (loaded via _nav.html).
+    (function () {
+        const summary = document.querySelector('.summary[data-song-id]');
+        if (!summary) return;
+        const songId = summary.dataset.songId;
+        const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+        function esc(s) {
+            return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[c]));
+        }
+
+        // ---- MusicBrainz work ID editors --------------------------------
+        summary.querySelectorAll('.mb-view .mb-edit-btn').forEach(editBtn => {
+            const slot = editBtn.dataset.slot;
+            const view = summary.querySelector(`.mb-view[data-slot="${slot}"]`);
+            const editor = summary.querySelector(`.mb-editor[data-slot="${slot}"]`);
+            const input = editor.querySelector('.mb-input');
+            const lookupBtn = editor.querySelector('.mb-lookup-btn');
+            const saveBtn = editor.querySelector('.mb-save-btn');
+            const clearBtn = editor.querySelector('.mb-clear-btn');
+            const cancelBtn = editor.querySelector('.mb-cancel-btn');
+            const result = editor.querySelector('.mb-result');
+            const original = input.value;
+            let verifiedId = null;   // the id confirmed by the last lookup
+
+            function open() { view.hidden = true; editor.hidden = false; input.focus(); }
+            function close() {
+                editor.hidden = true; view.hidden = false;
+                input.value = original; result.innerHTML = '';
+                saveBtn.disabled = true; verifiedId = null;
+            }
+            function invalidate() { saveBtn.disabled = true; verifiedId = null; }
+
+            editBtn.addEventListener('click', open);
+            cancelBtn.addEventListener('click', close);
+            input.addEventListener('input', () => { result.innerHTML = ''; invalidate(); });
+
+            async function doLookup() {
+                const id = input.value.trim();
+                if (!UUID_RE.test(id)) {
+                    result.innerHTML = '<span class="err">Enter a valid MusicBrainz work ID (a UUID).</span>';
+                    invalidate();
+                    return;
+                }
+                lookupBtn.disabled = true;
+                result.innerHTML = 'Looking up…';
+                try {
+                    const resp = await fetch(`/admin/musicbrainz/work/${encodeURIComponent(id)}/lookup`, {
+                        headers: { 'Accept': 'application/json' },
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok) throw new Error(data.error || ('HTTP ' + resp.status));
+                    const composers = (data.composers || [])
+                        .map(c => `${esc(c.name)} <span style="color:#888">(${esc(c.type)})</span>`)
+                        .join(', ') || '<span class="muted">—</span>';
+                    result.innerHTML =
+                        '<div class="ok">✓ Found on MusicBrainz</div>' +
+                        '<dl>' +
+                        `<dt>ID</dt><dd class="mono">${esc(data.id)}</dd>` +
+                        `<dt>Title</dt><dd>${esc(data.title) || '<span class="muted">—</span>'}</dd>` +
+                        `<dt>Composers</dt><dd>${composers}</dd>` +
+                        '</dl>';
+                    verifiedId = data.id;
+                    saveBtn.disabled = false;
+                } catch (e) {
+                    result.innerHTML = `<span class="err">${esc(e.message)}</span>`;
+                    invalidate();
+                } finally {
+                    lookupBtn.disabled = false;
+                }
+            }
+            lookupBtn.addEventListener('click', doLookup);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); doLookup(); } });
+
+            async function save(mbId) {
+                saveBtn.disabled = true;
+                if (clearBtn) clearBtn.disabled = true;
+                try {
+                    const resp = await fetch(`/admin/songs/${songId}/mb-id`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ slot, mb_id: mbId }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) throw new Error(data.error || ('HTTP ' + resp.status));
+                    window.location.reload();
+                } catch (e) {
+                    result.innerHTML = `<span class="err">Save failed: ${esc(e.message)}</span>`;
+                    saveBtn.disabled = false;
+                    if (clearBtn) clearBtn.disabled = false;
+                }
+            }
+            saveBtn.addEventListener('click', () => { if (verifiedId) save(verifiedId); });
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    if (confirm('Clear this MusicBrainz work ID?')) save('');
+                });
+            }
+        });
+
+        // ---- Alternate-title editor -------------------------------------
+        (function () {
+            const dataEl = document.getElementById('alt-titles-data');
+            let initial = [];
+            try { initial = JSON.parse(dataEl.textContent) || []; } catch (_e) {}
+
+            const viewWrap = document.getElementById('alt-titles-view');
+            const viewChips = document.getElementById('alt-titles-chips-view');
+            const editWrap = document.getElementById('alt-titles-editor');
+            const editChips = document.getElementById('alt-titles-chips-edit');
+            const input = document.getElementById('alt-title-input');
+            const addBtn = document.getElementById('alt-title-add-btn');
+            const saveBtn = document.getElementById('alt-titles-save-btn');
+            const cancelBtn = document.getElementById('alt-titles-cancel-btn');
+            const editBtn = document.getElementById('alt-titles-edit-btn');
+            const status = document.getElementById('alt-titles-status');
+
+            let working = [];
+
+            function renderView() {
+                if (initial.length) {
+                    viewChips.innerHTML = initial.map(t =>
+                        `<span class="alt-chip" style="padding:3px 10px">${esc(t)}</span>`).join(' ');
+                } else {
+                    viewChips.innerHTML = '<span class="muted" style="font-size:12px">none</span>';
+                }
+                editBtn.textContent = initial.length ? 'Edit' : 'Add';
+            }
+
+            function renderEdit() {
+                editChips.innerHTML = working.length ? working.map((t, i) =>
+                    `<span class="alt-chip">${esc(t)}<button type="button" data-i="${i}" aria-label="Remove">×</button></span>`
+                ).join(' ') : '<span class="muted" style="font-size:12px">No alternate titles yet.</span>';
+                editChips.querySelectorAll('button[data-i]').forEach(b => {
+                    b.addEventListener('click', () => {
+                        working.splice(parseInt(b.dataset.i, 10), 1);
+                        renderEdit();
+                    });
+                });
+            }
+
+            function addFromInput() {
+                const v = input.value.trim();
+                if (!v) return;
+                if (!working.some(t => t.toLowerCase() === v.toLowerCase())) working.push(v);
+                input.value = '';
+                input.focus();
+                renderEdit();
+            }
+
+            editBtn.addEventListener('click', () => {
+                working = initial.slice();
+                status.textContent = '';
+                renderEdit();
+                viewWrap.hidden = true;
+                editWrap.hidden = false;
+                input.focus();
+            });
+            cancelBtn.addEventListener('click', () => {
+                editWrap.hidden = true; viewWrap.hidden = false; input.value = '';
+            });
+            addBtn.addEventListener('click', addFromInput);
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addFromInput(); } });
+
+            saveBtn.addEventListener('click', async () => {
+                addFromInput();  // fold any pending text in the box
+                saveBtn.disabled = true;
+                status.textContent = 'Saving…';
+                status.className = '';
+                try {
+                    const resp = await fetch(`/admin/songs/${songId}/alt-titles`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ alt_titles: working }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) throw new Error(data.error || ('HTTP ' + resp.status));
+                    initial = data.alt_titles || [];
+                    renderView();
+                    editWrap.hidden = true; viewWrap.hidden = false; input.value = '';
+                } catch (e) {
+                    status.textContent = 'Save failed: ' + e.message;
+                    status.style.color = '#cc0000';
+                    saveBtn.disabled = false;
+                }
+            });
+
+            renderView();
+        })();
     })();
     </script>
 </body>
