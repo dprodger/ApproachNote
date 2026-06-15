@@ -212,54 +212,28 @@ struct RecordingDetailView: View {
                             .padding(.horizontal, ApproachNoteTheme.spacingLG)
                             .padding(.vertical, ApproachNoteTheme.spacingMD)
 
-                        // Releases Section - shows all releases containing this recording
-                        if let releases = recording.releases, releases.count > 1 {
-                            releasesSection(releases)
-                        }
-                        
-                        Divider()
-                            .padding(.horizontal, ApproachNoteTheme.spacingLG)
+                        // Releases + Performers — placed side by side on wide
+                        // (iPad) layouts since neither needs the full width,
+                        // stacked on compact (iPhone) layouts.
+                        let hasReleases = (recording.releases?.count ?? 0) > 1
 
-                        // Performers Section
-                        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
-                            HStack {
-                                Text("Performers")
-                                    .font(ApproachNoteTheme.title2())
-                                    .bold()
-                                    .foregroundColor(ApproachNoteTheme.textPrimary)
-
-                                // Indicator when showing release-specific performers
-                                if selectedRelease != nil, let releasePerformers = selectedRelease?.performers, !releasePerformers.isEmpty {
-                                    Text("(from selected release)")
-                                        .font(ApproachNoteTheme.caption())
-                                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                                }
+                        if isWideLayout && hasReleases {
+                            HStack(alignment: .top, spacing: ApproachNoteTheme.spacingLG) {
+                                releasesSection(recording.releases ?? [], horizontalPadding: 0)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                                performersSection(recording, horizontalPadding: 0)
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
                             }
                             .padding(.horizontal, ApproachNoteTheme.spacingLG)
-                            
-                            if let performers = displayPerformers, !performers.isEmpty {
-                                VStack(spacing: 0) {
-                                    ForEach(Array(performers.enumerated()), id: \.element.id) { index, performer in
-                                        NavigationLink(destination: PerformerDetailView(performerId: performer.id)) {
-                                            PerformerRowView(performer: performer)
-                                        }
-                                        .buttonStyle(.plain)
+                        } else {
+                            if hasReleases {
+                                releasesSection(recording.releases ?? [])
+                            }
 
-                                        if index < performers.count - 1 {
-                                            Divider()
-                                                .padding(.horizontal)
-                                        }
-                                    }
-                                }
-                                .background(ApproachNoteTheme.surface)
-                                .cornerRadius(10)
+                            Divider()
                                 .padding(.horizontal, ApproachNoteTheme.spacingLG)
-                                .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
-                            } else {
-                                Text("No performer information available")
-                                    .foregroundColor(ApproachNoteTheme.textSecondary)
-                                    .padding()
-                            }
+
+                            performersSection(recording)
                         }
 
                         // Community Data Section
@@ -446,7 +420,8 @@ struct RecordingDetailView: View {
     // MARK: - Releases Section
     
     @ViewBuilder
-    private func releasesSection(_ releases: [Release]) -> some View {
+    private func releasesSection(_ releases: [Release],
+                                 horizontalPadding: CGFloat = ApproachNoteTheme.spacingLG) -> some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
             HStack {
                 Text("Also Available On")
@@ -455,7 +430,6 @@ struct RecordingDetailView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, ApproachNoteTheme.spacingLG)
 
             let displayedReleases = showAllReleases ? releases : Array(releases.prefix(maxReleasesToShow))
 
@@ -473,7 +447,6 @@ struct RecordingDetailView: View {
                     releaseRow(release, isSelected: selectedReleaseId == release.id)
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, ApproachNoteTheme.spacingLG)
             }
 
             // Show more/less button
@@ -492,9 +465,54 @@ struct RecordingDetailView: View {
                     .foregroundColor(ApproachNoteTheme.brand)
                 }
                 .padding(.top, ApproachNoteTheme.spacingXXS)
-                .padding(.horizontal, ApproachNoteTheme.spacingLG)
             }
         }
+        .padding(.horizontal, horizontalPadding)
+    }
+
+    // MARK: - Performers Section
+
+    @ViewBuilder
+    private func performersSection(_ recording: Recording,
+                                   horizontalPadding: CGFloat = ApproachNoteTheme.spacingLG) -> some View {
+        VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+            HStack {
+                Text("Performers")
+                    .font(ApproachNoteTheme.headline())
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
+
+                // Indicator when showing release-specific performers
+                if selectedRelease != nil, let releasePerformers = selectedRelease?.performers, !releasePerformers.isEmpty {
+                    Text("(from selected release)")
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                }
+            }
+
+            if let performers = displayPerformers, !performers.isEmpty {
+                VStack(spacing: 0) {
+                    ForEach(Array(performers.enumerated()), id: \.element.id) { index, performer in
+                        NavigationLink(destination: PerformerDetailView(performerId: performer.id)) {
+                            PerformerRowView(performer: performer)
+                        }
+                        .buttonStyle(.plain)
+
+                        if index < performers.count - 1 {
+                            Divider()
+                                .padding(.horizontal)
+                        }
+                    }
+                }
+                .background(ApproachNoteTheme.surface)
+                .cornerRadius(10)
+                .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
+            } else {
+                Text("No performer information available")
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .padding()
+            }
+        }
+        .padding(.horizontal, horizontalPadding)
     }
 
     @ViewBuilder
