@@ -442,12 +442,13 @@ struct RecordingDetailView: View {
                 Text("Also Available On")
                     .font(ApproachNoteTheme.headline())
                     .foregroundColor(ApproachNoteTheme.textPrimary)
-                
+
                 Spacer()
             }
-            
+            .padding(.horizontal, ApproachNoteTheme.spacingLG)
+
             let displayedReleases = showAllReleases ? releases : Array(releases.prefix(maxReleasesToShow))
-            
+
             ForEach(displayedReleases) { release in
                 Button {
                     withAnimation(.easeInOut(duration: 0.3)) {
@@ -462,8 +463,9 @@ struct RecordingDetailView: View {
                     releaseRow(release, isSelected: selectedReleaseId == release.id)
                 }
                 .buttonStyle(.plain)
+                .padding(.horizontal, ApproachNoteTheme.spacingLG)
             }
-            
+
             // Show more/less button
             if releases.count > maxReleasesToShow {
                 Button {
@@ -480,12 +482,9 @@ struct RecordingDetailView: View {
                     .foregroundColor(ApproachNoteTheme.brand)
                 }
                 .padding(.top, ApproachNoteTheme.spacingXXS)
+                .padding(.horizontal, ApproachNoteTheme.spacingLG)
             }
         }
-        .padding()
-        .background(ApproachNoteTheme.surface)
-        .cornerRadius(10)
-        .padding(.horizontal, ApproachNoteTheme.spacingLG)
     }
 
     @ViewBuilder
@@ -570,26 +569,19 @@ struct RecordingDetailView: View {
                         .font(ApproachNoteTheme.caption2())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 }
-                
-                // Format badge
-                if let format = release.formatName {
-                    Text(format)
-                        .font(ApproachNoteTheme.caption2())
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(ApproachNoteTheme.textSecondary.opacity(0.2))
-                        .cornerRadius(4)
-                        .foregroundColor(ApproachNoteTheme.textPrimary)
-                }
             }
-            
+
             Spacer()
-            
-            // Spotify indicator (not a link - the whole row is tappable)
-            if release.spotifyTrackUrl != nil || release.spotifyAlbumUrl != nil {
-                Image(systemName: "music.note")
-                    .font(ApproachNoteTheme.title3())
-                    .foregroundColor(ApproachNoteTheme.accent)
+
+            // Format badge
+            if let format = release.formatName {
+                Text(format)
+                    .font(ApproachNoteTheme.caption2())
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(ApproachNoteTheme.textSecondary.opacity(0.2))
+                    .cornerRadius(4)
+                    .foregroundColor(ApproachNoteTheme.textPrimary)
             }
         }
         .padding(.vertical, ApproachNoteTheme.spacingXS)
