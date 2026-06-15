@@ -287,10 +287,30 @@
                 <dd>{{ song.composed_year or '' }}{% if song.composed_key %} · key {{ song.composed_key }}{% endif %}</dd>
                 {% endif %}
 
-                {% if song.wikipedia_url %}
+                {# Wikipedia URL, with an inline editor (see JS at the bottom). #}
                 <dt>Wikipedia</dt>
-                <dd><a href="{{ song.wikipedia_url }}" target="_blank" rel="noopener">{{ song.wikipedia_url }}</a></dd>
-                {% endif %}
+                <dd>
+                    <span class="wiki-view" id="wiki-view">
+                        {% if song.wikipedia_url %}
+                          <a href="{{ song.wikipedia_url }}" target="_blank" rel="noopener">{{ song.wikipedia_url }}</a>
+                        {% else %}<span class="muted">—</span>{% endif %}
+                        <button type="button" class="link-btn" id="wiki-edit-btn">{{ 'Edit' if song.wikipedia_url else 'Add' }}</button>
+                    </span>
+                    <div class="mb-editor" id="wiki-editor" hidden>
+                        <div class="editor-row">
+                            <input type="text" class="alt-input" id="wiki-input" value="{{ song.wikipedia_url or '' }}"
+                                   placeholder="https://en.wikipedia.org/wiki/..." />
+                        </div>
+                        <div class="mb-result" id="wiki-result"></div>
+                        <div class="editor-actions">
+                            <button type="button" class="btn btn-primary" id="wiki-save-btn">Save</button>
+                            {% if song.wikipedia_url %}
+                            <button type="button" class="btn btn-danger" id="wiki-clear-btn">Clear</button>
+                            {% endif %}
+                            <button type="button" class="btn" id="wiki-cancel-btn">Cancel</button>
+                        </div>
+                    </div>
+                </dd>
             </dl>
         </div>
 
@@ -614,6 +634,56 @@
             });
 
             renderView();
+        })();
+
+        // ---- Wikipedia URL editor ---------------------------------------
+        (function () {
+            const view = document.getElementById('wiki-view');
+            const editor = document.getElementById('wiki-editor');
+            if (!view || !editor) return;
+            const input = document.getElementById('wiki-input');
+            const editBtn = document.getElementById('wiki-edit-btn');
+            const saveBtn = document.getElementById('wiki-save-btn');
+            const clearBtn = document.getElementById('wiki-clear-btn');
+            const cancelBtn = document.getElementById('wiki-cancel-btn');
+            const result = document.getElementById('wiki-result');
+            const original = input.value;
+
+            function open() { view.hidden = true; editor.hidden = false; input.focus(); }
+            function close() {
+                editor.hidden = true; view.hidden = false;
+                input.value = original; result.innerHTML = '';
+                saveBtn.disabled = false;
+            }
+            editBtn.addEventListener('click', open);
+            cancelBtn.addEventListener('click', close);
+
+            async function save(url) {
+                saveBtn.disabled = true;
+                if (clearBtn) clearBtn.disabled = true;
+                result.innerHTML = '';
+                try {
+                    const resp = await fetch(`/admin/songs/${songId}/wikipedia-url`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                        body: JSON.stringify({ wikipedia_url: url }),
+                    });
+                    const data = await resp.json();
+                    if (!resp.ok || !data.success) throw new Error(data.error || ('HTTP ' + resp.status));
+                    window.location.reload();
+                } catch (e) {
+                    result.innerHTML = `<span class="err">Save failed: ${esc(e.message)}</span>`;
+                    saveBtn.disabled = false;
+                    if (clearBtn) clearBtn.disabled = false;
+                }
+            }
+            saveBtn.addEventListener('click', () => save(input.value.trim()));
+            input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); save(input.value.trim()); } });
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    if (confirm('Clear this Wikipedia URL?')) save('');
+                });
+            }
         })();
     })();
     </script>

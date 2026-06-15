@@ -4562,6 +4562,48 @@ def songs_update_alt_titles(song_id):
     return jsonify({'success': True, 'alt_titles': cleaned})
 
 
+@admin_bp.route('/songs/<song_id>/wikipedia-url', methods=['POST'])
+def songs_update_wikipedia_url(song_id):
+    """Set or clear a song's Wikipedia URL (songs.wikipedia_url).
+
+    Body (JSON): { wikipedia_url: "https://en.wikipedia.org/wiki/..." }.
+    The value is trimmed; '' / null clears the column to NULL. A non-empty
+    value must be an http(s) URL on a wikipedia.org host and fit the
+    VARCHAR(500) column.
+    """
+    from urllib.parse import urlparse
+
+    body = request.get_json(silent=True) or {}
+    raw = body.get('wikipedia_url')
+    url = (raw or '').strip() if isinstance(raw, str) else ''
+    url = url or None
+
+    if url is not None:
+        if len(url) > 500:
+            return jsonify({'error': 'URL is too long (max 500 characters).'}), 400
+        parsed = urlparse(url)
+        host = (parsed.hostname or '').lower()
+        if parsed.scheme not in ('http', 'https') or not host:
+            return jsonify({'error': 'Enter a full http(s) URL.'}), 400
+        if host != 'wikipedia.org' and not host.endswith('.wikipedia.org'):
+            return jsonify({'error': 'URL must be on a wikipedia.org domain.'}), 400
+
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE songs SET wikipedia_url = %s, updated_at = CURRENT_TIMESTAMP "
+                "WHERE id = %s RETURNING id",
+                (url, song_id),
+            )
+            if cur.fetchone() is None:
+                conn.rollback()
+                return jsonify({'error': 'Song not found'}), 404
+        conn.commit()
+
+    logger.info("admin set wikipedia_url=%s on song %s", url, song_id)
+    return jsonify({'success': True, 'wikipedia_url': url})
+
+
 @admin_bp.route('/releases/<release_id>')
 def releases_browse_detail(release_id):
     """Release detail.
