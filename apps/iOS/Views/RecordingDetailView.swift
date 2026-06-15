@@ -238,12 +238,22 @@ struct RecordingDetailView: View {
                             .padding(.horizontal, ApproachNoteTheme.spacingLG)
                             
                             if let performers = displayPerformers, !performers.isEmpty {
-                                ForEach(performers) { performer in
-                                    NavigationLink(destination: PerformerDetailView(performerId: performer.id)) {
-                                        PerformerRowView(performer: performer)
+                                VStack(spacing: 0) {
+                                    ForEach(Array(performers.enumerated()), id: \.element.id) { index, performer in
+                                        NavigationLink(destination: PerformerDetailView(performerId: performer.id)) {
+                                            PerformerRowView(performer: performer)
+                                        }
+                                        .buttonStyle(.plain)
+
+                                        if index < performers.count - 1 {
+                                            Divider()
+                                                .padding(.horizontal)
+                                        }
                                     }
-                                    .buttonStyle(.plain)
                                 }
+                                .background(ApproachNoteTheme.surface)
+                                .cornerRadius(10)
+                                .padding(.horizontal, ApproachNoteTheme.spacingLG)
                                 .animation(.easeInOut(duration: 0.3), value: selectedReleaseId)
                             } else {
                                 Text("No performer information available")

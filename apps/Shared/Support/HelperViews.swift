@@ -57,37 +57,35 @@ struct StreamingButton: View {
 
 struct PerformerRowView: View {
     let performer: Performer
-    
+
+    private var isLeader: Bool { performer.role == "leader" }
+
     var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
-                Text(performer.name)
-                    .font(ApproachNoteTheme.headline())
-                    .foregroundColor(ApproachNoteTheme.textPrimary)
-                
-                if let instrument = performer.instrument {
-                    Text(instrument)
-                        .font(ApproachNoteTheme.subheadline())
-                        .foregroundColor(ApproachNoteTheme.textSecondary)
-                }
+        // One line per performer: leaders are bold, everyone else regular
+        // weight, so the role no longer needs a Leader/Sideman badge. The
+        // instrument sits on the same line as the name. Rows render inside a
+        // shared rounded container (see RecordingDetailView), so the row itself
+        // carries no background — just content padding.
+        HStack(spacing: ApproachNoteTheme.spacingSM) {
+            Text(performer.name)
+                .font(ApproachNoteTheme.body())
+                .fontWeight(isLeader ? .bold : .regular)
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+                .lineLimit(1)
+                .layoutPriority(1)
+
+            if let instrument = performer.instrument {
+                Text(instrument)
+                    .font(ApproachNoteTheme.footnote())
+                    .foregroundColor(ApproachNoteTheme.textSecondary)
+                    .lineLimit(1)
             }
-            
+
             Spacer()
-            
-            if let role = performer.role {
-                Text(role.capitalized)
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textOnDark)
-                    .padding(.horizontal, ApproachNoteTheme.spacingXS)
-                    .padding(.vertical, ApproachNoteTheme.spacingXXS)
-                    .background(role == "leader" ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.7))
-                    .cornerRadius(8)
-            }
         }
-        .padding()
-        .background(ApproachNoteTheme.surface)
-        .cornerRadius(10)
         .padding(.horizontal)
+        .padding(.vertical, ApproachNoteTheme.spacingSM)
+        .contentShape(Rectangle())
     }
 }
 

@@ -27,12 +27,12 @@ struct CommunityDataSection: View {
                 VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                     // Header
                     HStack {
-                        Image(systemName: "person.3.fill")
-                            .foregroundColor(ApproachNoteTheme.textSecondary)
                         Text("Community Data")
                             .font(ApproachNoteTheme.title2())
                             .bold()
                             .foregroundColor(ApproachNoteTheme.textPrimary)
+                            .lineLimit(1)
+                            .fixedSize(horizontal: true, vertical: false)
 
                         Spacer()
 
@@ -61,7 +61,6 @@ struct CommunityDataSection: View {
                         VStack(spacing: ApproachNoteTheme.spacingXS) {
                             // Performance Key
                             CommunityDataRow(
-                                icon: "music.note",
                                 label: "Key",
                                 value: data.consensus.performanceKey ?? "Not set",
                                 count: data.counts.key ?? 0,
@@ -71,7 +70,6 @@ struct CommunityDataSection: View {
 
                             // Tempo
                             CommunityDataRow(
-                                icon: "metronome",
                                 label: "Tempo",
                                 value: data.consensus.tempoMarking ?? "Not set",
                                 count: data.counts.tempo ?? 0,
@@ -82,7 +80,6 @@ struct CommunityDataSection: View {
 
                             // Instrumental/Vocal
                             CommunityDataRow(
-                                icon: data.consensus.isInstrumental == true ? "pianokeys" : "mic",
                                 label: "Type",
                                 value: formatInstrumental(data.consensus.isInstrumental),
                                 count: data.counts.instrumental,
@@ -140,7 +137,6 @@ struct CommunityDataSection: View {
 // MARK: - Data Row Component
 
 struct CommunityDataRow: View {
-    let icon: String
     let label: String
     let value: String
     let count: Int
@@ -149,35 +145,34 @@ struct CommunityDataRow: View {
     var subtitleText: String? = nil
 
     var body: some View {
-        HStack(alignment: .center, spacing: ApproachNoteTheme.spacingSM) {
-            Image(systemName: icon)
-                .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textSecondary)
-                .frame(width: 24)
-
+        HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingSM) {
             Text(label)
                 .font(ApproachNoteTheme.subheadline())
                 .foregroundColor(ApproachNoteTheme.textSecondary)
-                .frame(width: 50, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: ApproachNoteTheme.spacingXXS) {
+            // Value, optional BPM range, and vote count all on one line.
+            HStack(alignment: .firstTextBaseline, spacing: ApproachNoteTheme.spacingXS) {
                 Text(value)
                     .font(ApproachNoteTheme.body())
-                    .bodyLineSpacing()
                     .fontWeight(isEmpty ? .regular : .medium)
                     .foregroundColor(isEmpty ? ApproachNoteTheme.textSecondary.opacity(0.5) : ApproachNoteTheme.textPrimary)
+                    .lineLimit(1)
 
                 if let subtitle = subtitleText {
-                    Text(subtitle)
-                        .font(ApproachNoteTheme.caption2())
+                    Text("(\(subtitle))")
+                        .font(ApproachNoteTheme.footnote())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
+                        .lineLimit(1)
                 }
 
                 if count > 0 {
                     Text("\(count) \(count == 1 ? "vote" : "votes")")
                         .font(ApproachNoteTheme.caption2())
                         .foregroundColor(ApproachNoteTheme.textSecondary)
+                        .lineLimit(1)
                 }
 
                 // Show user's value if different from consensus
@@ -185,6 +180,7 @@ struct CommunityDataRow: View {
                     Text("You: \(userVal)")
                         .font(ApproachNoteTheme.caption2())
                         .foregroundColor(ApproachNoteTheme.brand)
+                        .lineLimit(1)
                 }
             }
         }
