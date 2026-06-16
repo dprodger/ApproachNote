@@ -1,6 +1,9 @@
 backend/out
 audits
 
+# Apple private keys (.p8) — Sign in with Apple + Apple Music Media keys.
+# Never commit these; they ship to prod as Render Secret Files.
+*.p8
 AuthKey_KMVRF8X88R.p8
 backend/apple_music_catalog.duckdb
 backend/data/

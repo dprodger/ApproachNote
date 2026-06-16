@@ -247,3 +247,12 @@ To use the Feed API for downloading the full Apple Music catalog:
    ```
 
 Without Feed API credentials, the matcher falls back to the iTunes Search API.
+
+### Sign in with Apple — grant revocation (App Store 5.1.1(v))
+
+Deleting a Sign-in-with-Apple user's account must also revoke the Apple grant.
+This needs a **Sign in with Apple** `.p8` key — a *different* key from the
+Apple Music Feed Media key above — configured via `APPLE_SIGNIN_KEY_ID`,
+`APPLE_SIGNIN_PRIVATE_KEY_PATH`, and `APPLE_SIGNIN_TEAM_ID` (falls back to
+`APPLE_TEAM_ID`), plus the existing `APPLE_BUNDLE_IDS`. See
+`doc/sign-in-with-apple-revocation.md` for the full flow.

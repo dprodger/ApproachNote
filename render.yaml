@@ -73,6 +73,20 @@ services:
         sync: false
       - key: APPLE_TEAM_ID
         sync: false
+      # Sign in with Apple — grant revocation on account deletion (App Store
+      # 5.1.1(v)). The /auth/* routes run on THIS web service, so the SIWA
+      # credentials live here (not on the worker). This uses a DIFFERENT Apple
+      # key than APPLE_KEY_ID above: a Sign-in-with-Apple key, not the
+      # MusicKit/Media key. Deliver the .p8 as a Render Secret File on this
+      # service and point APPLE_SIGNIN_PRIVATE_KEY_PATH at its mount path
+      # (e.g. /etc/secrets/AuthKey_XXXXXXXXXX.p8).
+      # APPLE_SIGNIN_TEAM_ID is optional — it falls back to APPLE_TEAM_ID above.
+      # APPLE_BUNDLE_IDS (comma-separated client_ids, already set in the
+      # dashboard for identity-token verification) is reused by the revoke flow.
+      - key: APPLE_SIGNIN_KEY_ID
+        sync: false
+      - key: APPLE_SIGNIN_PRIVATE_KEY_PATH
+        sync: false
 
   # ===========================================================================
   # Research worker — processes background jobs from research_jobs.

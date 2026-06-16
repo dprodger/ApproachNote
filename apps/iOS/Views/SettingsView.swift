@@ -12,6 +12,9 @@ struct SettingsView: View {
     @State private var isLoadingContributions = false
     @State private var contributionsError: String?
     @State private var isShowingLogin = false
+    @State private var isShowingDeleteConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
 
     private let contributionService = ContributionService()
 
@@ -258,7 +261,7 @@ struct SettingsView: View {
                         .padding(.horizontal)
 
                     // Account Actions
-                    VStack(spacing: 0) {
+                    VStack(spacing: ApproachNoteTheme.spacingMD) {
                         if authManager.isAuthenticated {
                             ApproachNoteButton(
                                 "Log Out",
@@ -267,6 +270,32 @@ struct SettingsView: View {
                                 authManager.logout()
                             }
                             .padding(.horizontal)
+
+                            // Delete Account — required by App Store Guideline
+                            // 5.1.1(v): account creation must be matched by an
+                            // in-app way to permanently delete the account.
+                            Button(role: .destructive) {
+                                deleteAccountError = nil
+                                isShowingDeleteConfirmation = true
+                            } label: {
+                                if isDeletingAccount {
+                                    ProgressView()
+                                        .controlSize(.small)
+                                } else {
+                                    Text("Delete Account")
+                                        .font(ApproachNoteTheme.body())
+                                        .foregroundColor(.red)
+                                }
+                            }
+                            .disabled(isDeletingAccount)
+
+                            if let deleteAccountError {
+                                Text(deleteAccountError)
+                                    .font(ApproachNoteTheme.caption())
+                                    .foregroundColor(.red)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                            }
                         } else {
                             ApproachNoteButton("Sign In / Sign Up") {
                                 isShowingLogin = true
@@ -287,7 +316,31 @@ struct SettingsView: View {
                 LoginView()
                     .environmentObject(authManager)
             }
+            .alert("Delete Account?", isPresented: $isShowingDeleteConfirmation) {
+                Button("Cancel", role: .cancel) {}
+                Button("Delete Account", role: .destructive) {
+                    Task { await deleteAccount() }
+                }
+            } message: {
+                Text("This permanently deletes your account and personal data, including your favorites and repertoires. This can't be undone.")
+            }
         }
+    }
+
+    // MARK: - Account Deletion
+
+    private func deleteAccount() async {
+        isDeletingAccount = true
+        deleteAccountError = nil
+
+        let success = await authManager.deleteAccount()
+        if !success {
+            deleteAccountError = authManager.errorMessage ?? "Could not delete account. Please try again."
+        }
+        // On success, authManager flips isAuthenticated to false and the view
+        // updates to the signed-out state automatically.
+
+        isDeletingAccount = false
     }
 
     // MARK: - Data Loading

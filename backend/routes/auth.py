@@ -46,6 +46,8 @@ from google.oauth2 import id_token as google_id_token
 import jwt
 from jwt import PyJWKClient, InvalidTokenError, PyJWKClientError
 
+from core import apple_auth
+
 logger = logging.getLogger(__name__)
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -63,6 +65,81 @@ APPLE_BUNDLE_IDS = [
 ]
 # The JWKS client caches keys in-process; safe to instantiate once.
 _apple_jwk_client = PyJWKClient(APPLE_JWKS_URL, cache_keys=True)
+
+
+def _resolve_apple_client_id(token_aud):
+    """Pick the bundle ID (Apple client_id) the identity token was issued for.
+
+    The identity token's ``aud`` is the client_id — normally a single bundle ID
+    string, but tolerate a list. We constrain it to a configured bundle ID so a
+    surprising value never reaches Apple's token endpoint.
+    """
+    auds = token_aud if isinstance(token_aud, list) else [token_aud]
+    for aud in auds:
+        if aud in APPLE_BUNDLE_IDS:
+            return aud
+    return None
+
+
+def _store_apple_refresh_token(cur, conn, user_id, authorization_code, token_aud):
+    """Exchange the Apple authorization_code and persist the refresh token.
+
+    Best-effort: any failure (not configured, unknown client_id, Apple error)
+    is logged and swallowed so the sign-in flow continues. The cursor/conn are
+    the live request transaction; we commit the UPDATE on success.
+    """
+    if not apple_auth.is_configured():
+        logger.warning(
+            "Apple authorization_code present but Sign-in-with-Apple server "
+            "credentials are not configured; cannot capture refresh token for "
+            "revocation. Set APPLE_SIGNIN_KEY_ID / APPLE_SIGNIN_PRIVATE_KEY_PATH "
+            "/ APPLE_SIGNIN_TEAM_ID (or APPLE_TEAM_ID)."
+        )
+        return
+
+    client_id = _resolve_apple_client_id(token_aud)
+    if not client_id:
+        logger.warning("Apple code exchange skipped: aud %r not in APPLE_BUNDLE_IDS", token_aud)
+        return
+
+    try:
+        refresh_token = apple_auth.exchange_code_for_refresh_token(
+            authorization_code, client_id
+        )
+        cur.execute(
+            "UPDATE users SET apple_refresh_token = %s WHERE id = %s",
+            (refresh_token, user_id),
+        )
+        conn.commit()
+        logger.info("Stored Apple refresh token for user %s", user_id)
+    except apple_auth.AppleAuthError as e:
+        logger.warning("Apple code exchange failed for user %s: %s", user_id, e)
+    except Exception as e:
+        logger.error("Unexpected error exchanging Apple code for user %s: %s", user_id, e, exc_info=True)
+
+
+def _revoke_apple_grant(apple_refresh_token, user_email):
+    """Best-effort revoke of a user's Sign in with Apple grant at deletion.
+
+    Never raises: any failure is logged so account deletion proceeds. The
+    refresh token was issued under one of the configured bundle IDs; we try
+    each (there are only a couple) until Apple accepts the revocation.
+    """
+    if not apple_auth.is_configured():
+        logger.warning(
+            "User %s has an Apple refresh token but Sign-in-with-Apple server "
+            "credentials are not configured; cannot revoke the grant.",
+            user_email,
+        )
+        return
+    try:
+        revoked = apple_auth.revoke_refresh_token(apple_refresh_token, APPLE_BUNDLE_IDS)
+        if revoked:
+            logger.info("Revoked Apple grant for %s", user_email)
+        else:
+            logger.warning("Apple grant revocation did not succeed for %s", user_email)
+    except Exception as e:
+        logger.error("Error revoking Apple grant for %s: %s", user_email, e, exc_info=True)
 
 @auth_bp.route('/register', methods=['POST'])
 @limiter.limit(REGISTER_LIMIT)
@@ -441,6 +518,19 @@ def delete_account():
     try:
         with get_db_connection() as conn:
             with conn.cursor() as cur:
+                # Revoke the Sign in with Apple grant before deleting the row,
+                # as required by App Store Guideline 5.1.1(v). Best-effort: we
+                # read the stored Apple refresh token and ask Apple to revoke
+                # it, but never block deletion on the outcome.
+                cur.execute(
+                    "SELECT apple_refresh_token FROM users WHERE id = %s",
+                    (user_id,),
+                )
+                row = cur.fetchone()
+                apple_refresh_token = row['apple_refresh_token'] if row else None
+                if apple_refresh_token:
+                    _revoke_apple_grant(apple_refresh_token, user_email)
+
                 cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
                 deleted = cur.rowcount
                 conn.commit()
@@ -614,8 +704,11 @@ def apple_login():
                                                     # from credential.email.
                                                     # Used only when the token
                                                     # has no email claim.
-            "authorization_code": "..."             # optional; reserved for
-                                                    # future server-side refresh
+            "authorization_code": "..."             # optional; one-time code
+                                                    # exchanged server-side for
+                                                    # an Apple refresh_token so
+                                                    # we can revoke the grant on
+                                                    # account deletion (5.1.1(v))
         }
 
     Returns:
@@ -636,6 +729,10 @@ def apple_login():
     data = request.get_json() or {}
     identity_token = data.get('identity_token')
     client_full_name = data.get('full_name')
+    # One-time code from ASAuthorizationAppleIDCredential.authorizationCode.
+    # Exchanged server-side for an Apple refresh_token so we can revoke the
+    # grant when the user deletes their account (App Store 5.1.1(v)).
+    authorization_code = data.get('authorization_code')
     # Client-supplied fallback from ASAuthorizationAppleIDCredential.email.
     # Apple sometimes omits email from the JWT even on first auth (notably
     # with Hide My Email), but the client-side credential is authoritative
@@ -815,6 +912,16 @@ def apple_login():
                     )
                     user_id = cur.fetchone()['id']
                     conn.commit()
+
+                # Best-effort: exchange the one-time authorization_code for an
+                # Apple refresh_token and store it, so we can revoke the grant
+                # at account deletion (App Store 5.1.1(v)). Never block login on
+                # failure — a missing refresh token just means we can't revoke
+                # later, which the delete handler logs.
+                if authorization_code:
+                    _store_apple_refresh_token(
+                        cur, conn, user_id, authorization_code, claims.get('aud')
+                    )
 
                 # Issue our own tokens (identical to Google flow)
                 access_token = generate_access_token(user_id)

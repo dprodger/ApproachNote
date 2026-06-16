@@ -304,7 +304,38 @@ class AuthenticationManager: ObservableObject {
         isAuthenticated = false
         errorMessage = nil
     }
-    
+
+    /// Permanently delete the current user's account.
+    ///
+    /// Required by App Store Review Guideline 5.1.1(v). Calls the backend to
+    /// delete the account and all associated personal data, then clears local
+    /// auth state on success. On failure, leaves the session intact and sets
+    /// `errorMessage`.
+    ///
+    /// - Returns: `true` if the account was deleted and local state cleared;
+    ///   `false` if the request failed.
+    func deleteAccount() async -> Bool {
+        let userEmail = currentUser?.email ?? "unknown"
+        Log.auth.info("Deleting account for user: \(userEmail, privacy: .private)")
+
+        let url = URL.api(path: "/auth/delete-account")
+
+        do {
+            _ = try await makeAuthenticatedRequest(url: url, method: "DELETE")
+            Log.auth.info("Account deleted successfully")
+
+            clearTokens()
+            currentUser = nil
+            isAuthenticated = false
+            errorMessage = nil
+            return true
+        } catch {
+            Log.auth.error("Account deletion failed: \(error.localizedDescription)")
+            errorMessage = "Could not delete account: \(error.localizedDescription)"
+            return false
+        }
+    }
+
     /// Fetch current user info to validate token
     private func fetchCurrentUser() async {
         guard let token = accessToken else { return }
@@ -806,15 +837,26 @@ class AuthenticationManager: ObservableObject {
                 return formatted.isEmpty ? nil : formatted
             }()
 
+            // The one-time authorization code. The backend exchanges it for an
+            // Apple refresh token so it can revoke the grant when the user
+            // deletes their account (App Store Guideline 5.1.1(v)). Like
+            // fullName/email, Apple only provides it on the authorization
+            // response — forward it whenever present.
+            let authorizationCode: String? = {
+                guard let codeData = credential.authorizationCode else { return nil }
+                return String(data: codeData, encoding: .utf8)
+            }()
+
             return await authenticateWithApple(
                 identityToken: identityToken,
                 fullName: fullName,
-                email: credential.email
+                email: credential.email,
+                authorizationCode: authorizationCode
             )
         }
     }
 
-    private func authenticateWithApple(identityToken: String, fullName: String?, email: String?) async -> Bool {
+    private func authenticateWithApple(identityToken: String, fullName: String?, email: String?, authorizationCode: String?) async -> Bool {
         let url = URL.api(path: "/auth/apple")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -826,6 +868,9 @@ class AuthenticationManager: ObservableObject {
         }
         if let email {
             body["email"] = email
+        }
+        if let authorizationCode {
+            body["authorization_code"] = authorizationCode
         }
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
 

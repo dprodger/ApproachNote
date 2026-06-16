@@ -223,6 +223,9 @@ struct AccountSettingsView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var favoritesManager: FavoritesManager
     @State private var selectedRecordingId: String?
+    @State private var isShowingDeleteConfirmation = false
+    @State private var isDeletingAccount = false
+    @State private var deleteAccountError: String?
 
     var body: some View {
         if authManager.isAuthenticated {
@@ -276,6 +279,34 @@ struct AccountSettingsView: View {
                         .foregroundColor(.red)
                     }
                     .padding(.vertical, ApproachNoteTheme.spacingXS)
+                }
+
+                // Delete Account — required by App Store Guideline 5.1.1(v):
+                // account creation must be matched by an in-app way to
+                // permanently delete the account.
+                Section {
+                    HStack {
+                        Button("Delete Account") {
+                            deleteAccountError = nil
+                            isShowingDeleteConfirmation = true
+                        }
+                        .foregroundColor(.red)
+                        .disabled(isDeletingAccount)
+
+                        if isDeletingAccount {
+                            ProgressView()
+                                .controlSize(.small)
+                        }
+
+                        Spacer()
+                    }
+                } footer: {
+                    if let deleteAccountError {
+                        Text(deleteAccountError)
+                            .foregroundColor(.red)
+                    } else {
+                        Text("Permanently delete your account and personal data, including your favorites and repertoires. This can't be undone.")
+                    }
                 }
             }
             .formStyle(.grouped)
@@ -343,6 +374,28 @@ struct AccountSettingsView: View {
                 await favoritesManager.loadFavorites()
             }
         }
+        .alert("Delete Account?", isPresented: $isShowingDeleteConfirmation) {
+            Button("Cancel", role: .cancel) {}
+            Button("Delete Account", role: .destructive) {
+                Task { await deleteAccount() }
+            }
+        } message: {
+            Text("This permanently deletes your account and personal data, including your favorites and repertoires. This can't be undone.")
+        }
+    }
+
+    private func deleteAccount() async {
+        isDeletingAccount = true
+        deleteAccountError = nil
+
+        let success = await authManager.deleteAccount()
+        if !success {
+            deleteAccountError = authManager.errorMessage ?? "Could not delete account. Please try again."
+        }
+        // On success, authManager flips isAuthenticated to false and this view
+        // switches back to the signed-out (login) state automatically.
+
+        isDeletingAccount = false
     }
 }
 

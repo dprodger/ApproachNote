@@ -221,6 +221,7 @@ CREATE TABLE users (
     profile_image_url VARCHAR(500),
     google_id VARCHAR(255) UNIQUE,
     apple_id VARCHAR(255) UNIQUE,
+    apple_refresh_token TEXT,
     is_active BOOLEAN DEFAULT true,
     account_locked BOOLEAN DEFAULT false,
     failed_login_attempts INTEGER DEFAULT 0,
@@ -233,6 +234,9 @@ CREATE TABLE users (
 
 COMMENT ON COLUMN users.is_admin IS
     'True if user may access /admin web pages. Granted via backend/scripts/grant_admin.py.';
+
+COMMENT ON COLUMN users.apple_refresh_token IS
+    'Apple-issued OAuth refresh token from the Sign in with Apple authorization_code exchange. Used at account deletion to revoke the Apple grant (App Store Guideline 5.1.1(v)). NULL for non-Apple users or when the code exchange failed.';
 
 CREATE INDEX IF NOT EXISTS idx_users_is_admin
     ON users(is_admin)

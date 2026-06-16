@@ -248,3 +248,168 @@ def test_delete_account_removes_user_and_revokes_tokens(client, auth_headers, db
     # (the user it points at no longer exists).
     resp3 = client.get("/v1/auth/me", headers=auth_headers)
     assert resp3.status_code == 401
+
+
+# ----------------------------------------------------------------------------
+# Sign in with Apple — token revocation wiring (App Store 5.1.1(v))
+#
+# These exercise the integration between /auth/apple, /auth/delete-account and
+# core.apple_auth. Apple's identity-token verification and the server-to-server
+# HTTP calls are mocked; the pure crypto/HTTP plumbing is unit-tested in
+# test_apple_auth.py.
+# ----------------------------------------------------------------------------
+
+def _mock_apple_token(mocker, *, sub, email=None, aud="com.approachnote.ios",
+                      email_verified=True):
+    """Stub Apple identity-token verification so /auth/apple accepts a fake
+    token and returns the given claims."""
+    mocker.patch("routes.auth._apple_jwk_client.get_signing_key_from_jwt")
+    claims = {"sub": sub, "aud": aud, "email_verified": email_verified}
+    if email is not None:
+        claims["email"] = email
+    mocker.patch("routes.auth.jwt.decode", return_value=claims)
+    mocker.patch("routes.auth.APPLE_BUNDLE_IDS",
+                 ["com.approachnote.ios", "com.approachnote.mac"])
+
+
+def test_apple_login_stores_refresh_token_from_authorization_code(client, db, mocker):
+    _mock_apple_token(mocker, sub="apple-sub-1", email="applefan@example.com")
+    mocker.patch("routes.auth.apple_auth.is_configured", return_value=True)
+    exchange = mocker.patch(
+        "routes.auth.apple_auth.exchange_code_for_refresh_token",
+        return_value="apple-rt-stored",
+    )
+
+    resp = client.post(
+        "/v1/auth/apple",
+        json={
+            "identity_token": "fake-token",
+            "authorization_code": "one-time-code",
+        },
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+    # The code was exchanged with the bundle ID from the token's aud claim.
+    exchange.assert_called_once_with("one-time-code", "com.approachnote.ios")
+
+    # The refresh token landed on the user row.
+    with db.cursor() as cur:
+        cur.execute(
+            "SELECT apple_refresh_token FROM users WHERE apple_id = %s",
+            ("apple-sub-1",),
+        )
+        (stored,) = cur.fetchone()
+    assert stored == "apple-rt-stored"
+
+
+def test_apple_login_without_code_stores_no_refresh_token(client, db, mocker):
+    _mock_apple_token(mocker, sub="apple-sub-2", email="nocode@example.com")
+    exchange = mocker.patch("routes.auth.apple_auth.exchange_code_for_refresh_token")
+
+    resp = client.post(
+        "/v1/auth/apple",
+        json={"identity_token": "fake-token"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+    exchange.assert_not_called()
+
+    with db.cursor() as cur:
+        cur.execute(
+            "SELECT apple_refresh_token FROM users WHERE apple_id = %s",
+            ("apple-sub-2",),
+        )
+        (stored,) = cur.fetchone()
+    assert stored is None
+
+
+def test_apple_login_survives_code_exchange_failure(client, db, mocker):
+    """A failed code exchange must not block sign-in; the user is still
+    created, just without a stored refresh token."""
+    from core import apple_auth
+
+    _mock_apple_token(mocker, sub="apple-sub-3", email="exchangefail@example.com")
+    mocker.patch("routes.auth.apple_auth.is_configured", return_value=True)
+    mocker.patch(
+        "routes.auth.apple_auth.exchange_code_for_refresh_token",
+        side_effect=apple_auth.AppleAuthError("Apple said no"),
+    )
+
+    resp = client.post(
+        "/v1/auth/apple",
+        json={"identity_token": "fake-token", "authorization_code": "code"},
+    )
+    assert resp.status_code == 200, resp.get_json()
+
+    with db.cursor() as cur:
+        cur.execute(
+            "SELECT apple_refresh_token FROM users WHERE apple_id = %s",
+            ("apple-sub-3",),
+        )
+        (stored,) = cur.fetchone()
+    assert stored is None
+
+
+def test_delete_account_revokes_apple_grant(client, db, auth_headers, mocker):
+    user_id = auth_headers.user["id"]
+
+    # Give the user a stored Apple refresh token.
+    with db.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET apple_refresh_token = %s WHERE id = %s",
+            ("apple-rt-to-revoke", user_id),
+        )
+    db.commit()
+
+    mocker.patch("routes.auth.apple_auth.is_configured", return_value=True)
+    mocker.patch("routes.auth.APPLE_BUNDLE_IDS",
+                 ["com.approachnote.ios", "com.approachnote.mac"])
+    revoke = mocker.patch(
+        "routes.auth.apple_auth.revoke_refresh_token", return_value=True
+    )
+
+    resp = client.delete("/v1/auth/delete-account", headers=auth_headers)
+    assert resp.status_code == 200
+
+    revoke.assert_called_once_with(
+        "apple-rt-to-revoke", ["com.approachnote.ios", "com.approachnote.mac"]
+    )
+
+    # The user is still deleted.
+    with db.cursor() as cur:
+        cur.execute("SELECT 1 FROM users WHERE id = %s", (user_id,))
+        assert cur.fetchone() is None
+
+
+def test_delete_account_succeeds_when_revoke_fails(client, db, auth_headers, mocker):
+    """Revocation is best-effort: a thrown error must not block deletion."""
+    user_id = auth_headers.user["id"]
+
+    with db.cursor() as cur:
+        cur.execute(
+            "UPDATE users SET apple_refresh_token = %s WHERE id = %s",
+            ("apple-rt-to-revoke", user_id),
+        )
+    db.commit()
+
+    mocker.patch("routes.auth.apple_auth.is_configured", return_value=True)
+    mocker.patch(
+        "routes.auth.apple_auth.revoke_refresh_token",
+        side_effect=RuntimeError("Apple unreachable"),
+    )
+
+    resp = client.delete("/v1/auth/delete-account", headers=auth_headers)
+    assert resp.status_code == 200
+
+    with db.cursor() as cur:
+        cur.execute("SELECT 1 FROM users WHERE id = %s", (user_id,))
+        assert cur.fetchone() is None
+
+
+def test_delete_account_without_apple_token_does_not_revoke(client, auth_headers, mocker):
+    """A non-Apple user (no stored refresh token) deletes without calling
+    Apple at all."""
+    revoke = mocker.patch("routes.auth.apple_auth.revoke_refresh_token")
+
+    resp = client.delete("/v1/auth/delete-account", headers=auth_headers)
+    assert resp.status_code == 200
+    revoke.assert_not_called()
