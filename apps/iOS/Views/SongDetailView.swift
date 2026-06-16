@@ -15,6 +15,10 @@ import Combine
 // MARK: - Song Detail View
 struct SongDetailView: View {
     let songId: String
+    /// Optional anchor ("featured" or "recordings") that scrolls the screen to
+    /// that section once data loads. Used only for App Store screenshot capture
+    /// via `approachnote://song/{id}?screenshot=<anchor>`; nil in normal use.
+    let screenshotAnchor: String?
 
     // Shared data + network state lives on the view model; layout/presentation
     // state stays here.
@@ -47,8 +51,9 @@ struct SongDetailView: View {
     private var canQueueForRefresh: Bool { viewModel.canQueueForRefresh }
 
     // MARK: - Initializer
-    init(songId: String) {
+    init(songId: String, screenshotAnchor: String? = nil) {
         self.songId = songId
+        self.screenshotAnchor = screenshotAnchor
     }
 
     // MARK: - Song Refresh
@@ -186,6 +191,7 @@ struct SongDetailView: View {
                 // MARK: - Authoritative Recordings Carousel
                 if hasAuthoritativeRecordings(for: song) {
                     authoritativeRecordingsSection(for: song)
+                        .id("featured") // screenshot anchor
                 }
             }
             .padding(.horizontal, ApproachNoteTheme.spacingXL)
@@ -208,6 +214,7 @@ struct SongDetailView: View {
                         viewModel?.requestHydration(for: id)
                     }
                 )
+                .id("recordings") // screenshot anchor
             // MARK: - TRANSCRIPTIONS SECTION
             TranscriptionsSection(transcriptions: transcriptions)
 
@@ -361,21 +368,32 @@ struct SongDetailView: View {
     }
     
     private var mainScrollView: some View {
-        ScrollView {
-            VStack(spacing: 0) {
-                DetailHeaderSpacer()
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(spacing: 0) {
+                    DetailHeaderSpacer()
 
-                if isLoading {
-                    loadingView
-                } else if let song = song {
-                    songContentView(for: song)
-                } else {
-                    notFoundView
+                    if isLoading {
+                        loadingView
+                    } else if let song = song {
+                        songContentView(for: song)
+                    } else {
+                        notFoundView
+                    }
                 }
             }
-        }
-        .refreshable {
-            await viewModel.forceRefresh(songId: songId)
+            .refreshable {
+                await viewModel.forceRefresh(songId: songId)
+            }
+            // Screenshot capture: once the song loads, jump to the requested
+            // section so the deep link lands pre-scrolled. No-op in normal use.
+            .onChange(of: viewModel.song?.id) { _, newId in
+                guard newId != nil, let anchor = screenshotAnchor else { return }
+                Task {
+                    try? await Task.sleep(nanoseconds: 500_000_000)
+                    proxy.scrollTo(anchor, anchor: .top)
+                }
+            }
         }
     }
     

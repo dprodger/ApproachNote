@@ -349,9 +349,17 @@ struct SongsListView: View {
                 )
                 .padding(.trailing, ApproachNoteTheme.spacingXXS)
             }
+            .task(id: groupedSongs.count) {
+                // Screenshot capture: pre-scroll to a section letter when the
+                // -screenshotListLetter launch arg is set. No-op otherwise.
+                guard let letter = ScreenshotMode.listLetter,
+                      groupedSongs.contains(where: { $0.0 == letter }) else { return }
+                try? await Task.sleep(nanoseconds: 400_000_000)
+                proxy.scrollTo(letter, anchor: .top)
+            }
         }
     }
-    
+
     private func songRowView(song: Song) -> some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXXS) {
             // Title + year as one string so the title spans the full width and

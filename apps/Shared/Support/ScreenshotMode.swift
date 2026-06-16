@@ -37,4 +37,14 @@ enum ScreenshotMode {
     static var isEnabled: Bool {
         UserDefaults.standard.bool(forKey: defaultsKey) || envEnabled
     }
+
+    /// Optional alphabetical section to pre-scroll the songs list to, for the
+    /// `01_songlist` screenshot. Set via launch argument `-screenshotListLetter K`
+    /// (UserDefaults parses `-key value` launch args automatically). Returns nil
+    /// in normal use, so the list stays at the top.
+    static var listLetter: String? {
+        guard let raw = UserDefaults.standard.string(forKey: "screenshotListLetter"),
+              !raw.isEmpty else { return nil }
+        return raw.uppercased()
+    }
 }

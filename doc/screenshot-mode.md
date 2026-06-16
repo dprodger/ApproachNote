@@ -44,6 +44,44 @@ key, except the env var):
 For manual screenshots: run a Debug build, flip the toggle in Settings,
 navigate to the screens you want, and capture. Toggle it back off when done.
 
+## Automated capture (the 4 App Store screens)
+
+`marketing/scripts/capture_ios_screenshots.sh` regenerates the four iPhone
+screenshots end-to-end (~2.5 min), with no manual scrolling:
+
+```bash
+marketing/scripts/capture_ios_screenshots.sh            # build, boot, capture
+marketing/scripts/capture_ios_screenshots.sh --no-build # reuse installed app
+```
+
+It boots an **iPhone 17 Pro Max** sim (1320×2868 = App Store 6.9"), builds +
+installs the app, sets a clean 9:41 / full-signal / full-battery status bar,
+then for each screen cold-launches with `-screenshotMode YES` (generated
+covers) + `-hasCompletedOnboarding YES` (skip onboarding) and captures:
+
+| File | Deep link | Lands on |
+|---|---|---|
+| `01_songlist` | *(launch)* `-screenshotListLetter K` | songs list at "K" |
+| `02_songdetails` | `approachnote://song/{id}?screenshot=featured` | Featured Recordings carousel |
+| `03_recordings` | `approachnote://song/{id}?screenshot=recordings` | All Recordings (first decade expanded) |
+| `04_artist` | `approachnote://artist/{id}` | artist detail |
+
+Output lands in `marketing/iPhone screens/`. Edit the config block at the top
+of the script to change device, target song/artist UUIDs, or the list letter.
+
+### Deep-link "screenshot states"
+
+The `?screenshot=<anchor>` query param on a song deep link opens the screen
+already scrolled to that section (anchors: `featured`, `recordings`), wired in
+`SongDetailView` via `ScrollViewReader`. The param is inert without a value, so
+it has no effect in normal use. The songs-list pre-scroll uses the
+`-screenshotListLetter` launch argument instead (`ScreenshotMode.listLetter`).
+To add a new screenshot screen: add a `.id("anchor")` to the target section and
+a `capture` line to the script.
+
+Note: `04_artist` shows the real artist *photograph* (not an album cover, so
+outside the 5.2.1 album-art issue). Screenshot mode only swaps album covers.
+
 ## Resubmission
 
 After regenerating the screenshots with screenshot mode on, replace the

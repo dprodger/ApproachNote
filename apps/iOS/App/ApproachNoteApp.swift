@@ -28,6 +28,9 @@ struct ApproachNoteApp: App {
     // Deep link navigation state
     @State private var deepLinkSongId: String?
     @State private var deepLinkArtistId: String?
+    // Optional `?screenshot=<anchor>` carried alongside a song deep link, used
+    // to open the screen pre-scrolled for App Store screenshot capture.
+    @State private var deepLinkScreenshotAnchor: String?
 
     // Onboarding state - persisted across launches
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
@@ -103,6 +106,7 @@ struct ApproachNoteApp: App {
                             // Clear any pending import data to avoid sheet conflicts
                             importedSongData = nil
                             importedArtistData = nil
+                            deepLinkScreenshotAnchor = screenshotAnchor(from: url)
                             deepLinkSongId = songId
                         }
                     }
@@ -188,11 +192,14 @@ struct ApproachNoteApp: App {
                         .environmentObject(authManager)
                 }
                 .sheet(item: Binding(
-                    get: { deepLinkSongId.map { DeepLinkSongData(songId: $0) } },
-                    set: { deepLinkSongId = $0?.songId }
+                    get: { deepLinkSongId.map { DeepLinkSongData(songId: $0, screenshotAnchor: deepLinkScreenshotAnchor) } },
+                    set: { newValue in
+                        deepLinkSongId = newValue?.songId
+                        if newValue == nil { deepLinkScreenshotAnchor = nil }
+                    }
                 )) { data in
                     NavigationStack {
-                        SongDetailView(songId: data.songId)
+                        SongDetailView(songId: data.songId, screenshotAnchor: data.screenshotAnchor)
                             .environmentObject(repertoireManager)
                     }
                 }
@@ -233,6 +240,14 @@ struct ApproachNoteApp: App {
         }
     }
     
+    /// Extracts the optional `?screenshot=<anchor>` query value from a deep link.
+    private func screenshotAnchor(from url: URL) -> String? {
+        URLComponents(url: url, resolvingAgainstBaseURL: false)?
+            .queryItems?
+            .first(where: { $0.name == "screenshot" })?
+            .value
+    }
+
     private func checkForImportedArtist() {
         if let data = SharedArtistDataManager.retrieveSharedData() {
             NSLog("📥 Imported artist data detected: %@", data.name)
@@ -343,6 +358,9 @@ struct ResetPasswordData: Identifiable {
 struct DeepLinkSongData: Identifiable {
     let id = UUID()
     let songId: String
+    // Optional screenshot anchor (e.g. "featured", "recordings") that opens the
+    // song screen pre-scrolled for App Store screenshot capture.
+    var screenshotAnchor: String? = nil
 }
 
 // Helper struct for deep link artist navigation
