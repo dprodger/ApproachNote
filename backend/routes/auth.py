@@ -409,7 +409,55 @@ def logout():
             logger.error(f"Logout error: {e}", exc_info=True)
     
     return jsonify({'message': 'Logged out successfully'}), 200
-    
+
+
+@auth_bp.route('/delete-account', methods=['DELETE'])
+@require_auth
+def delete_account():
+    """
+    Permanently delete the authenticated user's account and personal data.
+
+    Required by App Store Review Guideline 5.1.1(v): apps that support account
+    creation must let users initiate account deletion from within the app.
+
+    Headers:
+        Authorization: Bearer <access_token>
+
+    Deleting the `users` row cascades (ON DELETE CASCADE) to the user's refresh
+    tokens, password-reset and email-verification tokens, repertoires and their
+    songs, favorite recordings, and recording notes. Community contributions
+    (`added_by_user_id`) and song reports (`reported_by`) are anonymized via
+    ON DELETE SET NULL rather than removed, so shared community data stays
+    intact while no longer being tied to the deleted user.
+
+    Returns:
+        200: {"message": "Account deleted successfully"}
+        401: Invalid or missing token
+        500: Server error
+    """
+    user_id = g.current_user['id']
+    user_email = g.current_user['email']
+
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("DELETE FROM users WHERE id = %s", (user_id,))
+                deleted = cur.rowcount
+                conn.commit()
+
+        if deleted:
+            logger.info(f"🗑️ Account deleted: {user_email}")
+        else:
+            # Token was valid but the row is already gone (e.g. a duplicate
+            # request). Treat as success so the client can finish clearing state.
+            logger.info(f"Account already deleted: {user_email}")
+
+        return jsonify({'message': 'Account deleted successfully'}), 200
+    except Exception as e:
+        logger.error(f"Account deletion error: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to delete account'}), 500
+
+
 @auth_bp.route('/google', methods=['POST'])
 @limiter.limit(GOOGLE_LOGIN_LIMIT)
 def google_login():

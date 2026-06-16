@@ -215,3 +215,36 @@ def test_logout_revokes_refresh_token(client, auth_headers):
         json={"refresh_token": auth_headers.refresh_token},
     )
     assert resp2.status_code == 401
+
+
+# ----------------------------------------------------------------------------
+# /auth/delete-account
+# ----------------------------------------------------------------------------
+
+def test_delete_account_requires_auth_header(client):
+    resp = client.delete("/v1/auth/delete-account")
+    assert resp.status_code == 401
+
+
+def test_delete_account_removes_user_and_revokes_tokens(client, auth_headers, db):
+    user_id = auth_headers.user["id"]
+
+    resp = client.delete("/v1/auth/delete-account", headers=auth_headers)
+    assert resp.status_code == 200
+
+    # The user row is gone.
+    with db.cursor() as cur:
+        cur.execute("SELECT 1 FROM users WHERE id = %s", (user_id,))
+        assert cur.fetchone() is None
+
+    # Refresh tokens cascaded away, so the refresh token no longer works.
+    resp2 = client.post(
+        "/v1/auth/refresh-token",
+        json={"refresh_token": auth_headers.refresh_token},
+    )
+    assert resp2.status_code == 401
+
+    # The access token can't be used to reach a protected endpoint anymore
+    # (the user it points at no longer exists).
+    resp3 = client.get("/v1/auth/me", headers=auth_headers)
+    assert resp3.status_code == 401
