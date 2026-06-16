@@ -895,12 +895,14 @@ struct PerformerRecordingCard: View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Album artwork with canonical badge
             ZStack(alignment: .topTrailing) {
+                CoverArtImage(seed: coverUrl) {
                 AsyncImage(url: URL(string: coverUrl ?? "")) { image in
                     image
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                 } placeholder: {
                     NoAlbumArtPlaceholder(cornerRadius: 8)
+                }
                 }
                 .frame(width: artworkSize, height: artworkSize)
                 .clipShape(RoundedRectangle(cornerRadius: 8))

@@ -59,6 +59,7 @@ struct RecordingCard: View {
             // Album art
             Group {
                 if let frontUrl = frontCoverUrl {
+                    CoverArtImage(seed: frontUrl) {
                     AsyncImage(url: URL(string: frontUrl)) { phase in
                         switch phase {
                         case .empty:
@@ -74,6 +75,7 @@ struct RecordingCard: View {
                         @unknown default:
                             EmptyView()
                         }
+                    }
                     }
                 } else {
                     NoAlbumArtPlaceholder(cornerRadius: 10)

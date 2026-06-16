@@ -467,6 +467,7 @@ struct AuthoritativeRecordingCard: View {
             // Album Art
             Group {
                 if let frontUrl = frontCoverUrl {
+                    CoverArtImage(seed: frontUrl) {
                     AsyncImage(url: URL(string: frontUrl)) { phase in
                         switch phase {
                         case .empty:
@@ -491,6 +492,7 @@ struct AuthoritativeRecordingCard: View {
                         @unknown default:
                             EmptyView()
                         }
+                    }
                     }
                 } else {
                     Rectangle()

@@ -396,18 +396,20 @@ struct RecordingDetailView: View {
     /// One face of the flip card: a fitted cover image with a spinner
     /// placeholder while it loads. Shared by the front and back covers.
     private func coverImage(url: String) -> some View {
-        AsyncImage(url: URL(string: url)) { image in
-            image
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-        } placeholder: {
-            Rectangle()
-                .fill(ApproachNoteTheme.surface)
-                .aspectRatio(1, contentMode: .fit)
-                .overlay {
-                    ProgressView()
-                        .tint(ApproachNoteTheme.textSecondary)
-                }
+        CoverArtImage(seed: url, contentMode: .fit) {
+            AsyncImage(url: URL(string: url)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } placeholder: {
+                Rectangle()
+                    .fill(ApproachNoteTheme.surface)
+                    .aspectRatio(1, contentMode: .fit)
+                    .overlay {
+                        ProgressView()
+                            .tint(ApproachNoteTheme.textSecondary)
+                    }
+            }
         }
     }
 
@@ -560,6 +562,7 @@ struct RecordingDetailView: View {
                             .foregroundColor(isSelected ? ApproachNoteTheme.brand : ApproachNoteTheme.textSecondary.opacity(0.5))
 
                         // Release cover art
+                        CoverArtImage(seed: release.coverArtSmall) {
                         AsyncImage(url: URL(string: release.coverArtSmall ?? "")) { image in
                             image
                                 .resizable()
@@ -571,6 +574,7 @@ struct RecordingDetailView: View {
                                     Image(systemName: "opticaldisc")
                                         .foregroundColor(ApproachNoteTheme.textSecondary)
                                 }
+                        }
                         }
                         .frame(width: 50, height: 50)
                         .cornerRadius(4)

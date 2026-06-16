@@ -408,6 +408,7 @@ struct FavoriteRecordingCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingXS) {
             // Album art
+            CoverArtImage(seed: recording.bestAlbumArtSmall) {
             AsyncImage(url: URL(string: recording.bestAlbumArtSmall ?? "")) { image in
                 image
                     .resizable()
@@ -419,6 +420,7 @@ struct FavoriteRecordingCard: View {
                         Image(systemName: "music.note")
                             .foregroundColor(ApproachNoteTheme.textSecondary)
                     }
+            }
             }
             .frame(width: 80, height: 80)
             .cornerRadius(8)

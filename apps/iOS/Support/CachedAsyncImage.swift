@@ -43,6 +43,10 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
     @State private var cachedImage: UIImage?
     @State private var isLoading = false
 
+    // Screenshot mode swaps real (copyrighted) album art for generated covers
+    // so App Store screenshots never show third-party covers (Guideline 5.2.1).
+    @AppStorage(ScreenshotMode.defaultsKey) private var screenshotEnabled = false
+
     init(
         url: URL?,
         @ViewBuilder content: @escaping (Image) -> Content,
@@ -74,6 +78,14 @@ struct CachedAsyncImage<Content: View, Placeholder: View>: View {
         // Check cache first
         if let cached = ImageCache.shared.get(forKey: key) {
             cachedImage = cached
+            return
+        }
+
+        // Screenshot mode: substitute generated cover art instead of fetching
+        // the real (copyrighted) image. GenericCoverArt caches internally, so
+        // we don't pollute the shared real-URL cache.
+        if screenshotEnabled || ScreenshotMode.envEnabled {
+            cachedImage = GenericCoverArt.image(seed: key)
             return
         }
 

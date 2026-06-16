@@ -7,6 +7,9 @@ struct SettingsView: View {
     @EnvironmentObject var authManager: AuthenticationManager
     @EnvironmentObject var favoritesManager: FavoritesManager
     @AppStorage("preferredStreamingService") private var preferredStreamingService: String = StreamingService.spotify.rawValue
+    #if DEBUG
+    @AppStorage(ScreenshotMode.defaultsKey) private var screenshotMode = false
+    #endif
 
     @State private var contributionStats: UserContributionStats?
     @State private var isLoadingContributions = false
@@ -303,6 +306,34 @@ struct SettingsView: View {
                             .padding(.horizontal)
                         }
                     }
+
+                    #if DEBUG
+                    Divider()
+                        .padding(.horizontal)
+
+                    // Developer-only: swaps real album covers for generated
+                    // artwork so App Store screenshots never show third-party
+                    // covers (Guideline 5.2.1). Not present in release builds.
+                    VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+                        Text("Developer".uppercased())
+                            .font(ApproachNoteTheme.title3())
+                            .foregroundColor(ApproachNoteTheme.textPrimary)
+                            .padding(.horizontal)
+
+                        Toggle(isOn: $screenshotMode) {
+                            Text("Screenshot mode")
+                                .font(ApproachNoteTheme.body())
+                                .foregroundColor(ApproachNoteTheme.textPrimary)
+                        }
+                        .tint(ApproachNoteTheme.brand)
+                        .padding(.horizontal)
+
+                        Text("Replaces real album covers with generated placeholder artwork for App Store screenshots.")
+                            .font(ApproachNoteTheme.caption())
+                            .foregroundColor(ApproachNoteTheme.textSecondary)
+                            .padding(.horizontal)
+                    }
+                    #endif
 
                     Spacer()
                 }
