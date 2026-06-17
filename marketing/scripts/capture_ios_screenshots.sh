@@ -6,26 +6,49 @@
 #   • screenshot mode ON (generated placeholder covers, no third-party album
 #     art — App Store Guideline 5.2.1), via the -screenshotMode launch arg;
 #   • a clean 9:41 / full-signal / full-battery status bar;
-#   • deep links that open each screen ALREADY scrolled to the right spot
-#     (approachnote://song/{id}?screenshot=featured|recordings), so no manual
-#     scrolling is needed.
+#   • launch args that open each screen full-screen, ALREADY scrolled to the
+#     right spot (-screenshotSongId/-screenshotArtistId/-screenshotAnchor), so
+#     no manual scrolling is needed and it works the same on iPhone and iPad.
 #
-# Output: marketing/iPhone screens/0N_*.png at 1320x2868 (iPhone 17 Pro Max,
-# App Store Connect's 6.9" requirement).
+# Output (per profile):
+#   iPhone → marketing/iPhone screens/0N_*.png  1320x2868 (iPhone 17 Pro Max, 6.9")
+#   iPad   → marketing/iPad screens/0N_*.png    2064x2752 (iPad Pro 13-inch, 13")
 #
 # Usage:
-#   marketing/scripts/capture_ios_screenshots.sh            # build, then capture
-#   marketing/scripts/capture_ios_screenshots.sh --no-build # use installed app
+#   marketing/scripts/capture_ios_screenshots.sh                 # iPhone, build
+#   marketing/scripts/capture_ios_screenshots.sh --ipad          # iPad, build
+#   marketing/scripts/capture_ios_screenshots.sh --ipad --no-build
 #
 set -euo pipefail
 
 # ---------------------------------------------------------------------------
+# Flags: --ipad / --iphone (default) select the device profile; --no-build
+# reuses the already-installed app.
+# ---------------------------------------------------------------------------
+PROFILE="iphone"
+DO_BUILD=1
+for arg in "$@"; do
+  case "$arg" in
+    --ipad)     PROFILE="ipad" ;;
+    --iphone)   PROFILE="iphone" ;;
+    --no-build) DO_BUILD=0 ;;
+    *) echo "Unknown option: $arg (use --ipad / --iphone / --no-build)" >&2; exit 2 ;;
+  esac
+done
+
+# ---------------------------------------------------------------------------
 # Config — edit these to change device, target content, or timing.
 # ---------------------------------------------------------------------------
-DEVICE_NAME="${DEVICE_NAME:-iPhone 17 Pro Max}"   # 6.9" → 1320x2868
 BUNDLE_ID="com.approachnote.ios"
-EXPECTED_W=1320
-EXPECTED_H=2868
+if [ "$PROFILE" = "ipad" ]; then
+  DEVICE_NAME="${DEVICE_NAME:-iPad Pro 13-inch (M4)}"   # 13" → 2064x2752
+  DEST_SUBDIR="iPad screens"
+  EXPECTED_W=2064; EXPECTED_H=2752
+else
+  DEVICE_NAME="${DEVICE_NAME:-iPhone 17 Pro Max}"       # 6.9" → 1320x2868
+  DEST_SUBDIR="iPhone screens"
+  EXPECTED_W=1320; EXPECTED_H=2868
+fi
 
 # Content shown in each shot. These are production UUIDs used previously; swap
 # them for any well-populated standard / artist. (Covers are generated in
@@ -39,22 +62,27 @@ LOAD_WAIT="${LOAD_WAIT:-6}"   # seconds to wait for network load + in-app scroll
 
 # ---------------------------------------------------------------------------
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-DEST="$REPO/marketing/iPhone screens"
+PROJECT="$REPO/apps/ApproachNote.xcodeproj"
+DEST="$REPO/marketing/$DEST_SUBDIR"
 TMP="$(mktemp -d)"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
-DO_BUILD=1
-[ "${1:-}" = "--no-build" ] && DO_BUILD=0
 
 log() { printf '\033[1;34m▸ %s\033[0m\n' "$*"; }
 
 # ---------------------------------------------------------------------------
 # Resolve + boot the simulator (by UDID, so we never rely on an ambiguous
-# "booted" when multiple sims are up).
+# "booted" when multiple sims are up). We pull the UDID from xcodebuild's
+# eligible destinations — NOT `simctl list` — because simctl also lists sims on
+# runtimes older than the app's deployment target, which xcodebuild rejects.
 # ---------------------------------------------------------------------------
-UDID="$(xcrun simctl list devices available | grep -F "$DEVICE_NAME (" | head -1 | grep -oE '[0-9A-Fa-f-]{36}' | head -1 || true)"
+UDID="$(xcodebuild -project "$PROJECT" -scheme ApproachNote -showdestinations 2>/dev/null \
+  | grep 'platform:iOS Simulator' \
+  | grep -F "name:$DEVICE_NAME }" \
+  | grep -oE 'id:[0-9A-Fa-f-]{36}' | tail -1 | cut -d: -f2 || true)"
 if [ -z "$UDID" ]; then
-  echo "ERROR: no available simulator named '$DEVICE_NAME'. Available 6.9\" devices:" >&2
-  xcrun simctl list devices available | grep -E 'iPhone 1[5-9] Pro Max' >&2 || true
+  echo "ERROR: no build-eligible simulator named '$DEVICE_NAME'. Eligible destinations:" >&2
+  xcodebuild -project "$PROJECT" -scheme ApproachNote -showdestinations 2>/dev/null \
+    | grep 'platform:iOS Simulator' | grep -E 'iPhone|iPad' >&2 || true
   exit 1
 fi
 log "Device: $DEVICE_NAME ($UDID)"
@@ -97,26 +125,24 @@ xcrun simctl status_bar "$UDID" override \
 LAUNCH_ARGS=(-screenshotMode YES -hasCompletedOnboarding YES)
 [ -n "$LIST_LETTER" ] && LAUNCH_ARGS+=(-screenshotListLetter "$LIST_LETTER")
 
-# capture <out-name> [deep-link-url]
-# Cold-launches the app each time (avoids sheet stacking), optionally opens a
-# deep link, waits for load+scroll, then screenshots.
+# capture <out-name> [extra launch args...]
+# Cold-launches the app each time with the screenshot launch args (which open
+# the right screen full-screen, pre-scrolled), waits for load+scroll, then
+# screenshots. Uses launch args rather than `simctl openurl` because openurl
+# prompts on iPad and presents detail as a centered form sheet.
 capture() {
-  local name="$1" url="${2:-}"
+  local name="$1"; shift
   log "Capturing $name…"
   xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
-  xcrun simctl launch "$UDID" "$BUNDLE_ID" "${LAUNCH_ARGS[@]}" >/dev/null
-  sleep 2
-  if [ -n "$url" ]; then
-    xcrun simctl openurl "$UDID" "$url"
-  fi
+  xcrun simctl launch "$UDID" "$BUNDLE_ID" "${LAUNCH_ARGS[@]}" "$@" >/dev/null
   sleep "$LOAD_WAIT"
   xcrun simctl io "$UDID" screenshot "$TMP/$name.png" >/dev/null 2>&1
 }
 
 capture "01_songlist"
-capture "02_songdetails" "approachnote://song/$SONG_FEATURED_ID?screenshot=featured"
-capture "03_recordings"  "approachnote://song/$SONG_RECORDINGS_ID?screenshot=recordings"
-capture "04_artist"      "approachnote://artist/$ARTIST_ID"
+capture "02_songdetails" -screenshotSongId "$SONG_FEATURED_ID" -screenshotAnchor featured
+capture "03_recordings"  -screenshotSongId "$SONG_RECORDINGS_ID" -screenshotAnchor recordings
+capture "04_artist"      -screenshotArtistId "$ARTIST_ID"
 
 # ---------------------------------------------------------------------------
 # Reset status bar and place the finals.

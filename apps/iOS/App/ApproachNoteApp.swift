@@ -32,6 +32,12 @@ struct ApproachNoteApp: App {
     // to open the screen pre-scrolled for App Store screenshot capture.
     @State private var deepLinkScreenshotAnchor: String?
 
+    // Launch-arg-driven full-screen navigation for screenshot capture. Set from
+    // -screenshotSongId / -screenshotArtistId at launch; presented full-screen so
+    // it looks right on iPad (a sheet would be a centered form sheet there).
+    @State private var screenshotSong: DeepLinkSongData?
+    @State private var screenshotArtist: DeepLinkArtistData?
+
     // Onboarding state - persisted across launches
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var showingOnboarding = false
@@ -138,6 +144,14 @@ struct ApproachNoteApp: App {
                     if !hasCompletedOnboarding {
                         showingOnboarding = true
                     }
+
+                    // Screenshot capture: open a song/artist full-screen from
+                    // launch args (no-op in normal use).
+                    if let songId = ScreenshotMode.songId {
+                        screenshotSong = DeepLinkSongData(songId: songId, screenshotAnchor: ScreenshotMode.anchor)
+                    } else if let artistId = ScreenshotMode.artistId {
+                        screenshotArtist = DeepLinkArtistData(artistId: artistId)
+                    }
                 }
                 .onChange(of: scenePhase) { oldPhase, newPhase in
                     if newPhase == .active {
@@ -229,6 +243,19 @@ struct ApproachNoteApp: App {
                             // Mark onboarding as completed when dismissed
                             hasCompletedOnboarding = true
                         }
+                }
+                // Screenshot capture: full-screen detail driven by launch args.
+                // Full-screen (not a sheet) so it looks right on iPad too.
+                .fullScreenCover(item: $screenshotSong) { data in
+                    NavigationStack {
+                        SongDetailView(songId: data.songId, screenshotAnchor: data.screenshotAnchor)
+                            .environmentObject(repertoireManager)
+                    }
+                }
+                .fullScreenCover(item: $screenshotArtist) { data in
+                    NavigationStack {
+                        PerformerDetailView(performerId: data.artistId)
+                    }
                 }
                 .ignoresSafeArea()
                 .environmentObject(authManager)

@@ -46,38 +46,55 @@ navigate to the screens you want, and capture. Toggle it back off when done.
 
 ## Automated capture (the 4 App Store screens)
 
-`marketing/scripts/capture_ios_screenshots.sh` regenerates the four iPhone
-screenshots end-to-end (~2.5 min), with no manual scrolling:
+`marketing/scripts/capture_ios_screenshots.sh` regenerates the four screenshots
+end-to-end, with no manual scrolling, for **iPhone and iPad**:
 
 ```bash
-marketing/scripts/capture_ios_screenshots.sh            # build, boot, capture
-marketing/scripts/capture_ios_screenshots.sh --no-build # reuse installed app
+marketing/scripts/capture_ios_screenshots.sh             # iPhone, build + capture
+marketing/scripts/capture_ios_screenshots.sh --ipad      # iPad, build + capture
+marketing/scripts/capture_ios_screenshots.sh --ipad --no-build  # reuse installed app
 ```
 
-It boots an **iPhone 17 Pro Max** sim (1320×2868 = App Store 6.9"), builds +
-installs the app, sets a clean 9:41 / full-signal / full-battery status bar,
-then for each screen cold-launches with `-screenshotMode YES` (generated
-covers) + `-hasCompletedOnboarding YES` (skip onboarding) and captures:
+| Profile | Device | Size (App Store) | Output |
+|---|---|---|---|
+| *(default)* | iPhone 17 Pro Max | 1320×2868 (6.9") | `marketing/iPhone screens/` |
+| `--ipad` | iPad Pro 13-inch (M4) | 2064×2752 (13") | `marketing/iPad screens/` |
 
-| File | Deep link | Lands on |
+It resolves a **build-eligible** sim UDID from `xcodebuild -showdestinations`
+(not `simctl list`, which also lists sims on runtimes below the deployment
+target), builds + installs, sets a clean 9:41 / full-signal / full-battery
+status bar, then for each screen cold-launches with `-screenshotMode YES`
+(generated covers) + `-hasCompletedOnboarding YES` (skip onboarding) and the
+per-screen launch args below, and captures:
+
+| File | Launch args | Lands on |
 |---|---|---|
-| `01_songlist` | *(launch)* `-screenshotListLetter K` | songs list at "K" |
-| `02_songdetails` | `approachnote://song/{id}?screenshot=featured` | Featured Recordings carousel |
-| `03_recordings` | `approachnote://song/{id}?screenshot=recordings` | All Recordings (first decade expanded) |
-| `04_artist` | `approachnote://artist/{id}` | artist detail |
+| `01_songlist` | `-screenshotListLetter K` | songs list at "K" |
+| `02_songdetails` | `-screenshotSongId {id} -screenshotAnchor featured` | Featured Recordings carousel |
+| `03_recordings` | `-screenshotSongId {id} -screenshotAnchor recordings` | All Recordings (first decade expanded) |
+| `04_artist` | `-screenshotArtistId {id}` | artist detail |
 
-Output lands in `marketing/iPhone screens/`. Edit the config block at the top
-of the script to change device, target song/artist UUIDs, or the list letter.
+Edit the config block at the top of the script to change device, target
+song/artist UUIDs, or the list letter.
 
-### Deep-link "screenshot states"
+### How the screenshot states work
 
-The `?screenshot=<anchor>` query param on a song deep link opens the screen
-already scrolled to that section (anchors: `featured`, `recordings`), wired in
-`SongDetailView` via `ScrollViewReader`. The param is inert without a value, so
-it has no effect in normal use. The songs-list pre-scroll uses the
-`-screenshotListLetter` launch argument instead (`ScreenshotMode.listLetter`).
-To add a new screenshot screen: add a `.id("anchor")` to the target section and
+Navigation is driven by **launch arguments**, not `simctl openurl` — openurl
+prompts ("Open in ApproachNote?") on iPad and presents detail as a centered
+form sheet. `ApproachNoteApp` reads `-screenshotSongId`/`-screenshotArtistId`
+at launch and presents the detail via `fullScreenCover` (full-screen on both
+iPhone and iPad). `-screenshotAnchor featured|recordings` scrolls
+`SongDetailView` to that section (`ScrollViewReader` anchors `featured` /
+`recordings`); `-screenshotListLetter` scrolls the songs list
+(`ScreenshotMode.listLetter`). All are inert without a value, so normal use and
+the real `approachnote://` deep-link path are unaffected.
+
+To add a new screenshot screen: add a `.id("anchor")` to the target section,
+teach `ScreenshotMode`/`ApproachNoteApp` the new launch arg if needed, and add
 a `capture` line to the script.
+
+If a stale "Open in ApproachNote?" SpringBoard alert lingers (e.g. after a
+manual `openurl`), reboot the sim (`xcrun simctl shutdown <udid> && … boot`).
 
 Note: `04_artist` shows the real artist *photograph* (not an album cover, so
 outside the 5.2.1 album-art issue). Screenshot mode only swaps album covers.

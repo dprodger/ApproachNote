@@ -47,4 +47,19 @@ enum ScreenshotMode {
               !raw.isEmpty else { return nil }
         return raw.uppercased()
     }
+
+    /// Launch-arg-driven navigation for screenshot capture. When set, the app
+    /// opens the given song/artist full-screen at launch (via `fullScreenCover`),
+    /// which works identically on iPhone and iPad — unlike `simctl openurl`,
+    /// which prompts on iPad and presents detail as a centered form sheet.
+    /// Set via `-screenshotSongId <uuid>` / `-screenshotArtistId <uuid>` /
+    /// `-screenshotAnchor <featured|recordings>`. All nil in normal use.
+    static var songId: String? { nonEmptyDefault("screenshotSongId") }
+    static var artistId: String? { nonEmptyDefault("screenshotArtistId") }
+    static var anchor: String? { nonEmptyDefault("screenshotAnchor") }
+
+    private static func nonEmptyDefault(_ key: String) -> String? {
+        guard let raw = UserDefaults.standard.string(forKey: key), !raw.isEmpty else { return nil }
+        return raw
+    }
 }
