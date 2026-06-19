@@ -17,6 +17,7 @@ def register_blueprints(app):
     from routes.authority import authorities_bp
     from routes.admin import admin_bp
     from routes.admin_research import admin_research_bp
+    from routes.admin_song_requests import admin_song_requests_bp
     # Registers /admin/login and /admin/logout onto admin_bp. Import for
     # side effects — the module has no public symbols we need here.
     import routes.admin_auth  # noqa: F401
@@ -29,6 +30,7 @@ def register_blueprints(app):
     app.register_blueprint(health_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(admin_research_bp)
+    app.register_blueprint(admin_song_requests_bp)
 
     # Public client API — every client-facing route lives under /v1/.
     # See docs/api-versioning.md for policy. The url_prefix passed here

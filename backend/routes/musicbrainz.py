@@ -7,6 +7,7 @@ from flask import Blueprint, jsonify, request, g
 import logging
 import db_utils as db_tools
 from core import research_queue
+from core.song_research import create_song_and_queue_research
 from integrations.musicbrainz.utils import MusicBrainzSearcher
 from middleware.auth_middleware import require_auth
 
@@ -73,12 +74,113 @@ def search_musicbrainz_works():
         }), 500
 
 
+@musicbrainz_bp.route('/musicbrainz/request', methods=['POST'])
+@require_auth
+def request_song_from_musicbrainz():
+    """
+    Submit a request to add a song from MusicBrainz. Requires authentication.
+
+    Unlike /musicbrainz/import (admin-only, immediate), this records a pending
+    request in song_requests for an admin to review and approve. Nothing is
+    added to the catalog until approval.
+
+    Request Body (JSON):
+        musicbrainz_id (str, required): MusicBrainz work UUID
+        title (str, required): Song title
+        composer (str, optional): Composer name(s)
+
+    Returns:
+        201 with the created request, or 409 if the song already exists or a
+        pending request for the same work is already on file.
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
+
+        musicbrainz_id = data.get('musicbrainz_id', '').strip()
+        title = data.get('title', '').strip()
+        composer = data.get('composer', '').strip() if data.get('composer') else None
+
+        requested_by = str(g.current_user['id'])
+
+        if not musicbrainz_id:
+            return jsonify({'error': 'musicbrainz_id is required'}), 400
+
+        if not title:
+            return jsonify({'error': 'title is required'}), 400
+
+        # Already in the catalog? Nothing to request.
+        existing = db_tools.execute_query(
+            "SELECT id, title FROM songs WHERE musicbrainz_id = %s",
+            (musicbrainz_id,),
+            fetch_one=True,
+        )
+        if existing:
+            return jsonify({
+                'error': 'This song is already in the catalog',
+                'existing_song': {
+                    'id': str(existing['id']),
+                    'title': existing['title'],
+                },
+            }), 409
+
+        # Already requested and awaiting review?
+        pending = db_tools.execute_query(
+            "SELECT id FROM song_requests WHERE musicbrainz_id = %s AND status = 'pending'",
+            (musicbrainz_id,),
+            fetch_one=True,
+        )
+        if pending:
+            return jsonify({
+                'error': 'This song has already been requested and is awaiting review',
+                'request_id': str(pending['id']),
+            }), 409
+
+        result = db_tools.execute_query(
+            """
+            INSERT INTO song_requests (musicbrainz_id, title, composer, requested_by)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, musicbrainz_id, title, composer, status, created_at
+            """,
+            (musicbrainz_id, title, composer, requested_by),
+            fetch_one=True,
+        )
+
+        logger.info(
+            f"Song request submitted: {title} (request_id: {result['id']}, "
+            f"MB: {musicbrainz_id}, requested_by: {requested_by})"
+        )
+
+        return jsonify({
+            'success': True,
+            'message': 'Song request submitted for review',
+            'request': {
+                'id': str(result['id']),
+                'musicbrainz_id': result['musicbrainz_id'],
+                'title': result['title'],
+                'composer': result['composer'],
+                'status': result['status'],
+                'created_at': result['created_at'].isoformat() if result['created_at'] else None,
+            },
+        }), 201
+
+    except Exception as e:
+        logger.error(f"Error submitting song request: {e}", exc_info=True)
+        return jsonify({
+            'error': 'Failed to submit song request',
+            'detail': str(e),
+        }), 500
+
+
 @musicbrainz_bp.route('/musicbrainz/import', methods=['POST'])
 @require_auth
 def import_from_musicbrainz():
     """
     Import a song from MusicBrainz into the database and queue for research.
-    Requires authentication.
+    Admin-only — a direct "add it now" shortcut that bypasses the song-request
+    approval queue. Regular users go through /musicbrainz/request instead.
 
     Request Body (JSON):
         musicbrainz_id (str, required): MusicBrainz work UUID
@@ -88,6 +190,9 @@ def import_from_musicbrainz():
     Returns:
         JSON with created song data and queue status
     """
+    if not g.current_user.get('is_admin'):
+        return jsonify({'error': 'Admin access required'}), 403
+
     try:
         data = request.get_json()
 
@@ -120,40 +225,18 @@ def import_from_musicbrainz():
                 }
             }), 409  # Conflict
 
-        # Build INSERT query
-        fields = ['title', 'musicbrainz_id']
-        values = [title, musicbrainz_id]
-        placeholders = ['%s', '%s']
-
-        if composer:
-            fields.append('composer')
-            values.append(composer)
-            placeholders.append('%s')
-
-        if created_by:
-            fields.append('created_by')
-            values.append(created_by)
-            placeholders.append('%s')
-
-        query = f"""
-            INSERT INTO songs ({', '.join(fields)})
-            VALUES ({', '.join(placeholders)})
-            RETURNING id, title, composer, musicbrainz_id, created_at, updated_at, created_by
-        """
-
-        result = db_tools.execute_query(query, values, fetch_one=True)
-        song_id = str(result['id'])
-
-        logger.info(f"Created song from MusicBrainz: {title} (ID: {song_id}, MB: {musicbrainz_id}, created_by: {created_by})")
-
-        # Queue for background research
-        queued = research_queue.add_song_to_queue(song_id, title)
+        result, queued = create_song_and_queue_research(
+            musicbrainz_id=musicbrainz_id,
+            title=title,
+            composer=composer,
+            created_by=created_by,
+        )
 
         return jsonify({
             'success': True,
             'message': 'Song imported and queued for research',
             'song': {
-                'id': song_id,
+                'id': str(result['id']),
                 'title': result['title'],
                 'composer': result['composer'],
                 'musicbrainz_id': result['musicbrainz_id'],

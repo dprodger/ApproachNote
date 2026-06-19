@@ -18,9 +18,10 @@ struct MusicBrainzSearchSheet: View {
     @State private var searchResults: [MusicBrainzWork] = []
     @State private var isSearching = false
     @State private var selectedWork: MusicBrainzWork?
-    @State private var isImporting = false
-    @State private var importError: String?
-    @State private var importSuccess = false
+    @State private var isSubmitting = false
+    @State private var resultTitle: String?
+    @State private var resultMessage = ""
+    @State private var dismissOnAcknowledge = false
 
     var body: some View {
         NavigationStack {
@@ -53,32 +54,30 @@ struct MusicBrainzSearchSheet: View {
             .task {
                 await performSearch()
             }
-            .alert("Import Error", isPresented: .constant(importError != nil)) {
+            .alert(resultTitle ?? "", isPresented: Binding(
+                get: { resultTitle != nil },
+                set: { if !$0 { resultTitle = nil } }
+            )) {
                 Button("OK") {
-                    importError = nil
+                    let shouldDismiss = dismissOnAcknowledge
+                    resultTitle = nil
+                    if shouldDismiss {
+                        onSongImported()
+                        dismiss()
+                    }
                 }
             } message: {
-                if let error = importError {
-                    Text(error)
-                }
-            }
-            .alert("Song Imported", isPresented: $importSuccess) {
-                Button("OK") {
-                    onSongImported()
-                    dismiss()
-                }
-            } message: {
-                Text("The song has been added and is being enriched with recordings in the background.")
+                Text(resultMessage)
             }
             .confirmationDialog(
-                "Import Song",
-                isPresented: .constant(selectedWork != nil && !isImporting),
+                "Request Song",
+                isPresented: .constant(selectedWork != nil && !isSubmitting),
                 titleVisibility: .visible
             ) {
                 if let work = selectedWork {
-                    Button("Import \"\(work.title)\"") {
+                    Button("Request \"\(work.title)\"") {
                         Task {
-                            await importSong(work)
+                            await requestSong(work)
                         }
                     }
 
@@ -92,7 +91,7 @@ struct MusicBrainzSearchSheet: View {
                 }
             } message: {
                 if let work = selectedWork {
-                    Text("Import \"\(work.title)\" by \(work.composerDisplay)?")
+                    Text("Request that \"\(work.title)\" by \(work.composerDisplay) be added? We'll review it and add the song if it's a good fit.")
                 }
             }
         }
@@ -158,7 +157,7 @@ struct MusicBrainzSearchSheet: View {
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             } footer: {
-                Text("Tap a result to import it into your library.")
+                Text("Tap a result to request it be added to the catalog.")
                     .font(ApproachNoteTheme.caption())
                     .foregroundColor(ApproachNoteTheme.textSecondary)
             }
@@ -227,27 +226,35 @@ struct MusicBrainzSearchSheet: View {
         isSearching = false
     }
 
-    private func importSong(_ work: MusicBrainzWork) async {
-        isImporting = true
+    private func requestSong(_ work: MusicBrainzWork) async {
+        isSubmitting = true
         selectedWork = nil
 
         guard let token = await authManager.validAccessToken() else {
-            importError = "You must be logged in to import songs."
-            isImporting = false
+            showResult(title: "Sign In Required",
+                       message: "You must be logged in to request a song.",
+                       dismiss: false)
+            isSubmitting = false
             return
         }
 
-        if let response = await musicBrainzService.importSongFromMusicBrainz(work: work, authToken: token) {
-            if response.success {
-                importSuccess = true
-            } else {
-                importError = response.message
-            }
-        } else {
-            importError = "Failed to import song. Please try again."
+        let result = await musicBrainzService.submitSongRequest(work: work, authToken: token)
+        switch result {
+        case .submitted(let message):
+            showResult(title: "Request Submitted", message: message, dismiss: true)
+        case .alreadyKnown(let message):
+            showResult(title: "Already Requested", message: message, dismiss: false)
+        case .failed(let message):
+            showResult(title: "Couldn't Submit Request", message: message, dismiss: false)
         }
 
-        isImporting = false
+        isSubmitting = false
+    }
+
+    private func showResult(title: String, message: String, dismiss: Bool) {
+        resultMessage = message
+        dismissOnAcknowledge = dismiss
+        resultTitle = title
     }
 }
 

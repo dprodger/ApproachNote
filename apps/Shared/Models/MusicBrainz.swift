@@ -71,17 +71,23 @@ struct MusicBrainzWork: Codable, Identifiable {
     }
 }
 
-/// Response from /api/musicbrainz/import
-struct MusicBrainzImportResponse: Codable {
+/// Success body from /api/musicbrainz/request (HTTP 201)
+struct SongRequestResponse: Codable {
     let success: Bool
     let message: String
-    let song: Song?
-    let researchQueued: Bool?
-    let queueSize: Int?
+}
 
-    enum CodingKeys: String, CodingKey {
-        case success, message, song
-        case researchQueued = "research_queued"
-        case queueSize = "queue_size"
-    }
+/// Error body from /api/musicbrainz/request (e.g. HTTP 409)
+struct SongRequestErrorResponse: Codable {
+    let error: String
+}
+
+/// Outcome of submitting a song request, surfaced to the UI.
+enum SongRequestResult {
+    /// The request was recorded and is awaiting admin review.
+    case submitted(message: String)
+    /// The song is already in the catalog or already has a pending request.
+    case alreadyKnown(message: String)
+    /// The request could not be submitted.
+    case failed(message: String)
 }

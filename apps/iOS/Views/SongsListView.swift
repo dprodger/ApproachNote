@@ -261,11 +261,13 @@ struct SongsListView: View {
                 .foregroundColor(ApproachNoteTheme.textSecondary)
                 .multilineTextAlignment(.center)
 
-            VStack(spacing: ApproachNoteTheme.spacingSM) {
-                Text("Can't find what you're looking for?")
-                    .font(ApproachNoteTheme.caption())
-                    .foregroundColor(ApproachNoteTheme.textSecondary)
+            Text("We don't currently have that song in our system. If you think it's one we should add, take a look and see if we can find it on MusicBrainz. Then you can put it into a queue and we'll see about adding it.")
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
 
+            if authManager.isAuthenticated {
                 Button(action: {
                     showMusicBrainzSearch = true
                 }) {
@@ -276,8 +278,28 @@ struct SongsListView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(ApproachNoteTheme.brand)
+                .padding(.top, ApproachNoteTheme.spacingXS)
+            } else {
+                VStack(spacing: ApproachNoteTheme.spacingSM) {
+                    Text("To suggest a song to add, you must be logged in with an account.")
+                        .font(ApproachNoteTheme.caption())
+                        .foregroundColor(ApproachNoteTheme.textSecondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+
+                    Button(action: {
+                        showLoginPrompt = true
+                    }) {
+                        HStack {
+                            Image(systemName: "person.crop.circle")
+                            Text("Log In")
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .tint(ApproachNoteTheme.brand)
+                }
+                .padding(.top, ApproachNoteTheme.spacingXS)
             }
-            .padding(.top, ApproachNoteTheme.spacingXS)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

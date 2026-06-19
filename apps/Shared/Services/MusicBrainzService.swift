@@ -39,11 +39,13 @@ class MusicBrainzService: ObservableObject {
         }
     }
 
-    /// Import a song from MusicBrainz into the database
-    func importSongFromMusicBrainz(work: MusicBrainzWork, authToken: String) async -> MusicBrainzImportResponse? {
+    /// Submit a request to add a song from MusicBrainz. Unlike import, this
+    /// records a pending request for an admin to review — nothing is added to
+    /// the catalog until it's approved.
+    func submitSongRequest(work: MusicBrainzWork, authToken: String) async -> SongRequestResult {
         let startTime = Date()
 
-        let url = URL.api(path: "/musicbrainz/import")
+        let url = URL.api(path: "/musicbrainz/request")
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -64,31 +66,29 @@ class MusicBrainzService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                return nil
+                return .failed(message: "Couldn't submit your request. Please try again.")
             }
 
-            APIClient.logRequest("POST /musicbrainz/import", startTime: startTime)
+            APIClient.logRequest("POST /musicbrainz/request", startTime: startTime)
 
-            if httpResponse.statusCode == 201 {
-                let importResponse = try JSONDecoder().decode(MusicBrainzImportResponse.self, from: data)
+            switch httpResponse.statusCode {
+            case 201:
+                let decoded = try? JSONDecoder().decode(SongRequestResponse.self, from: data)
                 if APIClient.diagnosticsEnabled {
-                    let songTitle = importResponse.song?.title ?? "unknown"
-                    Log.network.info("Imported song: \(songTitle, privacy: .private)")
+                    Log.network.info("Song request submitted: \(work.title, privacy: .private)")
                 }
-                return importResponse
-            } else if httpResponse.statusCode == 409 {
-                Log.network.warning("Song with this MusicBrainz ID already exists")
-                if let errorResponse = try? JSONDecoder().decode(MusicBrainzImportResponse.self, from: data) {
-                    return errorResponse
-                }
-                return nil
-            } else {
-                Log.network.error("Error importing from MusicBrainz: HTTP \(httpResponse.statusCode, privacy: .public)")
-                return nil
+                return .submitted(message: decoded?.message ?? "Your request has been submitted for review.")
+            case 409:
+                let decoded = try? JSONDecoder().decode(SongRequestErrorResponse.self, from: data)
+                Log.network.warning("Song request not needed: HTTP 409")
+                return .alreadyKnown(message: decoded?.error ?? "This song has already been requested.")
+            default:
+                Log.network.error("Error submitting song request: HTTP \(httpResponse.statusCode, privacy: .public)")
+                return .failed(message: "Couldn't submit your request. Please try again.")
             }
         } catch {
-            Log.network.error("Error importing from MusicBrainz: \(error)")
-            return nil
+            Log.network.error("Error submitting song request: \(error)")
+            return .failed(message: "Couldn't submit your request. Please try again.")
         }
     }
 }

@@ -29,6 +29,54 @@ from core import performer_reference_verification
 logger = logging.getLogger(__name__)
 
 
+def create_song_and_queue_research(
+    musicbrainz_id: str,
+    title: str,
+    composer: str | None = None,
+    created_by: str | None = None,
+) -> tuple[Dict[str, Any], bool]:
+    """Insert a song row and queue it for background research.
+
+    Shared by the (admin-only) MusicBrainz import endpoint and the
+    song-request approval flow so both create songs identically. Callers are
+    responsible for first checking that no song with this musicbrainz_id
+    already exists.
+
+    Returns:
+        (song_row, queued) where song_row is the inserted row (dict) and
+        queued is True if the research queue accepted the song.
+    """
+    fields = ['title', 'musicbrainz_id']
+    values = [title, musicbrainz_id]
+    placeholders = ['%s', '%s']
+
+    if composer:
+        fields.append('composer')
+        values.append(composer)
+        placeholders.append('%s')
+
+    if created_by:
+        fields.append('created_by')
+        values.append(created_by)
+        placeholders.append('%s')
+
+    query = f"""
+        INSERT INTO songs ({', '.join(fields)})
+        VALUES ({', '.join(placeholders)})
+        RETURNING id, title, composer, musicbrainz_id, created_at, updated_at, created_by
+    """
+
+    result = execute_query(query, values, fetch_one=True)
+    song_id = str(result['id'])
+
+    logger.info(
+        f"Created song: {title} (ID: {song_id}, MB: {musicbrainz_id}, created_by: {created_by})"
+    )
+
+    queued = research_queue.add_song_to_queue(song_id, title)
+    return result, queued
+
+
 def _enqueue_downstream_jobs(song_id: str, force_refresh: bool) -> None:
     """Queue Spotify + per-recording YouTube jobs on the durable queue.
 

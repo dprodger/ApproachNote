@@ -35,6 +35,7 @@ def require_auth(f):
     - display_name: User display name
     - is_active: Account active status
     - account_locked: Account locked status
+    - is_admin: Whether the user has admin privileges
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -63,7 +64,7 @@ def require_auth(f):
             with get_db_connection() as conn:
                 with conn.cursor() as cur:
                     cur.execute("""
-                        SELECT id, email, display_name, is_active, account_locked
+                        SELECT id, email, display_name, is_active, account_locked, is_admin
                         FROM users
                         WHERE id = %s
                     """, (user_id,))

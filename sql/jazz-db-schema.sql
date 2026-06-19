@@ -594,6 +594,29 @@ CREATE TABLE orphan_count (
     count BIGINT
 );
 
+-- User-submitted requests to add a song from MusicBrainz, gated behind manual
+-- admin approval (see routes/admin_song_requests.py). Approval creates the
+-- songs row + queues research; see migration 022_add_song_requests.sql.
+CREATE TABLE song_requests (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    musicbrainz_id  VARCHAR(36) NOT NULL,
+    title           VARCHAR(255) NOT NULL,
+    composer        VARCHAR(500),
+    requested_by    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status          VARCHAR(20) NOT NULL DEFAULT 'pending'
+                    CHECK (status IN ('pending', 'approved', 'rejected')),
+    review_note     TEXT,
+    reviewed_by     UUID REFERENCES users(id) ON DELETE SET NULL,
+    reviewed_at     TIMESTAMP WITH TIME ZONE,
+    created_song_id UUID REFERENCES songs(id) ON DELETE SET NULL,
+    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX idx_song_requests_pending_mbid
+    ON song_requests(musicbrainz_id) WHERE status = 'pending';
+CREATE INDEX idx_song_requests_status_created
+    ON song_requests(status, created_at DESC);
+
 -- ============================================================================
 -- VIEWS
 -- ============================================================================

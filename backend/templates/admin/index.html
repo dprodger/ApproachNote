@@ -161,6 +161,13 @@
         <div class="section">
             <h2>Data Review</h2>
             <div class="card-grid">
+                <a href="{{ admin_url('/admin/song-requests') }}" class="card">
+                    <div class="card-icon">🎵</div>
+                    <h3>Song Requests</h3>
+                    <p>Review songs that users have requested be added (via the in-app MusicBrainz search). Approve to create the song and queue research, or reject.</p>
+                    <span class="endpoint">{{ admin_url('/admin/song-requests') }}</span>
+                </a>
+
                 <a href="{{ admin_url('/admin/orphans') }}" class="card">
                     <div class="card-icon">📦</div>
                     <h3>Orphan Recordings</h3>
