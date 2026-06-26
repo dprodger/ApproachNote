@@ -68,6 +68,8 @@
         th { background: #fafafa; color: #1d1d1f; font-weight: 600; }
         tr:hover { background: #f9f9fb; }
         .email { font-weight: 500; color: #1d1d1f; }
+        .email a { color: #0066cc; text-decoration: none; }
+        .email a:hover { text-decoration: underline; }
         .display-name { color: #666; font-size: 0.85em; }
         .muted { color: #999; }
         .badge {
@@ -187,7 +189,7 @@
                 {% for user in users %}
                 <tr>
                     <td>
-                        <div class="email">{{ user.email }}</div>
+                        <div class="email"><a href="{{ admin_url('/admin/users/' ~ user.id) }}">{{ user.email }}</a></div>
                         {% if user.display_name %}
                         <div class="display-name">{{ user.display_name }}</div>
                         {% endif %}

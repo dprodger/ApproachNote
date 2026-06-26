@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% include 'admin/_favicon.html' %}
+    <title>{{ user.email }} — User detail</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f7;
+            color: #333;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .breadcrumb { margin-bottom: 12px; font-size: 0.9em; }
+        .breadcrumb a { color: #0066cc; text-decoration: none; }
+        .breadcrumb a:hover { text-decoration: underline; }
+        h1 { color: #1d1d1f; margin-bottom: 4px; word-break: break-all; }
+        .subtitle { color: #666; margin-bottom: 20px; font-size: 0.9em; }
+        .card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 18px 20px;
+            margin-bottom: 20px;
+        }
+        .card h2 { font-size: 1.05em; color: #1d1d1f; margin-bottom: 12px; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-right: 4px;
+        }
+        .badge-admin { background: #6a1b9a; color: #fff; }
+        .badge-locked { background: #e74c3c; color: #fff; }
+        .badge-inactive { background: #95a5a6; color: #fff; }
+        .badge-unverified { background: #f39c12; color: #000; }
+        .badge-google { background: #4285f4; color: #fff; }
+        .badge-apple { background: #000; color: #fff; }
+        .muted { color: #999; }
+        .profile-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 10px 24px;
+        }
+        .profile-grid .label { font-size: 0.78em; color: #888; text-transform: uppercase; letter-spacing: 0.03em; }
+        .profile-grid .value { font-size: 0.95em; color: #1d1d1f; }
+        code {
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 0.85em;
+            color: #666;
+            user-select: all;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+        }
+        .stat {
+            background: #fff;
+            border: 1px solid #e8e8ec;
+            border-radius: 10px;
+            padding: 16px 18px;
+        }
+        .stat .num { font-size: 2em; font-weight: 700; color: #1d1d1f; line-height: 1.1; }
+        .stat .name { font-size: 0.9em; color: #555; margin-top: 4px; font-weight: 600; }
+        .stat .detail { font-size: 0.8em; color: #888; margin-top: 6px; }
+        .stat .detail span { white-space: nowrap; margin-right: 8px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 9px 12px;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+            font-size: 0.9em;
+        }
+        th { color: #888; font-weight: 600; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.03em; }
+        td.num, th.num { text-align: right; }
+        .empty { color: #999; font-size: 0.9em; padding: 8px 0; }
+    </style>
+</head>
+<body>
+    {% include 'admin/_nav.html' %}
+    <div class="container">
+        <div class="breadcrumb">
+            <a href="{{ admin_url('/admin/users') }}">&larr; Users</a>
+        </div>
+        <h1>{{ user.email }}</h1>
+        <p class="subtitle">
+            {% if user.display_name %}{{ user.display_name }} &middot; {% endif %}
+            <code>{{ user.id }}</code>
+        </p>
+
+        <div class="card">
+            <h2>Profile</h2>
+            <div class="profile-grid">
+                <div>
+                    <div class="label">Status</div>
+                    <div class="value">
+                        {% if user.is_admin %}<span class="badge badge-admin">admin</span>{% endif %}
+                        {% if user.account_locked %}<span class="badge badge-locked">locked</span>{% endif %}
+                        {% if not user.is_active %}<span class="badge badge-inactive">inactive</span>{% endif %}
+                        {% if not user.email_verified %}<span class="badge badge-unverified">unverified</span>{% endif %}
+                        {% if user.is_admin is sameas false and not user.account_locked and user.is_active and user.email_verified %}
+                        <span class="muted">active &amp; verified</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="label">Auth</div>
+                    <div class="value">
+                        {% if user.has_google %}<span class="badge badge-google">Google</span>{% endif %}
+                        {% if user.has_apple %}<span class="badge badge-apple">Apple</span>{% endif %}
+                        {% if not user.has_google and not user.has_apple %}<span class="muted">password</span>{% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="label">Last login</div>
+                    <div class="value">
+                        {% if user.last_login_at %}{{ user.last_login_at.strftime('%Y-%m-%d %H:%M UTC') }}{% else %}<span class="muted">never</span>{% endif %}
+                    </div>
+                </div>
+                <div>
+                    <div class="label">Created</div>
+                    <div class="value">
+                        {% if user.created_at %}{{ user.created_at.strftime('%Y-%m-%d') }}{% else %}<span class="muted">&mdash;</span>{% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Contributions</h2>
+            <div class="stats-grid">
+                <div class="stat">
+                    <div class="num">{{ repertoire_count }}</div>
+                    <div class="name">Repertoires</div>
+                    <div class="detail">{{ repertoire_song_count }} song{{ '' if repertoire_song_count == 1 else 's' }} total</div>
+                </div>
+                <div class="stat">
+                    <div class="num">{{ favorite_count }}</div>
+                    <div class="name">Favorites</div>
+                    <div class="detail">recordings favorited</div>
+                </div>
+                <div class="stat">
+                    <div class="num">{{ contribution_count }}</div>
+                    <div class="name">Community details</div>
+                    <div class="detail">recording key / tempo / instrumental</div>
+                </div>
+                <div class="stat">
+                    <div class="num">{{ song_requests.total }}</div>
+                    <div class="name">Song requests</div>
+                    <div class="detail">
+                        <span>{{ song_requests.pending }} pending</span>
+                        <span>{{ song_requests.approved }} approved</span>
+                        <span>{{ song_requests.rejected }} rejected</span>
+                    </div>
+                </div>
+                <div class="stat">
+                    <div class="num">{{ streaming_links.total }}</div>
+                    <div class="name">Streaming links added</div>
+                    <div class="detail">
+                        <span>{{ streaming_links.track }} track</span>
+                        <span>{{ streaming_links.album }} album</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>Repertoires</h2>
+            {% if repertoires %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th class="num">Songs</th>
+                        <th>Created</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in repertoires %}
+                    <tr>
+                        <td>{{ r.name }}</td>
+                        <td class="num">{{ r.song_count }}</td>
+                        <td>{% if r.created_at %}{{ r.created_at.strftime('%Y-%m-%d') }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <div class="empty">No repertoires.</div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

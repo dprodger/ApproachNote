@@ -3489,6 +3489,125 @@ def users_list():
     )
 
 
+@admin_bp.route('/users/<user_id>')
+def users_detail(user_id):
+    """User detail page: profile plus a breakdown of everything the user has
+    contributed — repertoires (and the songs in them), favorites, community
+    recording details, song-add requests (by status), and user-added
+    streaming links (track- and album-level)."""
+    # The columns below are uuid-typed; a non-UUID path segment would abort
+    # the query, so reject it up front as a clean 404.
+    if not _is_uuid(user_id):
+        return ('User not found', 404)
+
+    with get_db_connection() as db:
+        with db.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, email, display_name, profile_image_url,
+                       is_admin, is_active, account_locked, email_verified,
+                       google_id IS NOT NULL AS has_google,
+                       apple_id IS NOT NULL AS has_apple,
+                       last_login_at, created_at, updated_at
+                FROM users WHERE id = %s
+                """,
+                (user_id,),
+            )
+            user = cur.fetchone()
+            if not user:
+                return ('User not found', 404)
+
+            cur.execute(
+                "SELECT COUNT(*) AS n FROM repertoires WHERE user_id = %s",
+                (user_id,),
+            )
+            repertoire_count = cur.fetchone()['n']
+
+            cur.execute(
+                """
+                SELECT COUNT(*) AS n
+                FROM repertoire_songs rs
+                JOIN repertoires r ON r.id = rs.repertoire_id
+                WHERE r.user_id = %s
+                """,
+                (user_id,),
+            )
+            repertoire_song_count = cur.fetchone()['n']
+
+            cur.execute(
+                "SELECT COUNT(*) AS n FROM recording_favorites WHERE user_id = %s",
+                (user_id,),
+            )
+            favorite_count = cur.fetchone()['n']
+
+            cur.execute(
+                "SELECT COUNT(*) AS n FROM recording_contributions WHERE user_id = %s",
+                (user_id,),
+            )
+            contribution_count = cur.fetchone()['n']
+
+            # Song-add requests ("uploads"), broken out by review status.
+            cur.execute(
+                """
+                SELECT status, COUNT(*) AS n
+                FROM song_requests WHERE requested_by = %s
+                GROUP BY status
+                """,
+                (user_id,),
+            )
+            req_rows = {row['status']: row['n'] for row in cur.fetchall()}
+            song_requests = {
+                'total': sum(req_rows.values()),
+                'pending': req_rows.get('pending', 0),
+                'approved': req_rows.get('approved', 0),
+                'rejected': req_rows.get('rejected', 0),
+            }
+
+            # User-added streaming links: track-level + album-level.
+            cur.execute(
+                "SELECT COUNT(*) AS n FROM recording_release_streaming_links "
+                "WHERE added_by_user_id = %s",
+                (user_id,),
+            )
+            track_links = cur.fetchone()['n']
+            cur.execute(
+                "SELECT COUNT(*) AS n FROM release_streaming_links "
+                "WHERE added_by_user_id = %s",
+                (user_id,),
+            )
+            album_links = cur.fetchone()['n']
+
+            # Per-repertoire breakdown shown beneath the summary cards.
+            cur.execute(
+                """
+                SELECT r.id, r.name, r.created_at,
+                       (SELECT COUNT(*) FROM repertoire_songs rs
+                        WHERE rs.repertoire_id = r.id) AS song_count
+                FROM repertoires r
+                WHERE r.user_id = %s
+                ORDER BY r.created_at DESC
+                """,
+                (user_id,),
+            )
+            repertoires = [dict(row) for row in cur.fetchall()]
+
+    return render_template(
+        'admin/user_detail.html',
+        user=user,
+        repertoire_count=repertoire_count,
+        repertoire_song_count=repertoire_song_count,
+        favorite_count=favorite_count,
+        contribution_count=contribution_count,
+        song_requests=song_requests,
+        streaming_links={
+            'track': track_links,
+            'album': album_links,
+            'total': track_links + album_links,
+        },
+        repertoires=repertoires,
+    )
+
+
 @admin_bp.route('/users/<user_id>/reset-password', methods=['POST'])
 def users_reset_password(user_id):
     """
