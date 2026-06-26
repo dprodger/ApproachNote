@@ -3,7 +3,7 @@ Jazz Reference API Backend - Improved Version
 A Flask API with robust database connection handling
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 from werkzeug.middleware.proxy_fix import ProxyFix
 import logging
 import os
@@ -78,6 +78,21 @@ def landing_page():
     """Serve the main landing page"""
     return render_template('index.html')
 
+# Root-level icon probes. Browsers and iOS Safari request these fixed paths
+# automatically (regardless of the <link rel="icon"> tags in index.html), so
+# without explicit routes they fall through to the host-routing 404. Served
+# from any host; see ROOT_ICON_PATHS in enforce_host_routing.
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(app.static_folder, 'images/favicon.ico',
+                               mimetype='image/x-icon')
+
+@app.route('/apple-touch-icon.png')
+@app.route('/apple-touch-icon-precomposed.png')
+def apple_touch_icon():
+    return send_from_directory(app.static_folder, 'images/apple-touch-icon.png',
+                               mimetype='image/png')
+
 @app.route('/terms')
 def terms_page():
     return render_template('terms.html')
@@ -115,6 +130,11 @@ WEB_ONLY_PATHS = ['/', '/terms', '/privacy']
 # so no CORS), but they should also work if reached via the web host.
 ACCOUNT_PATHS = ['/reset-password', '/forgot-password']
 
+# Fixed root-level icon paths browsers/iOS request automatically. Served from
+# any host (web, API, or localhost) so the probes never 404.
+ROOT_ICON_PATHS = ['/favicon.ico', '/apple-touch-icon.png',
+                   '/apple-touch-icon-precomposed.png']
+
 # Routes that should only be served from the API subdomain
 # (everything except web-only paths and static files)
 
@@ -149,6 +169,10 @@ def enforce_host_routing():
 
     # Allow account self-service pages (password reset/forgot) from any host
     if path in ACCOUNT_PATHS:
+        return None
+
+    # Allow root-level icon probes (favicon, apple-touch-icon) from any host
+    if path in ROOT_ICON_PATHS:
         return None
 
     is_admin_host = host_normalized in ['admin.approachnote.com']
