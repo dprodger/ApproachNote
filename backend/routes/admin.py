@@ -3757,6 +3757,15 @@ def songs_browse_list():
 
     with get_db_connection() as conn:
         with conn.cursor() as cur:
+            # A bare song ID (UUID) resolves straight to that song's detail
+            # page when it exists — pasting a song's id into the search box
+            # jumps to it instead of running a (fruitless) title LIKE. #222.
+            if q and _is_uuid(q):
+                cur.execute("SELECT 1 FROM songs WHERE id = %s", (q,))
+                if cur.fetchone():
+                    return redirect(
+                        url_for('admin.songs_browse_detail', song_id=q)
+                    )
             if q:
                 # Normalize apostrophes on the input; `unaccent` strips
                 # diacritics on both sides of the LIKE so "naima" finds
