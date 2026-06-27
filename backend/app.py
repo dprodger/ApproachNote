@@ -73,6 +73,18 @@ register_blueprints(app)
 # LANDING PAGE
 # ============================================================================
 
+# PostHog analytics config for the public marketing pages. The public project
+# key is read from the environment (not hardcoded) and is intentionally exposed
+# in client JS; the block in templates/_analytics.html no-ops when it's unset,
+# so local dev stays clean. US Cloud host by default; override via POSTHOG_HOST.
+@app.context_processor
+def inject_analytics():
+    return {
+        'posthog_api_key': os.environ.get('POSTHOG_API_KEY', ''),
+        'posthog_host': os.environ.get('POSTHOG_HOST', 'https://us.i.posthog.com'),
+    }
+
+
 @app.route('/')
 def landing_page():
     """Serve the main landing page"""

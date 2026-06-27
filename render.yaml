@@ -65,6 +65,13 @@ services:
         sync: false
       - key: SENDGRID_API_KEY
         sync: false
+      # PostHog product analytics for the public marketing pages. This is the
+      # public project key (phc_...) — same project as the iOS app, US Cloud.
+      # It's exposed in client JS by design; set it in the dashboard. The
+      # marketing snippet no-ops if it's unset. POSTHOG_HOST defaults to the
+      # US Cloud host in app.py, so it only needs setting for EU/self-hosted.
+      - key: POSTHOG_API_KEY
+        sync: false
       # Apple Music Feed (also needed on the web side if any admin route
       # needs to read credentials; if not, these can be worker-only).
       - key: APPLE_MEDIA_ID
