@@ -332,8 +332,10 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         config.sessionReplay = true
 
         // We opt-out of the aggressive global masking. PostHog still auto-masks
-        // password/OTP/credit-card fields via heuristics; login/signup views are
-        // additionally wrapped in .postHogMask() at the view layer.
+        // password/OTP/credit-card fields via heuristics; password fields on the
+        // login form and the signup/reset views are additionally wrapped in
+        // .postHogMask() at the view layer. The login form's email field is left
+        // unmasked so we can see how users move through sign-in.
         config.sessionReplayConfig.maskAllTextInputs = false
         config.sessionReplayConfig.maskAllImages = false
 

@@ -10,6 +10,9 @@ import SwiftUI
 import Combine
 import os
 import AuthenticationServices
+#if canImport(PostHog)
+import PostHog
+#endif
 #if canImport(GoogleSignIn)
 import GoogleSignIn
 #endif
@@ -35,6 +38,19 @@ class AuthenticationManager: ObservableObject {
     @Published var currentUser: User? {
         didSet {
             SharedAuthState.userDisplayName = currentUser?.displayName
+            #if canImport(PostHog)
+            // Tie PostHog analytics/replay to the signed-in user so their email
+            // is visible in the Persons view. Uses the stable user id as the
+            // distinct id (email as a person property) so events survive an
+            // email change and the pre-login anonymous session merges in.
+            // Clearing currentUser (logout / account deletion) resets PostHog
+            // so subsequent events are no longer attributed to that person.
+            if let user = currentUser {
+                PostHogSDK.shared.identify(user.id, userProperties: ["email": user.email])
+            } else {
+                PostHogSDK.shared.reset()
+            }
+            #endif
         }
     }
     @Published var isLoading = false

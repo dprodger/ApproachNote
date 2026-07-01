@@ -7,7 +7,6 @@
 //
 
 import SwiftUI
-import PostHog
 
 struct ForgotPasswordView: View {
     @EnvironmentObject var authManager: AuthenticationManager
@@ -135,7 +134,8 @@ struct ForgotPasswordView: View {
                 }
             }
         }
-        .postHogMask()
+        // No password field here — only the email address, which we capture in
+        // session replay so we can see the reset flow.
     }
 }
 

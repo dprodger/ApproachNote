@@ -85,6 +85,10 @@ struct LoginFormBody: View {
                     .padding()
                     .background(Color(.systemGray6))
                     .cornerRadius(10)
+                    // Only the password is redacted in session replay; the rest
+                    // of the login form (email, buttons) is captured so we can
+                    // see how users move through sign-in.
+                    .postHogMask()
             }
 
 
@@ -139,7 +143,6 @@ struct LoginFormBody: View {
         .sheet(isPresented: $viewModel.showingForgotPassword) {
             ForgotPasswordView()
         }
-        .postHogMask()
     }
 
     private var orDivider: some View {

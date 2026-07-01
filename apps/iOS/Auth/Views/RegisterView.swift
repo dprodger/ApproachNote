@@ -157,7 +157,9 @@ struct RegisterView: View {
                 }
             }
         }
-        .postHogMask()
+        // Password and confirm-password are masked at the field level (see
+        // revealablePasswordField); display name, email, and the rest of the
+        // form are captured in session replay.
     }
 
     /// Password entry that toggles between obscured (`SecureField`) and plain
@@ -187,6 +189,9 @@ struct RegisterView: View {
         .padding()
         .background(Color(.systemGray6))
         .cornerRadius(10)
+        // Redact the password in session replay in both the obscured and
+        // revealed (plaintext TextField) states.
+        .postHogMask()
     }
 }
 

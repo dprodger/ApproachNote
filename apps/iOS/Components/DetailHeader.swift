@@ -153,15 +153,99 @@ struct DetailHeaderBar<Trailing: View>: View {
     }
 }
 
+// MARK: - Scroll Offset Tracking
+
+// The collapsing header needs a live scroll offset. We read it straight off the
+// enclosing `UIScrollView` via KVO rather than a SwiftUI GeometryReader +
+// PreferenceKey, because on iOS 18+ preferences set inside a ScrollView are no
+// longer re-delivered during scrolling (that's what iOS 18's
+// `onScrollGeometryChange` — unavailable at our 17.0 target — exists to solve).
+// The reader lives inside the scroll content (via `DetailHeaderSpacer`); the
+// offset is handed back to the modifier through an environment closure so call
+// sites don't have to thread a binding.
+
+private struct DetailHeaderScrollReporterKey: EnvironmentKey {
+    static let defaultValue: (CGFloat) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    fileprivate var detailHeaderScrollReporter: (CGFloat) -> Void {
+        get { self[DetailHeaderScrollReporterKey.self] }
+        set { self[DetailHeaderScrollReporterKey.self] = newValue }
+    }
+}
+
+/// Finds the nearest ancestor `UIScrollView` and reports its vertical offset
+/// (`contentOffset.y + adjustedContentInset.top`, so 0 at rest, positive when
+/// scrolled up, negative on pull-down) whenever it changes. Place inside scroll
+/// content — e.g. the header spacer's background.
+private struct ScrollOffsetReader: UIViewRepresentable {
+    let onOffset: (CGFloat) -> Void
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isUserInteractionEnabled = false
+        context.coordinator.onOffset = onOffset
+        context.coordinator.attach(from: view)
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        context.coordinator.onOffset = onOffset
+        context.coordinator.attach(from: uiView)
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    final class Coordinator {
+        var onOffset: (CGFloat) -> Void = { _ in }
+        private weak var scrollView: UIScrollView?
+        private var observation: NSKeyValueObservation?
+
+        /// Locates the enclosing scroll view and starts observing. The scroll
+        /// view may not be in the hierarchy on the first layout pass, so we
+        /// retry asynchronously until found.
+        func attach(from view: UIView) {
+            guard scrollView == nil else { return }
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self, let view, self.scrollView == nil,
+                      let scrollView = view.detailHeaderEnclosingScrollView() else { return }
+                self.scrollView = scrollView
+                self.observation = scrollView.observe(\.contentOffset, options: [.initial, .new]) { [weak self] scrollView, _ in
+                    self?.onOffset(scrollView.contentOffset.y + scrollView.adjustedContentInset.top)
+                }
+            }
+        }
+    }
+}
+
+private extension UIView {
+    func detailHeaderEnclosingScrollView() -> UIScrollView? {
+        var candidate = superview
+        while let view = candidate {
+            if let scrollView = view as? UIScrollView { return scrollView }
+            candidate = view.superview
+        }
+        return nil
+    }
+}
+
 // MARK: - Header Spacer
 
 /// Brand-colored spacer placed at the very top of a detail screen's scroll
 /// content, sized to the expanded header so content begins below it (and rides
 /// up under the collapsing header overlay). Pair with `.collapsingDetailHeader`.
+///
+/// Also hosts the scroll-offset reader: sitting inside the scroll content, its
+/// background bridges to the enclosing `UIScrollView` and reports the offset
+/// back through `\.detailHeaderScrollReporter`.
 struct DetailHeaderSpacer: View {
+    @Environment(\.detailHeaderScrollReporter) private var reportOffset
+
     var body: some View {
         ApproachNoteTheme.brand
             .frame(height: DetailHeaderMetrics.expandedHeight)
+            .background(ScrollOffsetReader(onOffset: reportOffset))
     }
 }
 
@@ -212,11 +296,7 @@ private struct CollapsingDetailHeaderModifier<Trailing: View>: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(ApproachNoteTheme.background)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { _, newValue in
-                scrollOffset = newValue
-            }
+            .environment(\.detailHeaderScrollReporter) { scrollOffset = $0 }
             .toolbar(.hidden, for: .navigationBar)
             .navigationBarBackButtonHidden(true)
             .background(SwipeBackEnabler())
