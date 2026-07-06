@@ -122,6 +122,12 @@
                     </div>
                 </div>
                 <div>
+                    <div class="label">Last active</div>
+                    <div class="value">
+                        {% if user.last_active_at %}{{ user.last_active_at.strftime('%Y-%m-%d %H:%M UTC') }}{% else %}<span class="muted">never</span>{% endif %}
+                    </div>
+                </div>
+                <div>
                     <div class="label">Last login</div>
                     <div class="value">
                         {% if user.last_login_at %}{{ user.last_login_at.strftime('%Y-%m-%d %H:%M UTC') }}{% else %}<span class="muted">never</span>{% endif %}

@@ -338,7 +338,7 @@ def _login_password(*, email: str, password: str, wants_json: bool):
                 cur.execute(
                     """
                     UPDATE users
-                    SET failed_login_attempts = 0, last_login_at = NOW()
+                    SET failed_login_attempts = 0, last_login_at = NOW(), last_active_at = NOW()
                     WHERE id = %s
                     """,
                     (user['id'],),
@@ -381,7 +381,7 @@ def _login_google(id_token_str: str, *, wants_json: bool):
                 if not _is_admin_active(user):
                     return _respond_login_failed(wants_json, 403, 'Admin access required')
                 cur.execute(
-                    "UPDATE users SET last_login_at = NOW() WHERE id = %s",
+                    "UPDATE users SET last_login_at = NOW(), last_active_at = NOW() WHERE id = %s",
                     (user['id'],),
                 )
                 conn.commit()
@@ -425,7 +425,7 @@ def _login_apple(identity_token: str, *, wants_json: bool):
                 if not _is_admin_active(user):
                     return _respond_login_failed(wants_json, 403, 'Admin access required')
                 cur.execute(
-                    "UPDATE users SET last_login_at = NOW() WHERE id = %s",
+                    "UPDATE users SET last_login_at = NOW(), last_active_at = NOW() WHERE id = %s",
                     (user['id'],),
                 )
                 conn.commit()

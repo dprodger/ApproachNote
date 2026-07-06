@@ -3465,11 +3465,12 @@ def users_list():
                     email_verified,
                     google_id IS NOT NULL AS has_google,
                     apple_id IS NOT NULL AS has_apple,
+                    last_active_at,
                     last_login_at,
                     created_at
                 FROM users
                 {where_sql}
-                ORDER BY last_login_at DESC NULLS LAST, created_at DESC
+                ORDER BY last_active_at DESC NULLS LAST, last_login_at DESC NULLS LAST, created_at DESC
                 LIMIT %s OFFSET %s
                 """,
                 params + [per_page, offset],
@@ -3508,7 +3509,7 @@ def users_detail(user_id):
                        is_admin, is_active, account_locked, email_verified,
                        google_id IS NOT NULL AS has_google,
                        apple_id IS NOT NULL AS has_apple,
-                       last_login_at, created_at, updated_at
+                       last_active_at, last_login_at, created_at, updated_at
                 FROM users WHERE id = %s
                 """,
                 (user_id,),

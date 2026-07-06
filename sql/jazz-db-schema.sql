@@ -227,6 +227,7 @@ CREATE TABLE users (
     failed_login_attempts INTEGER DEFAULT 0,
     last_failed_login_at TIMESTAMP WITH TIME ZONE,
     last_login_at TIMESTAMP WITH TIME ZONE,
+    last_active_at TIMESTAMP WITH TIME ZONE,
     is_admin BOOLEAN NOT NULL DEFAULT false,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -234,6 +235,9 @@ CREATE TABLE users (
 
 COMMENT ON COLUMN users.is_admin IS
     'True if user may access /admin web pages. Granted via backend/scripts/grant_admin.py.';
+
+COMMENT ON COLUMN users.last_active_at IS
+    'Last time the user was seen actively using the product. Stamped on token refresh (a ~15-minute session heartbeat given 15-minute access tokens) and on login. Distinct from last_login_at, which only tracks explicit sign-in events.';
 
 COMMENT ON COLUMN users.apple_refresh_token IS
     'Apple-issued OAuth refresh token from the Sign in with Apple authorization_code exchange. Used at account deletion to revoke the Apple grant (App Store Guideline 5.1.1(v)). NULL for non-Apple users or when the code exchange failed.';

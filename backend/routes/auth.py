@@ -193,8 +193,8 @@ def register():
                 password_hash = hash_password(password)
                 
                 cur.execute("""
-                    INSERT INTO users (email, password_hash, display_name)
-                    VALUES (%s, %s, %s)
+                    INSERT INTO users (email, password_hash, display_name, last_active_at)
+                    VALUES (%s, %s, %s, NOW())
                     RETURNING id, email, display_name, created_at
                 """, (email, password_hash, display_name))
                 
@@ -309,7 +309,8 @@ def login():
                 cur.execute("""
                     UPDATE users
                     SET failed_login_attempts = 0,
-                        last_login_at = NOW()
+                        last_login_at = NOW(),
+                        last_active_at = NOW()
                     WHERE id = %s
                 """, (user['id'],))
                 conn.commit()
@@ -409,9 +410,19 @@ def refresh_token():
                     INSERT INTO refresh_tokens (user_id, token, expires_at)
                     VALUES (%s, %s, NOW() + INTERVAL '30 days')
                 """, (user_id, new_refresh_token))
-                
+
+                # A refresh is our session heartbeat: an actively-used client
+                # rotates its 15-minute access token roughly every 15 minutes,
+                # so stamping activity here tracks real product usage without a
+                # per-request DB write. Distinct from last_login_at (sign-in only).
+                cur.execute("""
+                    UPDATE users
+                    SET last_active_at = NOW()
+                    WHERE id = %s
+                """, (user_id,))
+
                 conn.commit()
-                
+
                 return jsonify({
                     'access_token': access_token,
                     'refresh_token': new_refresh_token
@@ -619,15 +630,17 @@ def google_login():
                                 email_verified = true,
                                 profile_image_url = %s,
                                 last_login_at = NOW(),
+                                last_active_at = NOW(),
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = %s
                         """, (google_id, profile_image, user_id))
                         conn.commit()
                     else:
-                        # Existing Google user - just update last_login_at
+                        # Existing Google user - just update login/activity timestamps
                         cur.execute("""
                             UPDATE users
-                            SET last_login_at = NOW()
+                            SET last_login_at = NOW(),
+                                last_active_at = NOW()
                             WHERE id = %s
                         """, (user_id,))
                         conn.commit()
@@ -637,9 +650,10 @@ def google_login():
                     cur.execute("""
                         INSERT INTO users (
                             email, google_id, display_name,
-                            profile_image_url, email_verified, last_login_at
+                            profile_image_url, email_verified,
+                            last_login_at, last_active_at
                         )
-                        VALUES (%s, %s, %s, %s, true, NOW())
+                        VALUES (%s, %s, %s, %s, true, NOW(), NOW())
                         RETURNING id
                     """, (email, google_id, display_name, profile_image))
                     
@@ -829,6 +843,7 @@ def apple_login():
                             SET apple_id = %s,
                                 email_verified = COALESCE(email_verified, %s),
                                 last_login_at = NOW(),
+                                last_active_at = NOW(),
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = %s
                             """,
@@ -854,6 +869,7 @@ def apple_login():
                             UPDATE users
                             SET apple_id = %s,
                                 last_login_at = NOW(),
+                                last_active_at = NOW(),
                                 updated_at = CURRENT_TIMESTAMP
                             WHERE id = %s
                             """,
@@ -863,7 +879,8 @@ def apple_login():
                         cur.execute(
                             """
                             UPDATE users
-                            SET last_login_at = NOW()
+                            SET last_login_at = NOW(),
+                                last_active_at = NOW()
                             WHERE id = %s
                             """,
                             (user_id,),
@@ -898,9 +915,9 @@ def apple_login():
                         """
                         INSERT INTO users (
                             email, apple_id, display_name,
-                            email_verified, last_login_at
+                            email_verified, last_login_at, last_active_at
                         )
-                        VALUES (%s, %s, %s, %s, NOW())
+                        VALUES (%s, %s, %s, %s, NOW(), NOW())
                         RETURNING id
                         """,
                         (

@@ -153,7 +153,7 @@
     {% include 'admin/_nav.html' %}
     <div class="container">
         <h1>Users</h1>
-        <p class="subtitle">Registered accounts, sorted by most recent login.</p>
+        <p class="subtitle">Registered accounts, sorted by most recent activity.</p>
 
         <div class="toolbar">
             <form class="search-form" method="get" action="{{ admin_url('/admin/users') }}">
@@ -180,6 +180,7 @@
                     <th>Email</th>
                     <th>Status</th>
                     <th>Auth</th>
+                    <th>Last active</th>
                     <th>Last login</th>
                     <th>Created</th>
                     <th>Actions</th>
@@ -208,6 +209,13 @@
                         {% if user.has_apple %}<span class="badge badge-apple">Apple</span>{% endif %}
                         {% if not user.has_google and not user.has_apple %}
                         <span class="muted">password</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.last_active_at %}
+                            {{ user.last_active_at.strftime('%Y-%m-%d %H:%M UTC') }}
+                        {% else %}
+                            <span class="muted">never</span>
                         {% endif %}
                     </td>
                     <td>
