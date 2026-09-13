@@ -8,7 +8,7 @@ import logging
 import db_utils as db_tools
 from core import research_queue
 from core.song_research import create_song_and_queue_research
-from integrations.musicbrainz.utils import MusicBrainzSearcher
+from integrations.musicbrainz.utils import MusicBrainzSearcher, MusicBrainzUnavailable
 from middleware.auth_middleware import require_auth
 
 logger = logging.getLogger(__name__)
@@ -43,6 +43,10 @@ def search_musicbrainz_works():
         - score: Match score (0-100)
         - type: Work type (e.g., "Song")
         - musicbrainz_url: URL to MusicBrainz page
+
+        200 with an empty results array means MusicBrainz had no matches.
+        503 means MusicBrainz itself was unreachable — clients must show
+        those two cases differently.
     """
     query = request.args.get('q', '').strip()
 
@@ -64,6 +68,15 @@ def search_musicbrainz_works():
             'query': query,
             'results': results
         }), 200
+
+    except MusicBrainzUnavailable as e:
+        logger.warning(f"MusicBrainz unavailable for query '{query}': {e}")
+        return jsonify({
+            'error': 'MusicBrainz is temporarily unavailable',
+            'detail': str(e),
+            'query': query,
+            'results': []
+        }), 503
 
     except Exception as e:
         logger.error(f"Error searching MusicBrainz: {e}", exc_info=True)

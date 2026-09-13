@@ -38,6 +38,16 @@ from core.http_client import make_session
 logger = logging.getLogger(__name__)
 
 
+class MusicBrainzUnavailable(Exception):
+    """MusicBrainz could not be reached, or kept returning a transient error.
+
+    Raised only after the retry budget is exhausted. Callers must not treat
+    this as "no matches" — the distinction is the whole point: an empty
+    result set means MusicBrainz answered and had nothing, this means it
+    never answered.
+    """
+
+
 class MusicBrainzSearcher:
     """Shared MusicBrainz search functionality with caching"""
     
@@ -494,14 +504,25 @@ class MusicBrainzSearcher:
             limit: Maximum number of results to return (default 5)
 
         Returns:
-            List of dicts with keys: id, title, composers, score, type, musicbrainz_url
+            List of dicts with keys: id, title, composers, score, type, musicbrainz_url.
+            An empty list means MusicBrainz answered and had no matches.
+
+        Raises:
+            MusicBrainzUnavailable: MusicBrainz never answered successfully.
         """
         self.last_made_api_call = True
-        self.rate_limit()
 
-        # Normalize apostrophes - MusicBrainz typically uses curly apostrophe (')
-        # Convert straight apostrophe to curly for better matching
-        normalized_title = title.replace("'", "'")
+        # Normalize apostrophes to ASCII. MusicBrainz stores most titles with
+        # a curly apostrophe, but its search index matches either form, so
+        # this only keeps our query text predictable.
+        #
+        # \u escapes are used deliberately: this line previously read
+        # `title.replace("'", "'")` with an ASCII apostrophe on both sides,
+        # an editor autocorrect having flattened the curly one, which made it
+        # a silent no-op. Same hazard as documented in normalize_title().
+        normalized_title = title
+        for variant in ['‘', '’', 'ʼ', '`', '´']:
+            normalized_title = normalized_title.replace(variant, "'")
 
         # Search with the title as a phrase
         query = f'work:"{normalized_title}"'
@@ -509,36 +530,13 @@ class MusicBrainzSearcher:
         logger.debug(f"Searching MusicBrainz works (multi): {query}")
 
         try:
-            response = self.session.get(
-                'https://musicbrainz.org/ws/2/work/',
-                params={
-                    'query': query,
-                    'fmt': 'json',
-                    'limit': limit
-                },
-                timeout=10
-            )
-            response.raise_for_status()
-
-            data = response.json()
+            data = self._search_works_request(query, limit)
             works = data.get('works', [])
 
             # If no results with quoted search, try unquoted
             if not works:
                 logger.debug("No results with quoted search, trying unquoted...")
-                self.rate_limit()
-
-                response = self.session.get(
-                    'https://musicbrainz.org/ws/2/work/',
-                    params={
-                        'query': normalized_title,
-                        'fmt': 'json',
-                        'limit': limit
-                    },
-                    timeout=10
-                )
-                response.raise_for_status()
-                data = response.json()
+                data = self._search_works_request(normalized_title, limit)
                 works = data.get('works', [])
 
             if not works:
@@ -575,15 +573,81 @@ class MusicBrainzSearcher:
             logger.debug(f"Found {len(results)} MusicBrainz works")
             return results
 
-        except requests.exceptions.Timeout:
-            logger.warning("MusicBrainz search timed out")
-            return []
-        except requests.exceptions.RequestException as e:
-            logger.error(f"MusicBrainz search failed: {e}")
-            return []
+        except MusicBrainzUnavailable:
+            # Never downgrade an outage to "no matches" — let the caller
+            # tell the user that search is unavailable.
+            raise
         except Exception as e:
-            logger.error(f"Error searching MusicBrainz: {e}")
+            # A malformed/unexpected payload from an otherwise healthy
+            # MusicBrainz. Nothing to show, but nothing to retry either.
+            logger.error(f"Error parsing MusicBrainz search results: {e}")
             return []
+
+    def _search_works_request(self, query, limit):
+        """Run one work-search query, retrying transient MusicBrainz errors.
+
+        MusicBrainz sheds load with a 503 ("The MusicBrainz web server is
+        currently busy") often enough that a single attempt fails a few
+        percent of the time. Matches the backoff used by get_work_recordings
+        and the other detail fetches.
+
+        Raises:
+            MusicBrainzUnavailable: after the retry budget is exhausted.
+        """
+        max_retries = 3
+        last_reason = 'unknown'
+        attempts_used = 0
+
+        for attempt in range(max_retries):
+            attempts_used = attempt + 1
+            if attempt > 0:
+                # 1s, 2s. Shorter than the importers' 2s/4s because this
+                # path is a user waiting on a search sheet, not a batch job.
+                backoff_time = 2 ** (attempt - 1)
+                logger.warning(f"BACKOFF: MusicBrainz work search retry "
+                               f"{attempt + 1}/{max_retries}, waiting {backoff_time}s "
+                               f"(query={query})")
+                time.sleep(backoff_time)
+
+            self.rate_limit()
+
+            try:
+                response = self.session.get(
+                    'https://musicbrainz.org/ws/2/work/',
+                    params={
+                        'query': query,
+                        'fmt': 'json',
+                        'limit': limit
+                    },
+                    timeout=10
+                )
+
+                if response.status_code == 200:
+                    return response.json()
+
+                if response.status_code in (503, 429):
+                    last_reason = f'HTTP {response.status_code}'
+                    logger.warning(f"MusicBrainz work search {last_reason} (transient)")
+                    continue
+
+                # 4xx other than 429 is our fault, not theirs — a retry
+                # would just repeat the same bad request.
+                last_reason = f'HTTP {response.status_code}'
+                logger.error(f"MusicBrainz work search failed: {last_reason}")
+                break
+
+            except requests.exceptions.Timeout:
+                last_reason = 'timeout'
+                logger.warning("MusicBrainz work search timed out")
+                continue
+            except requests.exceptions.RequestException as e:
+                last_reason = str(e)
+                logger.warning(f"MusicBrainz work search connection error: {e}")
+                continue
+
+        raise MusicBrainzUnavailable(
+            f"MusicBrainz work search failed after {attempts_used} attempt(s) ({last_reason})"
+        )
 
     def _escape_lucene_query(self, text):
         """

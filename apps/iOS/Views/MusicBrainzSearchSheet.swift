@@ -17,6 +17,8 @@ struct MusicBrainzSearchSheet: View {
 
     @State private var searchResults: [MusicBrainzWork] = []
     @State private var isSearching = false
+    /// The search itself failed, as opposed to returning no matches.
+    @State private var searchFailed = false
     @State private var selectedWork: MusicBrainzWork?
     @State private var isSubmitting = false
     @State private var resultTitle: String?
@@ -28,6 +30,8 @@ struct MusicBrainzSearchSheet: View {
             VStack(spacing: 0) {
                 if isSearching {
                     loadingView
+                } else if searchFailed {
+                    unavailableView
                 } else if searchResults.isEmpty {
                     emptyView
                 } else {
@@ -107,6 +111,40 @@ struct MusicBrainzSearchSheet: View {
             ThemedProgressView(message: "Searching MusicBrainz...", tintColor: ApproachNoteTheme.brand)
             Spacer()
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var unavailableView: some View {
+        VStack(spacing: ApproachNoteTheme.spacingMD) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 60))
+                .foregroundColor(ApproachNoteTheme.textSecondary.opacity(0.5))
+
+            Text("Search Unavailable")
+                .font(ApproachNoteTheme.headline())
+                .foregroundColor(ApproachNoteTheme.textPrimary)
+
+            Text("We couldn't reach MusicBrainz just now. This is usually temporary.")
+                .font(ApproachNoteTheme.subheadline())
+                .foregroundColor(ApproachNoteTheme.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            Button {
+                Task {
+                    await performSearch()
+                }
+            } label: {
+                HStack {
+                    Image(systemName: "arrow.clockwise")
+                    Text("Try Again")
+                }
+            }
+            .buttonStyle(.bordered)
+            .tint(ApproachNoteTheme.brand)
+            .padding(.top, ApproachNoteTheme.spacingXS)
+        }
+        .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
@@ -222,7 +260,14 @@ struct MusicBrainzSearchSheet: View {
 
     private func performSearch() async {
         isSearching = true
-        searchResults = await musicBrainzService.searchMusicBrainzWorks(query: searchQuery)
+        switch await musicBrainzService.searchMusicBrainzWorks(query: searchQuery) {
+        case .results(let works):
+            searchResults = works
+            searchFailed = false
+        case .unavailable:
+            searchResults = []
+            searchFailed = true
+        }
         isSearching = false
     }
 

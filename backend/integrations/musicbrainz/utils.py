@@ -9,7 +9,7 @@ Existing callers that do `from integrations.musicbrainz.utils import X` keep
 working — new code should import from the real module.
 """
 
-from integrations.musicbrainz.client import MusicBrainzSearcher
+from integrations.musicbrainz.client import MusicBrainzSearcher, MusicBrainzUnavailable
 from integrations.musicbrainz.song_updates import (
     update_song_composed_year,
     update_song_composer,
@@ -18,6 +18,7 @@ from integrations.musicbrainz.song_updates import (
 
 __all__ = [
     'MusicBrainzSearcher',
+    'MusicBrainzUnavailable',
     'update_song_composer',
     'update_song_wikipedia_url',
     'update_song_composed_year',
