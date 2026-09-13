@@ -31,9 +31,6 @@ struct SongDetailView: View {
     @State private var alertMessage = ""
     @State private var isAddingToRepertoire = false
 
-    // Song refresh management
-    @State private var showRefreshConfirmation = false
-
     // NEW: Toast notification
     @State private var toast: ToastItem?
 
@@ -140,9 +137,29 @@ struct SongDetailView: View {
                         .font(ApproachNoteTheme.largeTitle(weight: .regular))
                         .foregroundColor(ApproachNoteTheme.textSecondary)
                 )
-                .onLongPressGesture {
-                    if canQueueForRefresh {
-                        showRefreshConfirmation = true
+                // Long-press the title to re-research the song. This used to be a
+                // confirmationDialog, but on iPad that presents as a popover, and
+                // on iPadOS 26 (with the app's UIDesignRequiresCompatibility
+                // opt-out) the popover renders as an empty panel over the tab bar
+                // with no readable content. A context menu draws its own chrome,
+                // anchors to the title, and is the natural match for a long press.
+                .contextMenu {
+                    Section("Refresh Song Data") {
+                        if canQueueForRefresh {
+                            Button {
+                                refreshSongData(forceRefresh: false)
+                            } label: {
+                                Label("Quick Refresh", systemImage: "arrow.clockwise")
+                            }
+                            Button {
+                                refreshSongData(forceRefresh: true)
+                            } label: {
+                                Label("Full Refresh", systemImage: "arrow.triangle.2.circlepath")
+                            }
+                            Text("Quick uses cached data. Full re-fetches everything.")
+                        } else {
+                            Text("This song is already queued for research.")
+                        }
                     }
                 }
 
@@ -345,21 +362,6 @@ struct SongDetailView: View {
                 Button("OK", role: .cancel) { }
             } message: {
                 Text(alertMessage)
-            }
-            .confirmationDialog(
-                "Refresh Song Data",
-                isPresented: $showRefreshConfirmation,
-                titleVisibility: .visible
-            ) {
-                Button("Quick Refresh") {
-                    refreshSongData(forceRefresh: false)
-                }
-                Button("Full Refresh") {
-                    refreshSongData(forceRefresh: true)
-                }
-                Button("Cancel", role: .cancel) { }
-            } message: {
-                Text("Quick refresh uses cached data for faster results. Full refresh re-fetches everything from external sources.")
             }
             .toast($toast)
             .onDisappear {

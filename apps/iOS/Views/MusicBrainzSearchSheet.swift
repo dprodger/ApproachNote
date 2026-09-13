@@ -12,6 +12,7 @@ struct MusicBrainzSearchSheet: View {
     let onSongImported: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @EnvironmentObject var authManager: AuthenticationManager
     @StateObject private var musicBrainzService = MusicBrainzService()
 
@@ -73,31 +74,39 @@ struct MusicBrainzSearchSheet: View {
             } message: {
                 Text(resultMessage)
             }
-            .confirmationDialog(
-                "Request Song",
-                isPresented: .constant(selectedWork != nil && !isSubmitting),
-                titleVisibility: .visible
-            ) {
-                if let work = selectedWork {
-                    Button("Request \"\(work.title)\"") {
-                        Task {
-                            await requestSong(work)
-                        }
-                    }
-
-                    if let url = URL(string: work.musicbrainzUrl) {
-                        Link("View on MusicBrainz", destination: url)
-                    }
-
-                    Button("Cancel", role: .cancel) {
-                        selectedWork = nil
-                    }
-                }
-            } message: {
-                if let work = selectedWork {
-                    Text("Request that \"\(work.title)\" by \(work.composerDisplay) be added? We'll review it and add the song if it's a good fit.")
+        }
+        // An alert rather than a confirmationDialog: on iPad a dialog is presented
+        // as a popover, and on iPadOS 26 (with the app's
+        // UIDesignRequiresCompatibility opt-out) that popover renders with no
+        // readable content. Alerts are unaffected, but SwiftUI only honours one
+        // alert per view, so this one hangs off the NavigationStack while the
+        // result alert above stays on its content. Alerts also only take buttons,
+        // so the MusicBrainz link opens through the environment.
+        .alert(
+            "Request Song",
+            isPresented: Binding(
+                get: { selectedWork != nil && !isSubmitting },
+                set: { if !$0 { selectedWork = nil } }
+            ),
+            presenting: selectedWork
+        ) { work in
+            Button("Request \"\(work.title)\"") {
+                Task {
+                    await requestSong(work)
                 }
             }
+
+            if let url = URL(string: work.musicbrainzUrl) {
+                Button("View on MusicBrainz") {
+                    openURL(url)
+                }
+            }
+
+            Button("Cancel", role: .cancel) {
+                selectedWork = nil
+            }
+        } message: { work in
+            Text("Request that \"\(work.title)\" by \(work.composerDisplay) be added? We'll review it and add the song if it's a good fit.")
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
