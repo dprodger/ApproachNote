@@ -76,7 +76,17 @@ struct RecordingsSection: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
-            LazyVStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+            // Deliberately an eager VStack, not a LazyVStack. Each child is a
+            // collapsed accordion header (a Button with two Texts) and, when
+            // open, a horizontal ScrollView + LazyHStack of cards. Nesting that
+            // inside a lazy stack makes SwiftUI's lazy-layout pass fail to reach
+            // a fixed point on long lists: on iPad, "All of Me" (701 shell rows)
+            // spun the main thread at 100% forever inside
+            // LazyVStackLayout.finalPlacement -> LazyHStackLayout.initialPlacement,
+            // so no touch was delivered and cover art never loaded. Making the
+            // outer stack eager settles it, and costs little — this stack holds
+            // one row per group, not one per recording.
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 if !filteredRecordings.isEmpty {
                     ForEach(groupedRecordings, id: \.groupKey) { group in
                         groupAccordion(group: group)

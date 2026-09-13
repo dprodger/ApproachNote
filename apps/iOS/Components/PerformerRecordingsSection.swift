@@ -41,7 +41,16 @@ struct PerformerRecordingsSection: View {
             controlsBar
                 .padding(.horizontal, ApproachNoteTheme.spacingXL)
 
-            LazyVStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
+            // Eager VStack, not LazyVStack — same reason as the song-detail
+            // RecordingsSection. A lazy outer stack whose children each hold a
+            // horizontal ScrollView + LazyHStack makes SwiftUI's lazy-layout
+            // pass fail to settle on long lists: on iPad, Louis Armstrong
+            // (3231 recordings) pinned the main thread at 100% indefinitely
+            // inside LazyVStackLayout.finalPlacement ->
+            // LazyHStackLayout.initialPlacement. This stack holds one row per
+            // group (decade or song title), not one per recording, so building
+            // it eagerly is cheap.
+            VStack(alignment: .leading, spacing: ApproachNoteTheme.spacingSM) {
                 if !filteredRecordings.isEmpty {
                     ForEach(groupedRecordings, id: \.groupKey) { group in
                         groupAccordion(group: group)
