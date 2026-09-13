@@ -8,6 +8,17 @@
          system bar no longer applies. -->
     <key>UIDesignRequiresCompatibility</key>
     <true/>
+
+    <!-- The palette in ApproachNoteTheme is a single hardcoded light scheme, so
+         the app's own screens render light whatever the device is set to. Without
+         this key the system surfaces we don't draw — alerts, menus, the share
+         sheet, the keyboard — follow the device into dark mode and stop matching,
+         and brand-tinted alert buttons become navy on near-black. Declaring the
+         app light-only keeps system chrome in step with the palette. The Mac app
+         does the same with .preferredColorScheme(.light). -->
+    <key>UIUserInterfaceStyle</key>
+    <string>Light</string>
+
     <key>CFBundleDevelopmentRegion</key>
     <string>$(DEVELOPMENT_LANGUAGE)</string>
     <key>CFBundleExecutable</key>

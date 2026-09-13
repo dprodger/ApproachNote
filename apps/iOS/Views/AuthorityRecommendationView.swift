@@ -151,41 +151,37 @@ struct AuthorityRecommendationsView: View {
                     showingAddSheet = false
                 }
             }
-            .confirmationDialog(
+            // Alerts rather than confirmationDialogs: on iPad a dialog is presented
+            // as a popover, and on iPadOS 26 (with the app's
+            // UIDesignRequiresCompatibility opt-out) that popover renders with no
+            // readable content. Alerts are unaffected.
+            .alert(
                 "Delete Authority Reference",
                 isPresented: $showingDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
+                presenting: deleteTarget
+            ) { authority in
                 Button("Delete", role: .destructive) {
-                    if let authority = deleteTarget {
-                        Task { await deleteAuthority(authority) }
-                    }
+                    Task { await deleteAuthority(authority) }
                 }
                 Button("Cancel", role: .cancel) {
                     deleteTarget = nil
                 }
-            } message: {
-                if let authority = deleteTarget {
-                    Text("Remove this \(authority.sourceDisplayName) reference from the recording?")
-                }
+            } message: { authority in
+                Text("Remove this \(authority.sourceDisplayName) reference from the recording?")
             }
-            .confirmationDialog(
+            .alert(
                 "Link to This Recording",
                 isPresented: $showingLinkConfirmation,
-                titleVisibility: .visible
-            ) {
+                presenting: linkTarget
+            ) { authority in
                 Button("Link to \(albumTitle)") {
-                    if let authority = linkTarget {
-                        Task { await linkAuthority(authority) }
-                    }
+                    Task { await linkAuthority(authority) }
                 }
                 Button("Cancel", role: .cancel) {
                     linkTarget = nil
                 }
-            } message: {
-                if let authority = linkTarget {
-                    Text("Link \"\(authority.artistName ?? "Unknown") - \(authority.albumTitle ?? "Unknown")\" to this recording?")
-                }
+            } message: { authority in
+                Text("Link \"\(authority.artistName ?? "Unknown") - \(authority.albumTitle ?? "Unknown")\" to this recording?")
             }
             .overlay {
                 if linkingInProgress {

@@ -149,11 +149,11 @@ struct RecordingContributionEditView: View {
             } message: {
                 Text(errorMessage)
             }
-            .confirmationDialog(
-                "Delete Contribution",
-                isPresented: $showDeleteConfirmation,
-                titleVisibility: .visible
-            ) {
+            // An alert rather than a confirmationDialog: on iPad a dialog is
+            // presented as a popover, and on iPadOS 26 (with the app's
+            // UIDesignRequiresCompatibility opt-out) that popover renders with no
+            // readable content. Alerts are unaffected.
+            .alert("Delete Contribution", isPresented: $showDeleteConfirmation) {
                 Button("Delete", role: .destructive) {
                     deleteContribution()
                 }

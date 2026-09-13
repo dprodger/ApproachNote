@@ -94,11 +94,11 @@ struct YouTubeImportView: View {
                 )
             }
         }
-        .confirmationDialog(
-            "Link to Recording?",
-            isPresented: $showingRecordingChoice,
-            titleVisibility: .visible
-        ) {
+        // An alert rather than a confirmationDialog: on iPad a dialog is presented
+        // as a popover, and on iPadOS 26 (with the app's
+        // UIDesignRequiresCompatibility opt-out) that popover renders with no
+        // readable content. Alerts are unaffected.
+        .alert("Link to Recording?", isPresented: $showingRecordingChoice) {
             Button("Pick a Recording") {
                 showingRecordingPicker = true
             }
