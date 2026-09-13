@@ -82,6 +82,19 @@ struct SongRequestErrorResponse: Codable {
     let error: String
 }
 
+/// Outcome of a MusicBrainz work search, surfaced to the UI.
+///
+/// The two cases must stay distinct: an empty `results` array means
+/// MusicBrainz answered and had no matching work, while `unavailable` means
+/// MusicBrainz never answered. Telling a user "no results" when the service
+/// was down sends them off to add a song that is already there.
+enum MusicBrainzSearchResult {
+    /// MusicBrainz answered. The array may be empty, meaning no matches.
+    case results([MusicBrainzWork])
+    /// MusicBrainz could not be reached, or the API call failed.
+    case unavailable
+}
+
 /// Outcome of submitting a song request, surfaced to the UI.
 enum SongRequestResult {
     /// The request was recorded and is awaiting admin review.

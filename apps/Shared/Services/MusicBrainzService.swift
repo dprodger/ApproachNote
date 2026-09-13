@@ -7,8 +7,12 @@ import os
 @MainActor
 class MusicBrainzService: ObservableObject {
 
-    /// Search MusicBrainz for works (songs) by title
-    func searchMusicBrainzWorks(query: String) async -> [MusicBrainzWork] {
+    /// Search MusicBrainz for works (songs) by title.
+    ///
+    /// Returns `.unavailable` rather than an empty result set when the search
+    /// itself failed, so the UI can say "try again" instead of wrongly telling
+    /// the user MusicBrainz has no such song.
+    func searchMusicBrainzWorks(query: String) async -> MusicBrainzSearchResult {
         let startTime = Date()
 
         let encodedQuery = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
@@ -18,7 +22,8 @@ class MusicBrainzService: ObservableObject {
             let (data, response) = try await URLSession.shared.data(from: url)
 
             guard let httpResponse = response as? HTTPURLResponse else {
-                return []
+                Log.network.error("Error searching MusicBrainz: non-HTTP response")
+                return .unavailable
             }
 
             APIClient.logRequest("GET /musicbrainz/works/search", startTime: startTime)
@@ -28,14 +33,16 @@ class MusicBrainzService: ObservableObject {
                 if APIClient.diagnosticsEnabled {
                     Log.network.debug("Found \(searchResponse.results.count, privacy: .public) MusicBrainz works")
                 }
-                return searchResponse.results
+                return .results(searchResponse.results)
             } else {
+                // 503 is the backend reporting that MusicBrainz is down; any
+                // other status is our own failure. Neither means "no matches".
                 Log.network.error("Error searching MusicBrainz: HTTP \(httpResponse.statusCode, privacy: .public)")
-                return []
+                return .unavailable
             }
         } catch {
             Log.network.error("Error searching MusicBrainz: \(error)")
-            return []
+            return .unavailable
         }
     }
 
