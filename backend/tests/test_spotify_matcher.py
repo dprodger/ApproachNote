@@ -37,6 +37,7 @@ from integrations.spotify.matching import (
     strip_mb_year_disambiguator,
     strip_track_decorations,
     track_artist_matches_recording_leader,
+    version_keyword_is_album_wide,
     _strip_common_affixes,
     _strip_trailing_balanced_parens,
     validate_album_match,
@@ -229,6 +230,80 @@ class TestHasVersionKeyword:
     ])
     def test_classifies_titles(self, title, expected):
         assert has_version_keyword(title) is expected
+
+
+class TestVersionKeywordIsAlbumWide:
+    """Production case: Keith Jarrett's "After the Fall" (MB release
+    01dd675f, Spotify album 6KCtVTAKemrqpVZLLdxB2c). Spotify suffixes
+    all twelve tracks " - Live" and titles the album "After The Fall
+    (Live)"; MusicBrainz annotates neither. The asymmetry rejection then
+    threw away a 105%-title, 53ms-duration match for "I'll See You
+    Again" — and with it the whole album link.
+
+    The inverse case (a lone studio "Peace" on Day Breaks, matched from
+    an MB title of "Peace (live at Newport)") must still be rejected, so
+    a mostly-studio tracklist must NOT read as album-wide."""
+
+    def _tracks(self, *names):
+        return [{'name': n} for n in names]
+
+    def test_all_tracks_annotated_is_album_wide(self):
+        tracks = self._tracks(
+            "The Masquerade Is Over - Live",
+            "Scrapple From The Apple - Live",
+            "Old Folks - Live",
+            "I’ll See You Again - Live",
+        )
+        assert version_keyword_is_album_wide(tracks) is True
+
+    def test_annotated_album_title_alone_is_enough(self):
+        # Tracklist unavailable or unannotated, but the album itself is
+        # labelled — that labels the whole release.
+        assert version_keyword_is_album_wide(
+            [], "After The Fall (Live)") is True
+        assert version_keyword_is_album_wide(
+            self._tracks("Autumn Leaves"), "At The Deer Head Inn (Live)"
+        ) is True
+
+    def test_studio_album_with_one_live_cut_is_not_album_wide(self):
+        # The Peace / Day Breaks shape: the keyword here really does
+        # distinguish one track from the rest.
+        tracks = self._tracks(
+            "Peace",
+            "Waltz For Debby",
+            "Blue Moon",
+            "Everything Happens To Me",
+            "Bouncing With Bud (Live)",
+        )
+        assert version_keyword_is_album_wide(tracks) is False
+
+    def test_mixed_album_below_ratio_is_not_album_wide(self):
+        # 3 of 5 annotated = 60%, under the 80% bar.
+        tracks = self._tracks(
+            "One - Live", "Two - Live", "Three - Live", "Four", "Five",
+        )
+        assert version_keyword_is_album_wide(tracks) is False
+
+    def test_at_ratio_boundary_is_album_wide(self):
+        # 4 of 5 = 80%, exactly the bar.
+        tracks = self._tracks(
+            "One - Live", "Two - Live", "Three - Live", "Four - Live", "Five",
+        )
+        assert version_keyword_is_album_wide(tracks) is True
+
+    @pytest.mark.parametrize("tracks,album", [
+        (None, None),
+        ([], None),
+        ([], ""),
+        ([{}, {}], None),                      # dicts without 'name'
+        ([{'name': None}], None),
+    ])
+    def test_no_evidence_keeps_strict_behavior(self, tracks, album):
+        assert version_keyword_is_album_wide(tracks, album) is False
+
+    def test_unannotated_album_is_not_album_wide(self):
+        tracks = self._tracks("Autumn Leaves", "Blue In Green", "So What")
+        assert version_keyword_is_album_wide(tracks, "Kind Of Blue") is False
 
 
 class TestTrackArtistMatchesRecordingLeader:

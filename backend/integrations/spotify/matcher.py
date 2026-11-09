@@ -33,6 +33,7 @@ from integrations.spotify.matching import (
     duration_confidence,
     check_album_context_via_tracklist,
     has_version_keyword,
+    version_keyword_is_album_wide,
     is_compilation_artist,
     match_track_to_recording,
     track_artist_matches_recording_leader,
@@ -454,6 +455,7 @@ class SpotifyMatcher:
                             alt_titles=song.get('alt_titles'),
                             spotify_tracks=spotify_tracks,
                             expected_album_artist=artist_name,
+                            spotify_album_name=spotify_match.get('name'),
                         )
 
                         if track_matched:
@@ -532,7 +534,8 @@ class SpotifyMatcher:
                                   spotify_album_id: str, song_title: str,
                                   alt_titles: List[str] = None,
                                   spotify_tracks: List[dict] = None,
-                                  expected_album_artist: str = None) -> bool:
+                                  expected_album_artist: str = None,
+                                  spotify_album_name: str = None) -> bool:
         """
         Match Spotify tracks to recordings for a release
 
@@ -559,6 +562,11 @@ class SpotifyMatcher:
                 the matcher post-validates each track-level artist
                 against the recording's leader performer, since the
                 album-level artist check at search time was bypassed.
+            spotify_album_name: The matched Spotify album's title, when
+                known. Used to recognise album-wide version labelling
+                ("After The Fall (Live)"), which must not trigger the
+                version-keyword asymmetry rejection below. Safe to omit —
+                the per-track ratio check covers the same ground.
 
         Returns:
             bool: True if at least one track was matched, False otherwise
@@ -752,17 +760,54 @@ class SpotifyMatcher:
                 query_has_version = has_version_keyword(track_title)
                 candidate_has_version = has_version_keyword(matched_track['name'])
                 if query_has_version != candidate_has_version:
-                    self.logger.info(
-                        f"      Rejecting version-asymmetric match: "
-                        f"'{track_title}' (version-keyword={query_has_version}) → "
-                        f"'{matched_track['name']}' (version-keyword={candidate_has_version})"
+                    # Two escapes, each covering a case where the asymmetry
+                    # is labelling convention rather than a performance
+                    # difference. Both only ever apply when the keyword is on
+                    # the SPOTIFY side: an annotation on the MB side that
+                    # Spotify lacks is the original Peace-vs-studio case and
+                    # stays rejected regardless of the album.
+                    #
+                    # 1. Album-wide labelling. Spotify suffixes every track
+                    #    on a live album " - Live" and titles the album
+                    #    "(Live)"; MB annotates neither. The keyword then
+                    #    says nothing about which performance this is.
+                    # 2. Tight duration. A sub-5s delta on a title that
+                    #    otherwise scores as a match is the same take —
+                    #    the Peace false positive leaned on a 63s gap.
+                    album_wide = (
+                        candidate_has_version
+                        and not query_has_version
+                        and version_keyword_is_album_wide(
+                            spotify_tracks, spotify_album_name)
                     )
-                    if recording.get('spotify_track_id'):
-                        clear_recording_release_track(
-                            conn, recording['recording_id'], release_id,
-                            dry_run=self.dry_run, log=self.logger)
-                    self.stats['tracks_no_match'] += 1
-                    continue
+                    duration_is_tight = bool(
+                        candidate_has_version
+                        and not query_has_version
+                        and recording_duration_ms
+                        and matched_track.get('duration_ms')
+                        and abs(recording_duration_ms
+                                - matched_track['duration_ms']) <= 5000
+                    )
+                    if album_wide or duration_is_tight:
+                        reason = ('album-wide version labelling' if album_wide
+                                  else 'duration within 5s')
+                        self.logger.debug(
+                            f"      Allowing version-asymmetric match "
+                            f"({reason}): '{track_title}' → "
+                            f"'{matched_track['name']}'"
+                        )
+                    else:
+                        self.logger.info(
+                            f"      Rejecting version-asymmetric match: "
+                            f"'{track_title}' (version-keyword={query_has_version}) → "
+                            f"'{matched_track['name']}' (version-keyword={candidate_has_version})"
+                        )
+                        if recording.get('spotify_track_id'):
+                            clear_recording_release_track(
+                                conn, recording['recording_id'], release_id,
+                                dry_run=self.dry_run, log=self.logger)
+                        self.stats['tracks_no_match'] += 1
+                        continue
 
                 match_method = 'album_context' if rescued else 'fuzzy_search'
                 update_recording_release_track_id(
