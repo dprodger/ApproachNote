@@ -224,6 +224,55 @@ def has_version_keyword(title: str) -> bool:
     return bool(_VERSION_KEYWORD_RE.search(title))
 
 
+# Fraction of a Spotify album's tracks that must carry a version keyword
+# before we treat the keyword as album-wide labelling rather than a
+# recording-level distinction. Deliberately high: a genuinely mixed album
+# (a few bonus live cuts on a studio record) must NOT clear this bar,
+# because there the keyword really does distinguish one track from another.
+_ALBUM_WIDE_VERSION_RATIO = 0.8
+
+
+def version_keyword_is_album_wide(spotify_tracks: list,
+                                  spotify_album_name: str = None) -> bool:
+    """True when a version keyword on a Spotify track title is album-wide
+    boilerplate rather than a recording-level distinction.
+
+    Spotify labels every track on a live album with a " - Live" suffix and
+    titles the album itself "<Name> (Live)". MusicBrainz does not annotate
+    the individual tracks of a live release. The result is a systematic
+    asymmetry — MB "I'll See You Again" vs Spotify "I'll See You Again -
+    Live" — that carries no information about *which* performance a track
+    is, so has_version_keyword's asymmetry rejection must not fire on it.
+
+    This is the inverse of the case that rejection exists for: an MB title
+    of "Peace (live at Newport)" against a lone studio "Peace" on an
+    otherwise-studio album. There the keyword is the only signal that the
+    two are different performances, and `spotify_tracks` will not clear the
+    album-wide bar.
+
+    Args:
+        spotify_tracks: The album's tracks as returned by
+            SpotifyClient.get_album_tracks (dicts with a 'name' key).
+            An empty or missing list returns False — with nothing to
+            compare against, we keep the stricter behavior.
+        spotify_album_name: The Spotify album title, when known. An
+            annotated album title ("After The Fall (Live)") is on its own
+            enough, since it labels the whole release.
+
+    Returns:
+        True when the keyword should be treated as album-wide labelling.
+    """
+    if spotify_album_name and has_version_keyword(spotify_album_name):
+        return True
+
+    names = [t.get('name') for t in (spotify_tracks or []) if t.get('name')]
+    if not names:
+        return False
+
+    annotated = sum(1 for n in names if has_version_keyword(n))
+    return (annotated / len(names)) >= _ALBUM_WIDE_VERSION_RATIO
+
+
 def track_artist_matches_recording_leader(
     recording_leader: str,
     track_artists: list,
